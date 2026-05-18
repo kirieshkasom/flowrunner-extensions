@@ -46,10 +46,7 @@ class MailerSend {
     this.mailerSend = new MailerSendApi({ apiKey: this.apiKey })
   }
 
-  /**
-   * @private
-   */
-  async getIdentityById(id) {
+  async #getIdentityById(id) {
     if (!id) {
       return null
     }
@@ -62,10 +59,7 @@ class MailerSend {
       })
   }
 
-  /**
-   * @private
-   */
-  async getBase64File(url) {
+  async #getBase64File(url) {
     try {
       const content = await Flowrunner.Request.get(url).setEncoding('base64')
       const filename = url.split('/').pop()
@@ -76,29 +70,20 @@ class MailerSend {
     }
   }
 
-  /**
-   * @private
-   */
-  parseEmailRecipients(recipients) {
+  #parseEmailRecipients(recipients) {
     return (Array.isArray(recipients) ? recipients : [recipients]).map(recipient =>
       typeof recipient === 'string' ? { email: recipient } : recipient
     )
   }
 
-  /**
-   * @private
-   */
-  async getDomains() {
+  async #getDomains() {
     return this.mailerSend.email.domain
       .list()
       .then(response => response.body.data)
       .catch(e => logger.error(e.body.message))
   }
 
-  /**
-   * @private
-   */
-  async createWebhook(events, domainId, callbackUrl) {
+  async #createWebhook(events, domainId, callbackUrl) {
     const webhook = new EmailWebhook()
       .setName('MailerSendWebhook')
       .setUrl(callbackUrl)
@@ -112,10 +97,7 @@ class MailerSend {
       .catch(e => logger.error(e.body.message))
   }
 
-  /**
-   * @private
-   */
-  async deleteWebhook(webhookId) {
+  async #deleteWebhook(webhookId) {
     return this.mailerSend.email.webhook.delete(webhookId).catch(e => logger.error(e.body.message))
   }
 
@@ -127,14 +109,14 @@ class MailerSend {
   async handleTriggerUpsertWebhook(invocation) {
     logger.debug(`handleTriggerUpsertWebhook: ${ JSON.stringify(invocation) }`)
 
-    const domains = await this.getDomains()
+    const domains = await this.#getDomains()
     const domainId = domains[0]?.id
     logger.debug(`domainId: ${ domainId }`)
 
     const events = invocation.events.map(event => EventTypes[event.name])
     logger.debug(`events: ${ JSON.stringify(events) }`)
 
-    const webhookData = await this.createWebhook(events, domainId, invocation.callbackUrl)
+    const webhookData = await this.#createWebhook(events, domainId, invocation.callbackUrl)
     logger.debug(`webhookData: ${ JSON.stringify(webhookData) }`)
 
     return { webhookData, eventScopeId: domainId }
@@ -183,7 +165,7 @@ class MailerSend {
   async handleTriggerDeleteWebhook(invocation) {
     logger.debug(`handleTriggerDeleteWebhook: ${ invocation }`)
 
-    await this.deleteWebhook(invocation.webhookData.id)
+    await this.#deleteWebhook(invocation.webhookData.id)
 
     return {}
   }
@@ -681,14 +663,14 @@ class MailerSend {
    * @sampleResult {"headers":{"date":"Wed,05Mar202521:20:32GMT","server":"cloudflare","cf-ray":"test-ray-id-123456-DFW","transfer-encoding":"chunked","x-ratelimit-limit":"10","x-message-id":"test-message-id-abcdef123456","x-apiquota-reset":"2025-03-06T00:00:00Z","cf-cache-status":"DYNAMIC","x-ratelimit-remaining":"9","strict-transport-security":"max-age=31536000;includeSubDomains","x-apiquota-remaining":"999","connection":"close","content-type":"text/html;charset=UTF-8","cache-control":"no-cache,private"},"body":"","statusCode":202}
    */
   async sendEmail(senderId, toName, toEmail, subject, htmlBody, textBody, attachments) {
-    const sender = await this.getIdentityById(senderId)
+    const sender = await this.#getIdentityById(senderId)
     const sentFrom = new Sender(sender?.email || this.fromEmail, sender?.name || this.fromName)
     const recipients = [new Recipient(toEmail, toName || null)]
 
     let attachmentsData
 
     if (attachments && attachments.length) {
-      const attachmentPromises = attachments?.map(this.getBase64File)
+      const attachmentPromises = attachments?.map(this.#getBase64File)
       const attachmentResults = await Promise.all(attachmentPromises)
 
       attachmentsData = attachmentResults.map(att => new Attachment(att.content, att.filename, 'attachment'))
@@ -732,13 +714,13 @@ class MailerSend {
    * @sampleResult {"headers":{"date":"Wed,05Mar202521:20:32GMT","server":"cloudflare","cf-ray":"test-ray-id-123456-DFW","transfer-encoding":"chunked","x-ratelimit-limit":"10","x-message-id":"test-message-id-abcdef123456","x-apiquota-reset":"2025-03-06T00:00:00Z","cf-cache-status":"DYNAMIC","x-ratelimit-remaining":"9","strict-transport-security":"max-age=31536000;includeSubDomains","x-apiquota-remaining":"999","connection":"close","content-type":"text/html;charset=UTF-8","cache-control":"no-cache,private"},"body":"","statusCode":202}
    */
   async sendEmailWithCcAndBcc(senderId, to, cc, bcc, subject, htmlBody, textBody, attachments) {
-    const sender = await this.getIdentityById(senderId)
+    const sender = await this.#getIdentityById(senderId)
     const sentFrom = new Sender(sender?.email || this.fromEmail, sender?.name || this.fromName)
 
     let attachmentsData
 
     if (attachments && attachments.length) {
-      const attachmentPromises = attachments?.map(this.getBase64File)
+      const attachmentPromises = attachments?.map(this.#getBase64File)
       const attachmentResults = await Promise.all(attachmentPromises)
 
       attachmentsData = attachmentResults.map(att => new Attachment(att.content, att.filename, 'attachment'))
@@ -746,18 +728,18 @@ class MailerSend {
 
     const emailParams = new EmailParams()
       .setFrom(sentFrom)
-      .setTo(this.parseEmailRecipients(to))
+      .setTo(this.#parseEmailRecipients(to))
       .setSubject(subject)
       .setHtml(htmlBody)
       .setText(textBody)
       .setAttachments(attachmentsData)
 
     if (!!cc) {
-      emailParams.setCc(this.parseEmailRecipients(cc))
+      emailParams.setCc(this.#parseEmailRecipients(cc))
     }
 
     if (!!bcc) {
-      emailParams.setBcc(this.parseEmailRecipients(bcc))
+      emailParams.setBcc(this.#parseEmailRecipients(bcc))
     }
 
     logger.debug(`sendEmailWithCcAndBcc: ${ JSON.stringify(emailParams) }`)
@@ -799,7 +781,7 @@ class MailerSend {
     trackOpens,
     trackContent
   ) {
-    const sender = await this.getIdentityById(senderId)
+    const sender = await this.#getIdentityById(senderId)
     const sentFrom = new Sender(sender?.email || this.fromEmail, sender?.name || this.fromName)
 
     const trackingOptions = {
@@ -810,7 +792,7 @@ class MailerSend {
 
     const emailParams = new EmailParams()
       .setFrom(sentFrom)
-      .setTo(this.parseEmailRecipients(to))
+      .setTo(this.#parseEmailRecipients(to))
       .setSubject(subject)
       .setTemplateId(templateId)
       .setSettings(trackingOptions)

@@ -59,14 +59,11 @@ class Asana {
         .query(query)
         .send(body)
     } catch (error) {
-      this.handleError(error)
+      this.#handleError(error)
     }
   }
 
-  /**
-   * @private
-   */
-  handleError(e) {
+  #handleError(e) {
     const message = e?.body?.errors?.[0]?.message || e?.message || e
 
     throw new Error(message)

@@ -26,7 +26,6 @@ class MailchimpMarketing {
   }
 
   /**
-   * @private
    * @param {String} dc - Data center identifier
    * @param {String} path - API endpoint path
    * @param {Boolean} [skipMergeValidation] - Skip merge validation parameter
@@ -43,7 +42,6 @@ class MailchimpMarketing {
   }
 
   /**
-   * @private
    * @param {Object} obj - Object to clean
    * @returns {Object}
    */
@@ -61,7 +59,6 @@ class MailchimpMarketing {
   }
 
   /**
-   * @private
    * @param {Array} list - List to filter
    * @param {Array} props - Properties to search in
    * @param {String} searchString - Search term
@@ -80,7 +77,6 @@ class MailchimpMarketing {
   }
 
   /**
-   * @private
    * @param {Number} cursor - Current cursor
    * @param {Number} total - Total items
    * @param {Number} limit - Items per page
@@ -91,7 +87,6 @@ class MailchimpMarketing {
   }
 
   /**
-   * @private
    * @param {Object} metadata - OAuth metadata
    * @returns {String}
    */
@@ -104,7 +99,6 @@ class MailchimpMarketing {
   }
 
   /**
-   * @private
    * @param {Object} params - Request parameters
    * @param {String} params.url - Request URL
    * @param {String} [params.method='get'] - HTTP method

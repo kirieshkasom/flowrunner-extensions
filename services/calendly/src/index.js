@@ -48,9 +48,6 @@ class CalendlyService {
     this.scopes = DEFAULT_SCOPE_STRING
   }
 
-  /**
-   * @private
-   */
   async #apiRequest({ url, method, body, query, logTag }) {
     method = method || 'get'
 
@@ -72,18 +69,12 @@ class CalendlyService {
     }
   }
 
-  /**
-   * @private
-   */
   #getAccessTokenHeader(accessToken) {
     return {
       Authorization: `Bearer ${ accessToken || this.request.headers['oauth-access-token'] }`,
     }
   }
 
-  /**
-   * @private
-   */
   #getSecretTokenHeader() {
     const token = Buffer.from(`${ this.clientId }:${ this.clientSecret }`).toString('base64')
 
@@ -216,10 +207,7 @@ class CalendlyService {
     }
   }
 
-  /**
-   * @private
-   */
-  async getCurrentAccountInfo() {
+  async #getCurrentAccountInfo() {
     const response = await this.#apiRequest({
       logTag: 'getCurrentAccountInfo',
       url: `${ API_BASE_URL }/users/me`,
@@ -269,7 +257,7 @@ class CalendlyService {
    * @returns {DictionaryResponse}
    */
   async getHostsDictionary({ search, cursor }) {
-    const me = await this.getCurrentAccountInfo()
+    const me = await this.#getCurrentAccountInfo()
 
     const { collection, pagination } = await this.#apiRequest({
       logTag: 'getHostsDictionary',
@@ -315,7 +303,7 @@ class CalendlyService {
    * @returns {DictionaryResponse}
    */
   async getScheduledEventsDictionary({ search, cursor }) {
-    const me = await this.getCurrentAccountInfo()
+    const me = await this.#getCurrentAccountInfo()
 
     const { collection, pagination } = await this.#apiRequest({
       logTag: 'getScheduledEventsDictionary',
@@ -361,7 +349,7 @@ class CalendlyService {
    * @returns {DictionaryResponse}
    */
   async getEventTypesDictionary({ search, cursor }) {
-    const me = await this.getCurrentAccountInfo()
+    const me = await this.#getCurrentAccountInfo()
 
     const { collection, pagination } = await this.#apiRequest({
       logTag: 'getEventTypesDictionary',
@@ -390,7 +378,7 @@ class CalendlyService {
   // ======================================= END OF DICTIONARIES =======================================
 
   async #createWebhook(events, invocation) {
-    const me = await this.getCurrentAccountInfo()
+    const me = await this.#getCurrentAccountInfo()
 
     const response = await this.#apiRequest({
       logTag: 'createWebhook',
@@ -739,8 +727,6 @@ class CalendlyService {
   }
 
   /**
-   * @private
-   *
    * @description Find the first host by name or email
    *
    * @route POST /find-host-by-name-or-email
@@ -759,7 +745,7 @@ class CalendlyService {
   async findHostByNameOrEmail(host) {
     host = host.toLowerCase()
 
-    const currentAccount = await this.getCurrentAccountInfo()
+    const currentAccount = await this.#getCurrentAccountInfo()
 
     if (!currentAccount.current_organization) {
       return null
@@ -803,8 +789,6 @@ class CalendlyService {
   }
 
   /**
-   * @private
-   *
    * @description Find the first event type by name
    *
    * @route POST /find-event-type-by-name
@@ -821,7 +805,7 @@ class CalendlyService {
    * @sampleResult {}
    */
   async findEventTypeByName(eventTypeName) {
-    const currentAccount = await this.getCurrentAccountInfo()
+    const currentAccount = await this.#getCurrentAccountInfo()
 
     const query = {
       user: currentAccount.uri,
@@ -938,7 +922,7 @@ class CalendlyService {
       body.host = hostObject?.uri
     }
 
-    const currentUser = !body.name || !body.host ? await this.getCurrentAccountInfo() : null
+    const currentUser = !body.name || !body.host ? await this.#getCurrentAccountInfo() : null
 
     if (!body.name) {
       body.name = `Meeting with ${ currentUser.name }`
@@ -1021,7 +1005,7 @@ class CalendlyService {
   async listUserAvailabilitySchedules(user, pageSize, pageToken) {
     // If no user is specified, get the current user
     if (!user) {
-      const currentUser = await this.getCurrentAccountInfo()
+      const currentUser = await this.#getCurrentAccountInfo()
       user = currentUser.uri
     }
 
@@ -1062,7 +1046,7 @@ class CalendlyService {
     eventType = await this.#resolveEventTypeOption(eventType)
 
     if (!eventType) {
-      const currentAccount = await this.getCurrentAccountInfo()
+      const currentAccount = await this.#getCurrentAccountInfo()
 
       const { collection } = await this.#apiRequest({
         logTag: 'getUserEventTypesList',

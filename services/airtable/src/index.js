@@ -57,9 +57,6 @@ class Airtable {
     this.scopes = DEFAULT_SCOPE_STRING
   }
 
-  /**
-   * @private
-   */
   async #apiRequest({ url, method, body, query, logTag }) {
     method = method || 'get'
 
@@ -97,18 +94,12 @@ class Airtable {
     }
   }
 
-  /**
-   * @private
-   */
   #getAccessTokenHeader(accessToken) {
     return {
       Authorization: `Bearer ${ accessToken || this.request.headers['oauth-access-token'] }`,
     }
   }
 
-  /**
-   * @private
-   */
   #getSecretTokenHeader() {
     const token = Buffer.from(`${ this.clientId }:${ this.clientSecret }`).toString('base64')
 
@@ -798,9 +789,6 @@ class Airtable {
     }
   }
 
-  /**
-   * @private
-   */
   async #getCreatedColumnName(baseId, tableIdOrName) {
     const { tables } = await this.#apiRequest({
       logTag: 'getCreatedColumnName',
@@ -817,9 +805,6 @@ class Airtable {
     return createdColumn.name
   }
 
-  /**
-   * @private
-   */
   async #getLatestRecords(baseId, tableIdOrName, sortByColumn) {
     const result = await this.#apiRequest({
       logTag: 'getLatestRecords',

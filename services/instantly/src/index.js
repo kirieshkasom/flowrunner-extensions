@@ -2796,7 +2796,7 @@ class Instantly {
    * Helper method to fetch available event types from Instantly API
    * @returns {Promise<Array>} Array of event type objects with id and label
    */
-  async getEventTypes() {
+  async #getEventTypes() {
     try {
       const response = await this.#apiRequest({
         logTag: 'getEventTypes',
@@ -3069,7 +3069,7 @@ class Instantly {
   async getEventTypesDict(payload) {
     try {
       // Fetch event types dynamically from Instantly API
-      const eventTypes = await this.getEventTypes()
+      const eventTypes = await this.#getEventTypes()
 
       // Transform to dictionary format
       const items = eventTypes.map(eventType => ({

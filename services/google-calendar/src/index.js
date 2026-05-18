@@ -669,9 +669,6 @@ class GoogleCalendarService {
 
   // ============================================ TRIGGERS =============================================
 
-  /**
-   * @private
-   */
   #getEventTimestamp(timeObj) {
     if (!timeObj) return null
 

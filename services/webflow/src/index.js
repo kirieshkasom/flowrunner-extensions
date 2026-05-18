@@ -709,18 +709,12 @@ class WebflowService {
     })
   }
 
-  /**
-   * @private
-   */
   #getAccessTokenHeader(accessToken) {
     return {
       Authorization: `Bearer ${ accessToken }`,
     }
   }
 
-  /**
-   * @private
-   */
   #resolveAccessTokens() {
     if (this.accessTokensResolved) {
       return
@@ -730,9 +724,6 @@ class WebflowService {
     this.accessTokensResolved = true
   }
 
-  /**
-   * @private
-   */
   async #apiRequest({ url, method, body, query, logTag, headers }) {
     this.#resolveAccessTokens()
 
@@ -1202,7 +1193,7 @@ class WebflowService {
     const deletePromises = unusedWebhooks.map(async webhook => {
       repo.deleteWebhook(webhook)
 
-      await this.deleteWebhook(webhook.id)
+      await this.#deleteWebhook(webhook.id)
     })
 
     const createPromises = webhooksToCreate.map(async webhook => {
@@ -1237,7 +1228,7 @@ class WebflowService {
 
     const webhooks = repo.getAllWebhooks()
 
-    await Promise.all(webhooks.map(webhook => this.deleteWebhook(webhook.id)))
+    await Promise.all(webhooks.map(webhook => this.#deleteWebhook(webhook.id)))
 
     return { webhookData: { webhooks: [] } }
   }
@@ -1358,10 +1349,7 @@ class WebflowService {
     }
   }
 
-  /**
-   * @private
-   */
-  async deleteWebhook(id) {
+  async #deleteWebhook(id) {
     return this.#apiRequest({
       logTag: 'delete webhook',
       method: 'delete',
@@ -1370,9 +1358,6 @@ class WebflowService {
     })
   }
 
-  /**
-   * @private
-   */
   async #createWebhook(invocation, { site, eventName }) {
     return this.#apiRequest({
       logTag: `create webhook - ${ eventName }`,

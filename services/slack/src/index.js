@@ -128,9 +128,6 @@ class Slack {
     this.userScope = config.scope || USER_SCOPE_STRING
   }
 
-  /**
-   * @private
-   */
   #resolveAccessTokens() {
     if (this.accessTokensResolved) {
       return
@@ -152,9 +149,6 @@ class Slack {
     }
   }
 
-  /**
-   * @private
-   */
   async #apiRequest({ url, method, body, query, logTag, bot }) {
     this.#resolveAccessTokens()
 
@@ -177,9 +171,6 @@ class Slack {
     }
   }
 
-  /**
-   * @private
-   */
   #getAccessTokenHeader(accessToken) {
     return {
       Authorization: `Bearer ${ accessToken }`,
@@ -933,7 +924,7 @@ class Slack {
     let next_cursor
 
     do {
-      const result = await this.getMembersListPage(next_cursor)
+      const result = await this.#getMembersListPage(next_cursor)
 
       members.push(...result.members)
 
@@ -945,10 +936,7 @@ class Slack {
     return members.splice(0, 10)
   }
 
-  /**
-   * @private
-   */
-  async getMembersListPage(cursor) {
+  async #getMembersListPage(cursor) {
     const result = await this.#apiRequest({
       logTag: 'getMembersListPage',
       url: `${ API_BASE_URL }/users.list`,
@@ -980,7 +968,7 @@ class Slack {
    * @sampleResult {"creator":"example_creator_id_1","isGeneral":false,"isArchived":false,"name":"example-channel-name","id":"example_channel_id_1","isPrivate":true,"numMembers":1}
    */
   async findChannel(id, name) {
-    const channels = await this.getAllChannelsList()
+    const channels = await this.#getAllChannelsList()
 
     let matcher
 
@@ -1006,10 +994,7 @@ class Slack {
     }
   }
 
-  /**
-   * @private
-   */
-  async createChannel(name, description, isPrivate) {
+  async #createChannel(name, description, isPrivate) {
     if (name) {
       name = name.toLowerCase()
     }
@@ -1050,7 +1035,7 @@ class Slack {
    * @returns {Object}
    */
   async createPublicChannel(channelName, channelDescription) {
-    return this.createChannel(channelName, channelDescription, false)
+    return this.#createChannel(channelName, channelDescription, false)
   }
 
   /**
@@ -1073,19 +1058,16 @@ class Slack {
    * @returns {Object}
    */
   async createPrivateChannel(channelName, channelDescription) {
-    return this.createChannel(channelName, channelDescription, true)
+    return this.#createChannel(channelName, channelDescription, true)
   }
 
-  /**
-   * @private
-   */
-  async getAllChannelsList() {
+  async #getAllChannelsList() {
     const channels = []
 
     let next_cursor
 
     do {
-      const result = await this.getChannelsListPage(next_cursor)
+      const result = await this.#getChannelsListPage(next_cursor)
 
       channels.push(...result.channels)
 
@@ -1095,10 +1077,7 @@ class Slack {
     return channels
   }
 
-  /**
-   * @private
-   */
-  async getChannelsListPage(cursor) {
+  async #getChannelsListPage(cursor) {
     const result = await this.#apiRequest({
       logTag: 'getChannelsListPage',
       url: `${ API_BASE_URL }/conversations.list`,
@@ -1177,10 +1156,7 @@ class Slack {
     })
   }
 
-  /**
-   * @private
-   */
-  async sendMessageTo(data) {
+  async #sendMessageTo(data) {
     const { channel, messageText, threadId, sendAsBot, botName, botIcon, replyBroadcast, imageURL, blocks } = data
 
     let messageBlocks
@@ -1263,7 +1239,7 @@ class Slack {
    * @returns {Object}
    */
   async sendMessageToChannel(channelId, messageText, threadId, sendAsBot, botName, botIcon, replyBroadcast, imageURL, blocks) {
-    return this.sendMessageTo({
+    return this.#sendMessageTo({
       channel: channelId,
       messageText,
       threadId,
@@ -1302,7 +1278,7 @@ class Slack {
    * @returns {Object}
    */
   async sendDirectMessage(userId, messageText, threadId, sendAsBot, botName, botIcon, replyBroadcast, imageURL, blocks) {
-    return this.sendMessageTo({
+    return this.#sendMessageTo({
       channel: userId,
       messageText,
       threadId,
@@ -1606,7 +1582,7 @@ class Slack {
    * @returns {DictionaryResponse}
    */
   async getChannelsDictionary({ search, cursor }) {
-    const { nextCursor, channels } = await this.getChannelsListPage(cursor)
+    const { nextCursor, channels } = await this.#getChannelsListPage(cursor)
 
     let filteredChannels = channels
 
@@ -1648,7 +1624,7 @@ class Slack {
    * @returns {DictionaryResponse}
    */
   async getUsersDictionary({ search, cursor }) {
-    const { nextCursor, members } = await this.getMembersListPage(cursor)
+    const { nextCursor, members } = await this.#getMembersListPage(cursor)
 
     const filteredMembers = filterMembersBySearch(members, search)
 

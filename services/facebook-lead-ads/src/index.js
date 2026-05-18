@@ -37,9 +37,6 @@ class FacebookLeadAdsService {
     this.scopes = DEFAULT_SCOPE_STRING
   }
 
-  /**
-   * @private
-   */
   #getAccessToken() {
     return this.request.headers['oauth-access-token']
   }
