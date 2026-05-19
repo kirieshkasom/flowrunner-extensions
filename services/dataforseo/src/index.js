@@ -3,6 +3,7 @@
 const API_BASE_URL = 'https://api.dataforseo.com/v3'
 const DEFAULT_LANGUAGE_CODE = 'en'
 const DEFAULT_LOCATION_CODE = 2840
+const DEFAULT_DEPTH = 10
 const LOCATIONS_CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
 const logger = {
@@ -115,27 +116,29 @@ class DataForSEOService {
    * @operationName Google Organic Search
    * @category SERP
    * @appearanceColor #1A73E8 #4A9AF5
-   * @description Retrieves Google organic search results for a keyword in a specific location and language. Returns ranked URLs with titles, descriptions, and position data. Useful for competitive SERP analysis, rank tracking, and content gap identification.
+   * @description Retrieves Google organic search results live for a keyword in a specific location and language. The 'resultFormat' parameter selects payload richness: 'regular' returns organic, paid, and featured_snippet items (sufficient for rank tracking and URL/title/description analysis); 'advanced' additionally returns knowledge_graph, local_pack, ai_overview, people_also_ask, carousels, and other SERP features. Both formats cost the same per call; cost scales with the 'depth' parameter (billed per 10 results).
    * @route POST /serp-google-organic
    * @executionTimeoutInSeconds 120
    *
    * @paramDef {"type":"String","label":"Keyword","name":"keyword","required":true,"uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"The search query to look up in Google organic results."}
    * @paramDef {"type":"Number","label":"Location","name":"locationCode","default":2840,"dictionary":"getLocationsDictionary","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"DataForSEO location code for geo-targeted results. Default is 2840 (United States)."}
    * @paramDef {"type":"String","label":"Language","name":"languageCode","default":"en","dictionary":"getLanguagesDictionary","description":"Language code for search results. Default is en (English)."}
-   * @paramDef {"type":"Number","label":"Result Depth","name":"depth","default":100,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of search results to retrieve, from 10 to 700. Default is 100."}
+   * @paramDef {"type":"Number","label":"Result Depth","name":"depth","default":10,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of search results to retrieve, from 10 to 200. DataForSEO bills in 10-result increments; depth=20 costs twice depth=10, and so on. Default is 10."}
    * @paramDef {"type":"String","label":"Device","name":"device","default":"desktop","uiComponent":{"type":"DROPDOWN","options":{"values":["desktop","mobile"]}},"description":"Device type to emulate for the search. Desktop and mobile SERPs can differ significantly."}
+   * @paramDef {"type":"String","label":"Result Format","name":"resultFormat","default":"regular","uiComponent":{"type":"DROPDOWN","options":{"values":["regular","advanced"]}},"description":"'regular' returns organic, paid, and featured_snippet items only — slimmer payload, easier to parse. 'advanced' adds rich SERP features (knowledge_graph, local_pack, ai_overview, people_also_ask, carousels). Cost is identical; choose 'advanced' only when you need those extra item types."}
    *
    * @returns {Object}
-   * @sampleResult {"keyword":"flowrunner","type":"organic","se_domain":"google.com","location_code":2840,"language_code":"en","check_url":"https://www.google.com/search?q=flowrunner&num=100&hl=en&gl=US","se_results_count":12500000,"items_count":10,"items":[{"type":"organic","rank_group":1,"rank_absolute":1,"domain":"example.com","title":"FlowRunner - Workflow Automation","url":"https://example.com/flowrunner","description":"FlowRunner is a powerful workflow automation platform..."}]}
+   * @sampleResult {"keyword":"flowrunner","type":"organic","se_domain":"google.com","location_code":2840,"language_code":"en","check_url":"https://www.google.com/search?q=flowrunner&num=10&hl=en&gl=US","se_results_count":12500000,"items_count":10,"items":[{"type":"featured_snippet","rank_group":1,"rank_absolute":1,"domain":"example.com","title":"What is FlowRunner?","description":"FlowRunner is a workflow automation platform...","url":"https://example.com/flowrunner"},{"type":"organic","rank_group":1,"rank_absolute":2,"domain":"example.com","title":"FlowRunner - Workflow Automation","url":"https://example.com/flowrunner","description":"FlowRunner is a powerful workflow automation platform...","breadcrumb":"https://example.com › products › flowrunner"}]}
    */
-  async serpGoogleOrganic(keyword, locationCode, languageCode, depth, device) {
+  async serpGoogleOrganic(keyword, locationCode, languageCode, depth, device, resultFormat) {
     locationCode = locationCode || DEFAULT_LOCATION_CODE
     languageCode = languageCode || DEFAULT_LANGUAGE_CODE
-    depth = depth || 100
+    depth = depth || DEFAULT_DEPTH
     device = device || 'desktop'
+    resultFormat = resultFormat || 'regular'
 
     const result = await this.#apiRequest({
-      url: `${ API_BASE_URL }/serp/google/organic/live/advanced`,
+      url: `${ API_BASE_URL }/serp/google/organic/live/${ resultFormat }`,
       body: { keyword, location_code: locationCode, language_code: languageCode, depth, device },
       logTag: 'serpGoogleOrganic',
     })
@@ -147,14 +150,14 @@ class DataForSEOService {
    * @operationName Google Maps Search
    * @category SERP
    * @appearanceColor #1A73E8 #4A9AF5
-   * @description Retrieves Google Maps local search results for a keyword. Returns business listings with names, addresses, ratings, and review counts. Ideal for local SEO monitoring, competitor mapping, and location-based market analysis.
+   * @description Retrieves Google Maps local search results live for a keyword. Returns business listings with names, addresses, ratings, and review counts. Ideal for local SEO monitoring, competitor mapping, and location-based market analysis. DataForSEO offers only an Advanced variant for Maps (no Regular).
    * @route POST /serp-google-maps
    * @executionTimeoutInSeconds 120
    *
    * @paramDef {"type":"String","label":"Keyword","name":"keyword","required":true,"uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"The search query to look up in Google Maps results."}
    * @paramDef {"type":"Number","label":"Location","name":"locationCode","default":2840,"dictionary":"getLocationsDictionary","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"DataForSEO location code for geo-targeted results. Default is 2840 (United States)."}
    * @paramDef {"type":"String","label":"Language","name":"languageCode","default":"en","dictionary":"getLanguagesDictionary","description":"Language code for search results. Default is en (English)."}
-   * @paramDef {"type":"Number","label":"Result Depth","name":"depth","default":100,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of search results to retrieve, from 10 to 700. Default is 100."}
+   * @paramDef {"type":"Number","label":"Result Depth","name":"depth","default":100,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of search results to retrieve, from 10 to 700. Unlike Google/Bing Organic, Maps is billed per 100-result SERP — lowering depth below 100 does not reduce cost, only the number of returned results. Default is 100."}
    *
    * @returns {Object}
    * @sampleResult {"keyword":"pizza near me","type":"maps","se_domain":"google.com","location_code":2840,"language_code":"en","items_count":10,"items":[{"type":"maps_search","rank_group":1,"rank_absolute":1,"domain":"example.com","title":"Joe's Pizza","url":"https://www.google.com/maps/place/Joe's+Pizza","rating":{"rating_type":"Max5","value":4.5,"votes_count":1250},"address":"123 Main St, New York, NY 10001","phone":"+12125551234"}]}
@@ -177,25 +180,27 @@ class DataForSEOService {
    * @operationName Bing Organic Search
    * @category SERP
    * @appearanceColor #1A73E8 #4A9AF5
-   * @description Retrieves Bing organic search results for a keyword. Returns ranked URLs with titles, descriptions, and position data. Useful for tracking Bing-specific rankings and diversifying search visibility analysis beyond Google.
+   * @description Retrieves Bing organic search results live for a keyword. The 'resultFormat' parameter selects payload richness: 'regular' returns organic, paid, and featured_snippet items (sufficient for rank tracking); 'advanced' adds rich SERP features. Both formats cost the same per call; cost scales with 'depth' (billed per 10 results). Useful for tracking Bing-specific rankings and diversifying search visibility analysis beyond Google.
    * @route POST /serp-bing-organic
    * @executionTimeoutInSeconds 120
    *
    * @paramDef {"type":"String","label":"Keyword","name":"keyword","required":true,"uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"The search query to look up in Bing organic results."}
    * @paramDef {"type":"Number","label":"Location","name":"locationCode","default":2840,"dictionary":"getLocationsDictionary","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"DataForSEO location code for geo-targeted results. Default is 2840 (United States)."}
    * @paramDef {"type":"String","label":"Language","name":"languageCode","default":"en","dictionary":"getLanguagesDictionary","description":"Language code for search results. Default is en (English)."}
-   * @paramDef {"type":"Number","label":"Result Depth","name":"depth","default":100,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of search results to retrieve, from 10 to 700. Default is 100."}
+   * @paramDef {"type":"Number","label":"Result Depth","name":"depth","default":10,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of search results to retrieve, from 10 to 200. DataForSEO bills in 10-result increments; depth=20 costs twice depth=10, and so on. Default is 10."}
+   * @paramDef {"type":"String","label":"Result Format","name":"resultFormat","default":"regular","uiComponent":{"type":"DROPDOWN","options":{"values":["regular","advanced"]}},"description":"'regular' returns organic, paid, and featured_snippet items only — slimmer payload, easier to parse. 'advanced' adds rich SERP features. Cost is identical; choose 'advanced' only when you need the extra item types."}
    *
    * @returns {Object}
-   * @sampleResult {"keyword":"flowrunner","type":"organic","se_domain":"bing.com","location_code":2840,"language_code":"en","se_results_count":8400000,"items_count":10,"items":[{"type":"organic","rank_group":1,"rank_absolute":1,"domain":"example.com","title":"FlowRunner - Workflow Automation","url":"https://example.com/flowrunner","description":"FlowRunner is a powerful workflow automation platform..."}]}
+   * @sampleResult {"keyword":"flowrunner","type":"organic","se_domain":"bing.com","location_code":2840,"language_code":"en","se_results_count":8400000,"items_count":10,"items":[{"type":"organic","rank_group":1,"rank_absolute":1,"domain":"example.com","title":"FlowRunner - Workflow Automation","url":"https://example.com/flowrunner","description":"FlowRunner is a powerful workflow automation platform...","breadcrumb":"https://example.com › products › flowrunner"}]}
    */
-  async serpBingOrganic(keyword, locationCode, languageCode, depth) {
+  async serpBingOrganic(keyword, locationCode, languageCode, depth, resultFormat) {
     locationCode = locationCode || DEFAULT_LOCATION_CODE
     languageCode = languageCode || DEFAULT_LANGUAGE_CODE
-    depth = depth || 100
+    depth = depth || DEFAULT_DEPTH
+    resultFormat = resultFormat || 'regular'
 
     const result = await this.#apiRequest({
-      url: `${ API_BASE_URL }/serp/bing/organic/live/advanced`,
+      url: `${ API_BASE_URL }/serp/bing/organic/live/${ resultFormat }`,
       body: { keyword, location_code: locationCode, language_code: languageCode, depth },
       logTag: 'serpBingOrganic',
     })
