@@ -137,6 +137,10 @@ class DataForSEOService {
     device = device || 'desktop'
     resultFormat = resultFormat || 'regular'
 
+    if (resultFormat !== 'regular' && resultFormat !== 'advanced') {
+      throw new Error(`Invalid resultFormat '${ resultFormat }'. Must be 'regular' or 'advanced'.`)
+    }
+
     const result = await this.#apiRequest({
       url: `${ API_BASE_URL }/serp/google/organic/live/${ resultFormat }`,
       body: { keyword, location_code: locationCode, language_code: languageCode, depth, device },
@@ -198,6 +202,10 @@ class DataForSEOService {
     languageCode = languageCode || DEFAULT_LANGUAGE_CODE
     depth = depth || DEFAULT_DEPTH
     resultFormat = resultFormat || 'regular'
+
+    if (resultFormat !== 'regular' && resultFormat !== 'advanced') {
+      throw new Error(`Invalid resultFormat '${ resultFormat }'. Must be 'regular' or 'advanced'.`)
+    }
 
     const result = await this.#apiRequest({
       url: `${ API_BASE_URL }/serp/bing/organic/live/${ resultFormat }`,
