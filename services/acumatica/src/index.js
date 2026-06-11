@@ -700,6 +700,97 @@ class AcumaticaService {
     })
   }
 
+  /**
+   * @operationName List Bill Files
+   * @category Bills
+   * @description Lists the files attached to a bill in Acumatica by its reference number. Returns the attachment metadata (filename and download link) for each file on the record. Useful for verifying that supporting documents were attached or for retrieving previously uploaded invoices.
+   *
+   * @route POST /list-bill-files
+   * @appearanceColor #33CCFF #66DDFF
+   *
+   * @paramDef {"type":"String","label":"Reference Number","name":"referenceNbr","required":true,"description":"The system-generated bill reference number whose attachments you want to list (e.g., '000043'). This is the ReferenceNbr field, not the VendorRef."}
+   *
+   * @returns {Array}
+   * @sampleResult [{"id":"7c9e6679-7425-40de-944b-e07fc1f90ae7","filename":"Bill (Bill, 000043)/invoice-PBD-2025-0892.pdf","href":"/entity/Default/25.200.001/files/7c9e6679-7425-40de-944b-e07fc1f90ae7","url":"https://mycompany.acumatica.com/entity/Default/25.200.001/files/7c9e6679-7425-40de-944b-e07fc1f90ae7"}]
+   */
+  async getBillFiles(referenceNbr) {
+    if (!referenceNbr) {
+      throw new Error('"Reference Number" is required')
+    }
+
+    return this.#withSession(async () => {
+      const files = await this.#apiRequest({
+        logTag: 'getBillFiles',
+        url   : `${ this.apiBaseUrl }/Bill/Bill/${ encodeURIComponent(referenceNbr) }/files`,
+      })
+
+      if (!Array.isArray(files)) {
+        return files
+      }
+
+      return files.map(file => {
+        const href = file?.href
+
+        if (!href) {
+          return file
+        }
+
+        // href is relative to the instance (e.g. "/entity/Default/.../files/{id}").
+        // Prefix it with the instance URL so callers get a directly fetchable URL.
+        const url = /^https?:\/\//i.test(href)
+          ? href
+          : `${ this.instanceUrl }${ href.startsWith('/') ? '' : '/' }${ href }`
+
+        return { ...file, url }
+      })
+    })
+  }
+
+  /**
+   * @operationName Download Bill File
+   * @category Bills
+   * @description Downloads a file attached to a bill and returns its contents as a Base64-encoded string. Provide the file URL (or relative href) returned by "List Bill Files". The file is fetched using an authenticated Acumatica session, so attachments that are not publicly accessible can still be retrieved.
+   *
+   * @route POST /download-bill-file
+   * @appearanceColor #33CCFF #66DDFF
+   * @executionTimeoutInSeconds 120
+   *
+   * @paramDef {"type":"String","label":"File URL","name":"fileUrl","required":true,"description":"The file URL or relative href returned by \"List Bill Files\" (the 'url' or 'href' field), e.g. 'https://mycompany.acumatica.com/entity/Default/24.200.001/files/{id}'."}
+   *
+   * @returns {String}
+   * @sampleResult "JVBERi0xLjQKJeLjz9MK..."
+   */
+  async downloadBillFile(fileUrl) {
+    if (!fileUrl) {
+      throw new Error('"File URL" is required')
+    }
+
+    // Accept either the absolute "url" or the relative "href" from List Bill Files.
+    const url = /^https?:\/\//i.test(fileUrl)
+      ? fileUrl
+      : `${ this.instanceUrl }${ fileUrl.startsWith('/') ? '' : '/' }${ fileUrl }`
+
+    return this.#withSession(async () => {
+      try {
+        logger.debug(`downloadBillFile - fetching file from: ${ url }`)
+
+        const fileData = await Flowrunner.Request.get(url)
+          .set({ Cookie: this.cookies })
+          .setEncoding(null)
+
+        const buffer = Buffer.isBuffer(fileData) ? fileData : Buffer.from(fileData)
+
+        return buffer.toString('base64')
+      } catch (error) {
+        const message = error.body?.exceptionMessage || error.body?.Message || error.message || 'Unknown error'
+
+        logger.error(`downloadBillFile - error: ${ message }`)
+
+        throw new Error(`downloadBillFile failed: ${ message }`)
+      }
+    })
+  }
+
   // =============================== REFERENCE DATA METHODS ================================
 
   /**

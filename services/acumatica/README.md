@@ -28,8 +28,10 @@ Integrates with Acumatica ERP for vendor management, accounts payable bill proce
 - Check Duplicate Bill
 - Create Bill
 - Delete Bill
+- Download Bill File
 - Get Bill
 - Get Bill by Reference Number
+- List Bill Files
 - List Bills
 - Release Bill from Hold
 - Search Bills by Description
