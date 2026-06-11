@@ -719,13 +719,19 @@ class AcumaticaService {
     }
 
     return this.#withSession(async () => {
-      const files = await this.#apiRequest({
+      // Retrieve the Bill record with its files expanded. This is more reliable than
+      // hitting the standalone ".../files" sub-resource, which can throw a 400
+      // "Operation is not valid due to the current state of the object." on some versions.
+      const bill = await this.#apiRequest({
         logTag: 'getBillFiles',
-        url   : `${ this.apiBaseUrl }/Bill/Bill/${ encodeURIComponent(referenceNbr) }/files`,
+        url   : `${ this.apiBaseUrl }/Bill/Bill/${ encodeURIComponent(referenceNbr) }`,
+        query : { '$expand': 'files' },
       })
 
+      const files = bill?.files
+
       if (!Array.isArray(files)) {
-        return files
+        return []
       }
 
       return files.map(file => {
