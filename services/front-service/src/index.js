@@ -1036,7 +1036,7 @@ class FrontService {
    * @paramDef {"type":"String","label":"Inbox","name":"inboxId","dictionary":"getInboxesDictionary","description":"Optional. Only inbound messages in this inbox trigger the flow."}
    *
    * @returns {Object}
-   * @sampleResult {"id":"msg_zzz","type":"email","is_inbound":true,"created_at":1718210000,"subject":"Re: Invoice question","body":"<p>Sure</p>","conversation_id":"cnv_abc","recipients":[{"handle":"alice@example.com","role":"from"}]}
+   * @sampleResult {"id":"msg_zzz","type":"email","is_inbound":true,"created_at":1718210000,"subject":"Re: Invoice question","body":"<p>Sure</p>","conversation_id":"cnv_abc","senderEmail":"alice@example.com","recipients":[{"handle":"alice@example.com","role":"from"}]}
    */
   async onNewInboundMessage(invocation) {
     const logTag = '[onNewInboundMessage]'
@@ -1071,7 +1071,9 @@ class FrontService {
 
       for (const msg of messages) {
         if (msg.is_inbound && msg.created_at > watermark && !seenIds.has(msg.id)) {
-          newMessages.push({ ...msg, conversation_id: conv.id })
+          const sender = (msg.recipients || []).find(r => r.role === 'from')
+
+          newMessages.push({ ...msg, conversation_id: conv.id, senderEmail: sender?.handle || null })
           seenIds.add(msg.id)
         }
       }
