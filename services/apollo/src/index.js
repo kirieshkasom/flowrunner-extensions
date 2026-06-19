@@ -326,12 +326,9 @@ class Apollo {
    * @description Search and filter people using Apollo's advanced search for AI-driven prospecting and lead generation. Perfect for AI agents building targeted prospect lists, researching potential customers by job title/seniority/location, or finding decision-makers within specific companies and industries.
    * @paramDef {"type":"String","label":"Person Name","name":"person_name","description":"The full name of the person to search for. Example: 'John Smith'. Use for targeted person searches when you know the name."}
    * @paramDef {"type":"Array<String>","label":"Job Titles","name":"person_titles","description":"Target job titles for prospect search. Examples: ['Marketing Manager', 'VP of Sales', 'Chief Technology Officer']. Use specific titles for better targeting."}
-   * @paramDef {"type":"Boolean","label":"Include Similar Titles","name":"include_similar_titles","description":"Enable to expand search to similar job titles. Useful for broader prospect discovery but may reduce precision.","uiComponent":{"type":"TOGGLE"}}
-   * @paramDef {"type":"Array<String>","label":"Job Seniorities","name":"person_seniorities","description":"Filter by seniority levels to target decision-makers. Examples: ['c_suite', 'vp', 'director'] for senior roles, ['manager', 'senior'] for mid-level.","uiComponent":{"type":"DROPDOWN","options":{"values":["owner","founder","c_suite","partner","vp","head","director","manager","senior","entry","intern"],"multiple":true}}}
    * @paramDef {"type":"Array<String>","label":"Person Locations","name":"person_locations","description":"Geographic locations where prospects live. Examples: ['San Francisco, CA', 'New York', 'United Kingdom']. Use for location-based targeting."}
    * @paramDef {"type":"Array<String>","label":"Organization Locations","name":"organization_locations","description":"Company headquarters locations for targeting employees. Examples: ['San Francisco, CA', 'London, UK']. Filter by where companies are based."}
    * @paramDef {"type":"Array<String>","label":"Organization Domains","name":"q_organization_domains_list","description":"Company domains to target employees from specific organizations. Examples: ['google.com', 'microsoft.com']. Use for account-based prospecting."}
-   * @paramDef {"type":"Array<String>","label":"Contact Email Status","name":"contact_email_status","description":"Filter by email verification status for better deliverability. Choose 'verified' and 'likely to engage' for outreach campaigns.","uiComponent":{"type":"DROPDOWN","options":{"values":["verified","unverified","likely to engage","unavailable"],"multiple":true}}}
    * @paramDef {"type":"Array<String>","label":"Organization IDs","name":"organization_ids","description":"Apollo organization IDs to restrict the search to.'"}
    * @paramDef {"type":"Array<String>","label":"Organization Employee Ranges","name":"organization_num_employees_ranges","description":"Employee count ranges in the format 'min,max'. e.g., '10,50'. '"}
    * @paramDef {"type":"String","label":"Keyword Filter","name":"q_keywords","description":"String of words to filter the results."}
@@ -339,7 +336,7 @@ class Apollo {
    * @paramDef {"type":"Number","label":"Results per Page","name":"per_page","description":"Number of results per page."}
    *
    * @sampleResult {"pagination":{"page":1,"per_page":10,"total_entries":157,"total_pages":16},"contacts":[{"id":"6462b961ad39c900a3070207","first_name":"Michael","last_name":"Chen","name":"Michael Chen","title":"Director of Engineering","organization_name":"StartupCo","email":"m.chen@startupco.com","linkedin_url":"https://www.linkedin.com/in/michaelchen"},{"id":"6596ea42d05a3e00014cf630","first_name":"Lisa","last_name":"Rodriguez","name":"Lisa Rodriguez","title":"VP of Product","organization_name":"GrowthTech","email":"lisa@growthtech.com","linkedin_url":"https://www.linkedin.com/in/lisarodriguez"}]}
-   */
+   */  
   async peopleSearch(
     person_name,
     person_titles,
