@@ -1279,7 +1279,7 @@ class GoogleDrive {
       queryTokens.push(`mimeType contains '${ fileType }'`)
     }
 
-    const files = this.#getFilesList({
+    const files = await this.#getFilesList({
       driveId: resolveSharedDriveId(sharedDriveId),
       q: queryTokens.length ? queryTokens.join(' and ') : undefined,
       pageSize: 1,
@@ -1363,7 +1363,7 @@ class GoogleDrive {
    * @executionTimeoutInSeconds 120
    * @requiredOauth2Scopes https://www.googleapis.com/auth/drive | https://www.googleapis.com/auth/drive.appdata | https://www.googleapis.com/auth/drive.file | https://www.googleapis.com/auth/drive.metadata | https://www.googleapis.com/auth/drive.scripts
    *
-   * @paramDef {"type":"String","label":"Drive","name":"sharedDriveId","required":false,"required":false,"dictionary":"getDrivesDictionary","description":"The ID of the shared drive to search within. Shared Drive formerly known as Team Drive. Uses the logged in account's drive when the parameter is missed."}
+   * @paramDef {"type":"String","label":"Drive","name":"sharedDriveId","required":false,"dictionary":"getDrivesDictionary","description":"The ID of the shared drive to search within. Shared Drive formerly known as Team Drive. Uses the logged in account's drive when the parameter is missed."}
    * @paramDef {"type":"String","label":"File or Folder","name":"fileId","required":true,"dictionary":"getFilesAndFoldersDictionary","description":"The ID of the file to update."}
    * @paramDef {"type":"String","label":"New Name","name":"newName","required":true,"description":"The new name of file/folder."}
    */
