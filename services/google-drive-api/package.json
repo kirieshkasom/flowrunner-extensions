@@ -1,0 +1,11 @@
+{
+  "name": "flowrunner-service",
+  "version": "1.0.0",
+  "scripts": {},
+  "dependencies": {
+    "@googleapis/drive": "^8.14.0",
+    "@googleapis/oauth2": "^1.0.7",
+    "mime-types": "^2.1.35"
+  },
+  "license": "MIT"
+}
