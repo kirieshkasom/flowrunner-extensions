@@ -38,7 +38,9 @@ Replace contents with the standard flowrunner format:
 ### 5. Leave these files unchanged
 - `coderunner.js` — uses shared `../../coderunner` helper, no changes needed
 - `public/` directory — icons and static assets, keep as-is
-- `README.md` — keep as-is
+
+### 6. Update the README via the `readme-maintainer` agent
+After the code migration is complete and verified, you MUST dispatch the `readme-maintainer` agent for the service (via the Task/Agent tool, `subagent_type: readme-maintainer`). Migration changes the public surface (runtime rename, config `shared` flags), so the README must be regenerated to match — never hand-edit it here and never skip this step. If the service has no `README.md` yet, the agent creates it; if it exists, the agent updates it.
 
 ## Validation Checklist
 After migration, verify:
@@ -46,6 +48,7 @@ After migration, verify:
 - [ ] All config items in `addService()` have the `shared` property
 - [ ] `shared` values are correct (true only for OAuth, false otherwise)
 - [ ] `package.json` matches the flowrunner format
+- [ ] `readme-maintainer` agent was run and `README.md` exists and reflects the migrated service
 
 ## Reference Services
 - **OAuth service example**: `services/airtable/src/index.js` — uses `@requireOAuth`, `shared: true` on clientId/clientSecret
