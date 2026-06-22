@@ -177,6 +177,31 @@ For selection from predefined options.
  */
 ```
 
+**Friendly labels + code mapping.** A static dropdown submits the displayed string verbatim — there
+is no separate label/value. So the `values` must be friendly, human-readable strings (never raw API
+tokens), and the method code maps each to the API value. Use the nested plain-string form only — never
+a top-level `[{label,value}]` array and never objects nested inside `values`.
+
+When the friendly label already equals the API value (e.g. `["low","medium","high"]`), no mapping is
+needed. When they differ (e.g. display `Read` but send `pull`), map in the method with a small helper:
+
+```js
+#resolveChoice(value, mapping) {
+  if (value === undefined || value === null) return undefined
+  return Object.prototype.hasOwnProperty.call(mapping, value) ? mapping[value] : value
+}
+```
+
+```jsdoc
+/**
+ * @paramDef {"type":"String","label":"Permission","name":"permission","uiComponent":{"type":"DROPDOWN","options":{"values":["Read","Write","Admin"]}},"description":"Access level to grant."}
+ */
+```
+```js
+// in the method body
+const body = { permission: this.#resolveChoice(permission, { Read: 'pull', Write: 'push', Admin: 'admin' }) }
+```
+
 ### Multi-line Text Areas
 
 For longer text inputs like messages or descriptions.

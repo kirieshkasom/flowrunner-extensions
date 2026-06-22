@@ -55,6 +55,36 @@ const CALL_TYPES = {
   FILTER_TRIGGER: 'FILTER_TRIGGER',
 }
 
+// Maps the friendly Event dropdown label (shown in the UI) to the Box webhook trigger value sent to
+// the API and matched against inbound deliveries. Covers the File, Folder, and Collaboration triggers.
+const EVENT_LABEL_TO_VALUE = {
+  'File Uploaded': 'FILE.UPLOADED',
+  'File Deleted': 'FILE.DELETED',
+  'File Trashed': 'FILE.TRASHED',
+  'File Restored': 'FILE.RESTORED',
+  'File Copied': 'FILE.COPIED',
+  'File Moved': 'FILE.MOVED',
+  'File Renamed': 'FILE.RENAMED',
+  'File Locked': 'FILE.LOCKED',
+  'File Unlocked': 'FILE.UNLOCKED',
+  'File Downloaded': 'FILE.DOWNLOADED',
+  'File Previewed': 'FILE.PREVIEWED',
+  'Folder Created': 'FOLDER.CREATED',
+  'Folder Renamed': 'FOLDER.RENAMED',
+  'Folder Deleted': 'FOLDER.DELETED',
+  'Folder Trashed': 'FOLDER.TRASHED',
+  'Folder Restored': 'FOLDER.RESTORED',
+  'Folder Copied': 'FOLDER.COPIED',
+  'Folder Moved': 'FOLDER.MOVED',
+  'Folder Downloaded': 'FOLDER.DOWNLOADED',
+  'File Uploaded (into folder)': 'FILE.UPLOADED',
+  'Collaboration Created': 'COLLABORATION.CREATED',
+  'Collaboration Accepted': 'COLLABORATION.ACCEPTED',
+  'Collaboration Rejected': 'COLLABORATION.REJECTED',
+  'Collaboration Removed': 'COLLABORATION.REMOVED',
+  'Collaboration Updated': 'COLLABORATION.UPDATED',
+}
+
 const ERROR_HINTS = {
   401: 'Authentication failed — reconnect the Box account.',
   403: 'Access denied — the account lacks permission for this item, or sharing is disabled.',
@@ -221,6 +251,14 @@ class Box {
     }
 
     return Buffer.from(JSON.stringify(body))
+  }
+
+  // Maps a friendly dropdown label to its Box API value. Unmapped values
+  // (and identity dropdowns) pass through unchanged.
+  #resolveChoice(value, mapping) {
+    if (value === undefined || value === null) return undefined
+
+    return Object.prototype.hasOwnProperty.call(mapping, value) ? mapping[value] : value
   }
 
   // ==========================================================================
@@ -544,8 +582,8 @@ class Box {
    * @paramDef {"type":"String","label":"Folder","name":"folderId","required":true,"dictionary":"getFoldersDictionary","description":"The folder whose contents to list. Use 0 for the root folder."}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","uiComponent":{"type":"NUMERIC_STEPPER"},"defaultValue":100,"description":"Max items to return per page (1-1000). Defaults to 100."}
    * @paramDef {"type":"Number","label":"Offset","name":"offset","uiComponent":{"type":"NUMERIC_STEPPER"},"defaultValue":0,"description":"0-based index of the first item to return, for paging through large folders."}
-   * @paramDef {"type":"String","label":"Sort By","name":"sort","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"name","label":"Name"},{"value":"date","label":"Date"},{"value":"size","label":"Size"},{"value":"id","label":"Id"}]}},"description":"Attribute to sort items by."}
-   * @paramDef {"type":"String","label":"Sort Direction","name":"direction","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"ASC","label":"Ascending"},{"value":"DESC","label":"Descending"}]}},"description":"Order of the sort."}
+   * @paramDef {"type":"String","label":"Sort By","name":"sort","uiComponent":{"type":"DROPDOWN","options":{"values":["Name","Date","Size","Id"]}},"description":"Attribute to sort items by."}
+   * @paramDef {"type":"String","label":"Sort Direction","name":"direction","uiComponent":{"type":"DROPDOWN","options":{"values":["Ascending","Descending"]}},"description":"Order of the sort."}
    * @returns {Object}
    * @sampleResult {"total_count":2,"offset":0,"limit":100,"entries":[{"id":"12345","type":"file","name":"Contract.pdf"},{"id":"678","type":"folder","name":"New Folder"}]}
    */
@@ -553,12 +591,16 @@ class Box {
     // docs: https://developer.box.com/reference/get-folders-id-items/
     const query = { limit: limit || 100, offset: offset || 0 }
 
-    if (sort) {
-      query.sort = sort
+    const resolvedSort = this.#resolveChoice(sort, { Name: 'name', Date: 'date', Size: 'size', Id: 'id' })
+
+    if (resolvedSort) {
+      query.sort = resolvedSort
     }
 
-    if (direction) {
-      query.direction = direction
+    const resolvedDirection = this.#resolveChoice(direction, { Ascending: 'ASC', Descending: 'DESC' })
+
+    if (resolvedDirection) {
+      query.direction = resolvedDirection
     }
 
     return await this.#apiRequest({
@@ -677,7 +719,7 @@ class Box {
    * @description Creates or updates a shared link on a Box file so it can be shared by URL. Choose who can use the link and whether they can download. Returns the file with its shared-link details.
    * @route POST /create-file-shared-link
    * @paramDef {"type":"String","label":"File","name":"fileId","required":true,"dictionary":"getFilesDictionary","description":"The file to create or update a shared link for."}
-   * @paramDef {"type":"String","label":"Access Level","name":"access","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open (anyone with link)"},{"value":"company","label":"Company only"},{"value":"collaborators","label":"Collaborators only"}]}},"description":"Who can use the link."}
+   * @paramDef {"type":"String","label":"Access Level","name":"access","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Open (anyone with link)","Company only","Collaborators only"]}},"description":"Who can use the link."}
    * @paramDef {"type":"String","label":"Password","name":"password","description":"Optional password to protect the link (only allowed with Open access)."}
    * @paramDef {"type":"Boolean","label":"Allow Download","name":"canDownload","uiComponent":{"type":"TOGGLE"},"defaultValue":true,"description":"Whether people with the link can download the file."}
    * @paramDef {"type":"String","label":"Expires At","name":"unsharedAt","uiComponent":{"type":"DATE_PICKER"},"description":"Optional date when the link stops working (ISO 8601)."}
@@ -701,7 +743,7 @@ class Box {
    * @description Creates or updates a shared link on a Box folder so it can be shared by URL. Choose who can use the link and whether they can download its contents. Returns the folder with its shared-link details.
    * @route POST /create-folder-shared-link
    * @paramDef {"type":"String","label":"Folder","name":"folderId","required":true,"dictionary":"getFoldersDictionary","description":"The folder to create or update a shared link for."}
-   * @paramDef {"type":"String","label":"Access Level","name":"access","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open (anyone with link)"},{"value":"company","label":"Company only"},{"value":"collaborators","label":"Collaborators only"}]}},"description":"Who can use the link."}
+   * @paramDef {"type":"String","label":"Access Level","name":"access","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Open (anyone with link)","Company only","Collaborators only"]}},"description":"Who can use the link."}
    * @paramDef {"type":"String","label":"Password","name":"password","description":"Optional password to protect the link (only allowed with Open access)."}
    * @paramDef {"type":"Boolean","label":"Allow Download","name":"canDownload","uiComponent":{"type":"TOGGLE"},"defaultValue":true,"description":"Whether people with the link can download the folder's contents."}
    * @paramDef {"type":"String","label":"Expires At","name":"unsharedAt","uiComponent":{"type":"DATE_PICKER"},"description":"Optional date when the link stops working (ISO 8601)."}
@@ -720,7 +762,13 @@ class Box {
   }
 
   #buildSharedLink(access, password, canDownload, unsharedAt) {
-    const sharedLink = { access }
+    const sharedLink = {
+      access: this.#resolveChoice(access, {
+        'Open (anyone with link)': 'open',
+        'Company only': 'company',
+        'Collaborators only': 'collaborators',
+      }),
+    }
 
     if (password !== undefined && password !== null && password !== '') {
       sharedLink.password = password
@@ -742,14 +790,15 @@ class Box {
    * @category Sharing
    * @description Removes the shared link from a Box file or folder, revoking URL access. The item itself is not deleted.
    * @route POST /remove-shared-link
-   * @paramDef {"type":"String","label":"Item Type","name":"itemType","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"file","label":"File"},{"value":"folder","label":"Folder"}]}},"description":"Whether the shared link is on a file or a folder."}
+   * @paramDef {"type":"String","label":"Item Type","name":"itemType","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["File","Folder"]}},"description":"Whether the shared link is on a file or a folder."}
    * @paramDef {"type":"String","label":"Item","name":"itemId","required":true,"dictionary":"getItemsDictionary","description":"The file or folder whose shared link to remove."}
    * @returns {Object}
    * @sampleResult {"id":"12345","type":"file","name":"Contract.pdf","shared_link":null}
    */
   async removeSharedLink(itemType, itemId) {
     // docs: https://developer.box.com/reference/put-files-id--add-shared-link/
-    const resource = itemType === 'folder' ? 'folders' : 'files'
+    const resolvedItemType = this.#resolveChoice(itemType, { File: 'file', Folder: 'folder' })
+    const resource = resolvedItemType === 'folder' ? 'folders' : 'files'
 
     return await this.#apiRequest({
       url: `${ API_BASE }/${ resource }/${ itemId }`,
@@ -768,12 +817,12 @@ class Box {
    * @category Collaborations
    * @description Invites a user or group to collaborate on a Box file or folder with a chosen role (Editor, Viewer, etc.). Use this to grant someone access to shared content.
    * @route POST /add-collaboration
-   * @paramDef {"type":"String","label":"Item Type","name":"itemType","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"file","label":"File"},{"value":"folder","label":"Folder"}]}},"description":"Whether you are sharing a file or a folder."}
+   * @paramDef {"type":"String","label":"Item Type","name":"itemType","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["File","Folder"]}},"description":"Whether you are sharing a file or a folder."}
    * @paramDef {"type":"String","label":"Item","name":"itemId","required":true,"dictionary":"getItemsDictionary","description":"The file or folder to share."}
-   * @paramDef {"type":"String","label":"Invite","name":"accessibleByType","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"user","label":"User"},{"value":"group","label":"Group"}]}},"description":"Whether you are inviting an individual user or a group."}
+   * @paramDef {"type":"String","label":"Invite","name":"accessibleByType","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["User","Group"]}},"description":"Whether you are inviting an individual user or a group."}
    * @paramDef {"type":"String","label":"Email","name":"login","description":"The email address (login) of the user to invite. Use this when Invite is set to User."}
    * @paramDef {"type":"String","label":"Group","name":"groupId","dictionary":"getGroupsDictionary","description":"The group to invite. Use this when Invite is set to Group (groups are referenced by id, not email)."}
-   * @paramDef {"type":"String","label":"Role","name":"role","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"editor","label":"Editor"},{"value":"viewer","label":"Viewer"},{"value":"previewer","label":"Previewer"},{"value":"uploader","label":"Uploader"},{"value":"previewer uploader","label":"Previewer Uploader"},{"value":"viewer uploader","label":"Viewer Uploader"},{"value":"co-owner","label":"Co-owner"}]}},"description":"The access level to grant the collaborator."}
+   * @paramDef {"type":"String","label":"Role","name":"role","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Editor","Viewer","Previewer","Uploader","Previewer Uploader","Viewer Uploader","Co-owner"]}},"description":"The access level to grant the collaborator."}
    * @paramDef {"type":"Boolean","label":"Send Email Notification","name":"notify","uiComponent":{"type":"TOGGLE"},"defaultValue":true,"description":"Email the collaborator that they have been added."}
    * @returns {Object}
    * @sampleResult {"id":"55555","type":"collaboration","role":"editor","status":"accepted","accessible_by":{"type":"user","id":"33333","login":"user@example.com","name":"Jane Doe"},"item":{"type":"file","id":"12345","name":"Contract.pdf"}}
@@ -781,9 +830,20 @@ class Box {
   async addCollaboration(itemType, itemId, accessibleByType, login, groupId, role, notify) {
     // docs: https://developer.box.com/reference/post-collaborations/
     // Box accepts accessible_by.login ONLY for type "user"; a group MUST be referenced by id.
+    const resolvedItemType = this.#resolveChoice(itemType, { File: 'file', Folder: 'folder' })
+    const resolvedAccessibleByType = this.#resolveChoice(accessibleByType, { User: 'user', Group: 'group' })
+    const resolvedRole = this.#resolveChoice(role, {
+      Editor: 'editor',
+      Viewer: 'viewer',
+      Previewer: 'previewer',
+      Uploader: 'uploader',
+      'Previewer Uploader': 'previewer uploader',
+      'Viewer Uploader': 'viewer uploader',
+      'Co-owner': 'co-owner',
+    })
     let accessibleBy
 
-    if (accessibleByType === 'group') {
+    if (resolvedAccessibleByType === 'group') {
       if (!groupId) {
         throw new Error('Inviting a group requires a Group (id). Pick a group or paste a group id.')
       }
@@ -802,9 +862,9 @@ class Box {
       method: 'post',
       query: { notify: notify === undefined || notify === null ? true : Boolean(notify) },
       body: {
-        item: { type: itemType, id: itemId },
+        item: { type: resolvedItemType, id: itemId },
         accessible_by: accessibleBy,
-        role,
+        role: resolvedRole,
       },
       logTag: 'addCollaboration',
     })
@@ -888,17 +948,28 @@ class Box {
    * @route POST /update-collaboration
    * @paramDef {"type":"String","label":"Folder","name":"folderId","dictionary":"getFoldersDictionary","description":"Optional. Pick a folder to populate the Collaboration picker from that folder's collaborators. Not sent to Box — the collaboration is updated by its own ID."}
    * @paramDef {"type":"String","label":"Collaboration","name":"collaborationId","required":true,"dictionary":"getCollaborationsDictionary","dependsOn":["folderId"],"description":"The collaboration to update. Choose a folder above to pick from its collaborators, or paste a collaboration ID."}
-   * @paramDef {"type":"String","label":"Role","name":"role","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"editor","label":"Editor"},{"value":"viewer","label":"Viewer"},{"value":"previewer","label":"Previewer"},{"value":"uploader","label":"Uploader"},{"value":"previewer uploader","label":"Previewer Uploader"},{"value":"viewer uploader","label":"Viewer Uploader"},{"value":"co-owner","label":"Co-owner"},{"value":"owner","label":"Owner"}]}},"description":"The new access level for the collaborator."}
+   * @paramDef {"type":"String","label":"Role","name":"role","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Editor","Viewer","Previewer","Uploader","Previewer Uploader","Viewer Uploader","Co-owner","Owner"]}},"description":"The new access level for the collaborator."}
    * @returns {Object}
    * @sampleResult {"id":"55555","type":"collaboration","role":"viewer","status":"accepted","accessible_by":{"type":"user","login":"user@example.com"},"item":{"type":"file","id":"12345"}}
    */
   async updateCollaboration(folderId, collaborationId, role) {
     // docs: https://developer.box.com/reference/put-collaborations-id/
     // folderId only scopes the collaboration picker; the update is by collaborationId alone.
+    const resolvedRole = this.#resolveChoice(role, {
+      Editor: 'editor',
+      Viewer: 'viewer',
+      Previewer: 'previewer',
+      Uploader: 'uploader',
+      'Previewer Uploader': 'previewer uploader',
+      'Viewer Uploader': 'viewer uploader',
+      'Co-owner': 'co-owner',
+      Owner: 'owner',
+    })
+
     return await this.#apiRequest({
       url: `${ API_BASE }/collaborations/${ collaborationId }`,
       method: 'put',
-      body: { role },
+      body: { role: resolvedRole },
       logTag: 'updateCollaboration',
     })
   }
@@ -934,8 +1005,8 @@ class Box {
    * @description Searches Box for files, folders, and web links matching a query across names, descriptions, and contents. Use this to locate items when you don't know their IDs.
    * @route POST /search-content
    * @paramDef {"type":"String","label":"Search Query","name":"query","required":true,"description":"Words to search for across file/folder names, descriptions, and contents."}
-   * @paramDef {"type":"String","label":"Item Type","name":"type","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"file","label":"File"},{"value":"folder","label":"Folder"},{"value":"web_link","label":"Web Link"}]}},"description":"Restrict results to one kind of item. Leave blank for all."}
-   * @paramDef {"type":"String","label":"Scope","name":"scope","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"user_content","label":"User content"},{"value":"enterprise_content","label":"Enterprise content"}]}},"description":"Search only your own content, or the whole enterprise."}
+   * @paramDef {"type":"String","label":"Item Type","name":"type","uiComponent":{"type":"DROPDOWN","options":{"values":["File","Folder","Web Link"]}},"description":"Restrict results to one kind of item. Leave blank for all."}
+   * @paramDef {"type":"String","label":"Scope","name":"scope","uiComponent":{"type":"DROPDOWN","options":{"values":["User content","Enterprise content"]}},"description":"Search only your own content, or the whole enterprise."}
    * @paramDef {"type":"Array.<String>","label":"File Extensions","name":"fileExtensions","description":"Limit to these file extensions (without dots, e.g. pdf, png). Accepts a list or comma-separated string."}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","uiComponent":{"type":"NUMERIC_STEPPER"},"defaultValue":30,"description":"Max results per page (1-200, default 30)."}
    * @paramDef {"type":"Number","label":"Offset","name":"offset","uiComponent":{"type":"NUMERIC_STEPPER"},"defaultValue":0,"description":"0-based offset for paging through results (max 10000)."}
@@ -946,12 +1017,16 @@ class Box {
     // docs: https://developer.box.com/reference/get-search/
     const params = { query, limit: limit || 30, offset: offset || 0 }
 
-    if (type) {
-      params.type = type
+    const resolvedType = this.#resolveChoice(type, { File: 'file', Folder: 'folder', 'Web Link': 'web_link' })
+
+    if (resolvedType) {
+      params.type = resolvedType
     }
 
-    if (scope) {
-      params.scope = scope
+    const resolvedScope = this.#resolveChoice(scope, { 'User content': 'user_content', 'Enterprise content': 'enterprise_content' })
+
+    if (resolvedScope) {
+      params.scope = resolvedScope
     }
 
     const extensions = this.#toList(fileExtensions)
@@ -1259,16 +1334,19 @@ class Box {
    * @description Creates a task on a Box file (for review or completion). Use this to request approval or action on a document from collaborators.
    * @route POST /create-task
    * @paramDef {"type":"String","label":"File","name":"fileId","required":true,"dictionary":"getFilesDictionary","description":"The file to create a task on."}
-   * @paramDef {"type":"String","label":"Action","name":"action","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"review","label":"Review"},{"value":"complete","label":"Complete"}]}},"description":"What kind of task this is."}
+   * @paramDef {"type":"String","label":"Action","name":"action","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Review","Complete"]}},"description":"What kind of task this is."}
    * @paramDef {"type":"String","label":"Message","name":"message","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"A description of the task for assignees."}
    * @paramDef {"type":"String","label":"Due Date","name":"dueAt","uiComponent":{"type":"DATE_TIME_PICKER"},"description":"When the task is due (ISO 8601)."}
-   * @paramDef {"type":"String","label":"Completion Rule","name":"completionRule","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"all_assignees","label":"All assignees"},{"value":"any_assignee","label":"Any assignee"}]}},"description":"Whether all assignees or any single assignee completing the task marks it done."}
+   * @paramDef {"type":"String","label":"Completion Rule","name":"completionRule","uiComponent":{"type":"DROPDOWN","options":{"values":["All assignees","Any assignee"]}},"description":"Whether all assignees or any single assignee completing the task marks it done."}
    * @returns {Object}
    * @sampleResult {"id":"88888","type":"task","item":{"id":"12345","type":"file","name":"Contract.pdf"},"action":"review","message":"Legal review","due_at":"2024-02-01T17:00:00-08:00","is_completed":false,"created_at":"2024-01-15T09:30:00-08:00","completion_rule":"all_assignees"}
    */
   async createTask(fileId, action, message, dueAt, completionRule) {
     // docs: https://developer.box.com/reference/post-tasks/
-    const body = { item: { type: 'file', id: fileId }, action }
+    const body = {
+      item: { type: 'file', id: fileId },
+      action: this.#resolveChoice(action, { Review: 'review', Complete: 'complete' }),
+    }
 
     if (message !== undefined && message !== null && message !== '') {
       body.message = message
@@ -1279,7 +1357,7 @@ class Box {
     }
 
     if (completionRule !== undefined && completionRule !== null && completionRule !== '') {
-      body.completion_rule = completionRule
+      body.completion_rule = this.#resolveChoice(completionRule, { 'All assignees': 'all_assignees', 'Any assignee': 'any_assignee' })
     }
 
     return await this.#apiRequest({
@@ -1332,10 +1410,10 @@ class Box {
    * @route POST /update-task
    * @paramDef {"type":"String","label":"File","name":"fileId","dictionary":"getFilesDictionary","description":"Optional. Pick a file to populate the Task picker from that file's tasks. Not sent to Box — the task is updated by its own ID."}
    * @paramDef {"type":"String","label":"Task","name":"taskId","required":true,"dictionary":"getFileTasksDictionary","dependsOn":["fileId"],"description":"The task to update. Choose a file above to pick from its tasks, or paste a task ID."}
-   * @paramDef {"type":"String","label":"Action","name":"action","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"review","label":"Review"},{"value":"complete","label":"Complete"}]}},"description":"Change the task type. Leave blank to keep it."}
+   * @paramDef {"type":"String","label":"Action","name":"action","uiComponent":{"type":"DROPDOWN","options":{"values":["Review","Complete"]}},"description":"Change the task type. Leave blank to keep it."}
    * @paramDef {"type":"String","label":"Message","name":"message","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Update the task description. Leave blank to keep it."}
    * @paramDef {"type":"String","label":"Due Date","name":"dueAt","uiComponent":{"type":"DATE_TIME_PICKER"},"description":"Update the due date (ISO 8601). Leave blank to keep it."}
-   * @paramDef {"type":"String","label":"Completion Rule","name":"completionRule","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"all_assignees","label":"All assignees"},{"value":"any_assignee","label":"Any assignee"}]}},"description":"Update the completion rule. Leave blank to keep it."}
+   * @paramDef {"type":"String","label":"Completion Rule","name":"completionRule","uiComponent":{"type":"DROPDOWN","options":{"values":["All assignees","Any assignee"]}},"description":"Update the completion rule. Leave blank to keep it."}
    * @returns {Object}
    * @sampleResult {"id":"88888","type":"task","action":"review","message":"Updated review","due_at":"2024-02-05T17:00:00-08:00","is_completed":false,"completion_rule":"all_assignees"}
    */
@@ -1344,7 +1422,7 @@ class Box {
     const body = {}
 
     if (action !== undefined && action !== null && action !== '') {
-      body.action = action
+      body.action = this.#resolveChoice(action, { Review: 'review', Complete: 'complete' })
     }
 
     if (message !== undefined && message !== null && message !== '') {
@@ -1356,7 +1434,7 @@ class Box {
     }
 
     if (completionRule !== undefined && completionRule !== null && completionRule !== '') {
-      body.completion_rule = completionRule
+      body.completion_rule = this.#resolveChoice(completionRule, { 'All assignees': 'all_assignees', 'Any assignee': 'any_assignee' })
     }
 
     return await this.#apiRequest({
@@ -1397,7 +1475,7 @@ class Box {
    * @description Applies a metadata template to a Box file, setting its field values. Pick a template from your enterprise templates and supply the field values as a JSON object.
    * @route POST /create-metadata-instance
    * @paramDef {"type":"String","label":"File","name":"fileId","required":true,"dictionary":"getFilesDictionary","description":"The file to apply the metadata template to."}
-   * @paramDef {"type":"String","label":"Scope","name":"scope","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"global","label":"Global"},{"value":"enterprise","label":"Enterprise"}]}},"description":"Whether the template is a built-in (global) or enterprise template."}
+   * @paramDef {"type":"String","label":"Scope","name":"scope","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Global","Enterprise"]}},"description":"Whether the template is a built-in (global) or enterprise template."}
    * @paramDef {"type":"String","label":"Template","name":"templateKey","required":true,"dictionary":"getMetadataTemplatesDictionary","description":"The metadata template to apply. Pick from your enterprise templates."}
    * @paramDef {"type":"Object","label":"Field Values","name":"values","required":true,"freeform":true,"description":"The metadata field values to set, as a JSON object of field-key to value matching the chosen template (e.g. {\"status\":\"active\",\"author\":\"Jones\"})."}
    * @returns {Object}
@@ -1405,8 +1483,10 @@ class Box {
    */
   async createMetadataInstance(fileId, scope, templateKey, values) {
     // docs: https://developer.box.com/reference/post-files-id-metadata-id-id/
+    const resolvedScope = this.#resolveChoice(scope, { Global: 'global', Enterprise: 'enterprise' })
+
     return await this.#apiRequest({
-      url: `${ API_BASE }/files/${ fileId }/metadata/${ scope }/${ templateKey }`,
+      url: `${ API_BASE }/files/${ fileId }/metadata/${ resolvedScope }/${ templateKey }`,
       method: 'post',
       body: values || {},
       logTag: 'createMetadataInstance',
@@ -1419,15 +1499,17 @@ class Box {
    * @description Reads the metadata a template has stored on a Box file (its field values). Pick the same template and scope used to apply it.
    * @route POST /get-metadata-instance
    * @paramDef {"type":"String","label":"File","name":"fileId","required":true,"dictionary":"getFilesDictionary","description":"The file to read metadata from."}
-   * @paramDef {"type":"String","label":"Scope","name":"scope","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"global","label":"Global"},{"value":"enterprise","label":"Enterprise"}]}},"description":"Whether the template is global or enterprise."}
+   * @paramDef {"type":"String","label":"Scope","name":"scope","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Global","Enterprise"]}},"description":"Whether the template is global or enterprise."}
    * @paramDef {"type":"String","label":"Template","name":"templateKey","required":true,"dictionary":"getMetadataTemplatesDictionary","description":"The metadata template instance to fetch."}
    * @returns {Object}
    * @sampleResult {"$id":"01234567-89ab-cdef-0123-456789abcdef","$type":"blueprintTemplate-1234","$parent":"file_12345","$scope":"enterprise_27335","$template":"blueprintTemplate","$version":1,"status":"active","author":"Jones"}
    */
   async getMetadataInstance(fileId, scope, templateKey) {
     // docs: https://developer.box.com/reference/get-files-id-metadata-id-id/
+    const resolvedScope = this.#resolveChoice(scope, { Global: 'global', Enterprise: 'enterprise' })
+
     return await this.#apiRequest({
-      url: `${ API_BASE }/files/${ fileId }/metadata/${ scope }/${ templateKey }`,
+      url: `${ API_BASE }/files/${ fileId }/metadata/${ resolvedScope }/${ templateKey }`,
       logTag: 'getMetadataInstance',
     })
   }
@@ -1455,20 +1537,22 @@ class Box {
    * @description Removes a metadata template (and its values) from a Box file. The file itself is unaffected.
    * @route POST /delete-metadata-instance
    * @paramDef {"type":"String","label":"File","name":"fileId","required":true,"dictionary":"getFilesDictionary","description":"The file to remove metadata from."}
-   * @paramDef {"type":"String","label":"Scope","name":"scope","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"global","label":"Global"},{"value":"enterprise","label":"Enterprise"}]}},"description":"Whether the template is global or enterprise."}
+   * @paramDef {"type":"String","label":"Scope","name":"scope","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Global","Enterprise"]}},"description":"Whether the template is global or enterprise."}
    * @paramDef {"type":"String","label":"Template","name":"templateKey","required":true,"dictionary":"getMetadataTemplatesDictionary","description":"The metadata template instance to remove."}
    * @returns {Object}
    * @sampleResult {"deleted":true,"fileId":"12345","scope":"enterprise","templateKey":"blueprintTemplate"}
    */
   async deleteMetadataInstance(fileId, scope, templateKey) {
     // docs: https://developer.box.com/reference/delete-files-id-metadata-id-id/
+    const resolvedScope = this.#resolveChoice(scope, { Global: 'global', Enterprise: 'enterprise' })
+
     await this.#apiRequest({
-      url: `${ API_BASE }/files/${ fileId }/metadata/${ scope }/${ templateKey }`,
+      url: `${ API_BASE }/files/${ fileId }/metadata/${ resolvedScope }/${ templateKey }`,
       method: 'delete',
       logTag: 'deleteMetadataInstance',
     })
 
-    return { deleted: true, fileId, scope, templateKey }
+    return { deleted: true, fileId, scope: resolvedScope, templateKey }
   }
 
   // updateMetadataInstance is intentionally NOT shipped: the Box metadata-instance update uses a
@@ -1486,8 +1570,8 @@ class Box {
    * @route POST /list-trashed-items
    * @paramDef {"type":"Number","label":"Limit","name":"limit","uiComponent":{"type":"NUMERIC_STEPPER"},"defaultValue":100,"description":"Max trashed items per page (1-1000). Defaults to 100."}
    * @paramDef {"type":"Number","label":"Offset","name":"offset","uiComponent":{"type":"NUMERIC_STEPPER"},"defaultValue":0,"description":"0-based offset for paging through trashed items."}
-   * @paramDef {"type":"String","label":"Sort By","name":"sort","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"name","label":"Name"},{"value":"date","label":"Date"},{"value":"size","label":"Size"}]}},"description":"Attribute to sort trashed items by."}
-   * @paramDef {"type":"String","label":"Sort Direction","name":"direction","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"ASC","label":"Ascending"},{"value":"DESC","label":"Descending"}]}},"description":"Order of the sort."}
+   * @paramDef {"type":"String","label":"Sort By","name":"sort","uiComponent":{"type":"DROPDOWN","options":{"values":["Name","Date","Size"]}},"description":"Attribute to sort trashed items by."}
+   * @paramDef {"type":"String","label":"Sort Direction","name":"direction","uiComponent":{"type":"DROPDOWN","options":{"values":["Ascending","Descending"]}},"description":"Order of the sort."}
    * @returns {Object}
    * @sampleResult {"total_count":2,"offset":0,"limit":100,"entries":[{"id":"12345","type":"file","name":"Contract.pdf"},{"id":"678","type":"folder","name":"Old Folder"}]}
    */
@@ -1495,12 +1579,16 @@ class Box {
     // docs: https://developer.box.com/reference/get-folders-trash-items/
     const query = { limit: limit || 100, offset: offset || 0 }
 
-    if (sort) {
-      query.sort = sort
+    const resolvedSort = this.#resolveChoice(sort, { Name: 'name', Date: 'date', Size: 'size' })
+
+    if (resolvedSort) {
+      query.sort = resolvedSort
     }
 
-    if (direction) {
-      query.direction = direction
+    const resolvedDirection = this.#resolveChoice(direction, { Ascending: 'ASC', Descending: 'DESC' })
+
+    if (resolvedDirection) {
+      query.direction = resolvedDirection
     }
 
     return await this.#apiRequest({
@@ -1622,7 +1710,7 @@ class Box {
    * @registerAs REALTIME_TRIGGER
    * @route POST /on-file-event
    * @paramDef {"type":"String","label":"File","name":"fileId","required":true,"dictionary":"getFilesDictionary","description":"The file to watch. Box creates a webhook on this file."}
-   * @paramDef {"type":"String","label":"Event","name":"event","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"FILE.UPLOADED","label":"File Uploaded"},{"value":"FILE.DELETED","label":"File Deleted"},{"value":"FILE.TRASHED","label":"File Trashed"},{"value":"FILE.RESTORED","label":"File Restored"},{"value":"FILE.COPIED","label":"File Copied"},{"value":"FILE.MOVED","label":"File Moved"},{"value":"FILE.RENAMED","label":"File Renamed"},{"value":"FILE.LOCKED","label":"File Locked"},{"value":"FILE.UNLOCKED","label":"File Unlocked"},{"value":"FILE.DOWNLOADED","label":"File Downloaded"},{"value":"FILE.PREVIEWED","label":"File Previewed"}]}},"description":"Which file change fires this trigger."}
+   * @paramDef {"type":"String","label":"Event","name":"event","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["File Uploaded","File Deleted","File Trashed","File Restored","File Copied","File Moved","File Renamed","File Locked","File Unlocked","File Downloaded","File Previewed"]}},"description":"Which file change fires this trigger."}
    * @returns {Object}
    * @sampleResult {"eventId":"f82c3ba03e41f7e8a7608363cc6c0390","trigger":"FILE.UPLOADED","fileId":"12345","fileName":"Contract.pdf","source":{"id":"12345","type":"file","name":"Contract.pdf","parent":{"id":"0","name":"All Files","type":"folder"}},"createdAt":"2024-01-15T09:30:00-08:00","createdBy":{"id":"33333","type":"user","name":"Jane Doe","login":"jane@example.com"}}
    */
@@ -1634,7 +1722,8 @@ class Box {
     if (callType === CALL_TYPES.FILTER_TRIGGER) {
       return {
         ids: this.#matchTriggers(payload, (trigger, event) =>
-          trigger.data.fileId === event.source?.id && trigger.data.event === event.trigger), 
+          trigger.data.fileId === event.source?.id &&
+          this.#resolveChoice(trigger.data.event, EVENT_LABEL_TO_VALUE) === event.trigger),
       }
     }
   }
@@ -1646,7 +1735,7 @@ class Box {
    * @registerAs REALTIME_TRIGGER
    * @route POST /on-folder-event
    * @paramDef {"type":"String","label":"Folder","name":"folderId","required":true,"dictionary":"getFoldersDictionary","description":"The folder to watch. Use 0 for the root folder. Box creates a webhook on this folder."}
-   * @paramDef {"type":"String","label":"Event","name":"event","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"FOLDER.CREATED","label":"Folder Created"},{"value":"FOLDER.RENAMED","label":"Folder Renamed"},{"value":"FOLDER.DELETED","label":"Folder Deleted"},{"value":"FOLDER.TRASHED","label":"Folder Trashed"},{"value":"FOLDER.RESTORED","label":"Folder Restored"},{"value":"FOLDER.COPIED","label":"Folder Copied"},{"value":"FOLDER.MOVED","label":"Folder Moved"},{"value":"FOLDER.DOWNLOADED","label":"Folder Downloaded"},{"value":"FILE.UPLOADED","label":"File Uploaded (into folder)"}]}},"description":"Which folder change fires this trigger."}
+   * @paramDef {"type":"String","label":"Event","name":"event","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Folder Created","Folder Renamed","Folder Deleted","Folder Trashed","Folder Restored","Folder Copied","Folder Moved","Folder Downloaded","File Uploaded (into folder)"]}},"description":"Which folder change fires this trigger."}
    * @returns {Object}
    * @sampleResult {"eventId":"a1b2c3","trigger":"FOLDER.CREATED","folderId":"678","folderName":"New Folder","source":{"id":"678","type":"folder","name":"New Folder","parent":{"id":"0","name":"All Files","type":"folder"}},"createdAt":"2024-01-15T09:30:00-08:00","createdBy":{"id":"33333","type":"user","name":"Jane Doe"}}
    */
@@ -1661,8 +1750,9 @@ class Box {
           const targetMatches = trigger.data.folderId === event.source?.id ||
           trigger.data.folderId === event.source?.parent?.id
 
-          return targetMatches && trigger.data.event === event.trigger
-        }), 
+          return targetMatches &&
+            this.#resolveChoice(trigger.data.event, EVENT_LABEL_TO_VALUE) === event.trigger
+        }),
       }
     }
   }
@@ -1674,7 +1764,7 @@ class Box {
    * @registerAs REALTIME_TRIGGER
    * @route POST /on-collaboration-event
    * @paramDef {"type":"String","label":"Folder","name":"folderId","required":true,"dictionary":"getFoldersDictionary","description":"The folder to watch for collaboration changes (sharing/invites). Use 0 for root."}
-   * @paramDef {"type":"String","label":"Event","name":"event","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"COLLABORATION.CREATED","label":"Collaboration Created"},{"value":"COLLABORATION.ACCEPTED","label":"Collaboration Accepted"},{"value":"COLLABORATION.REJECTED","label":"Collaboration Rejected"},{"value":"COLLABORATION.REMOVED","label":"Collaboration Removed"},{"value":"COLLABORATION.UPDATED","label":"Collaboration Updated"}]}},"description":"Which collaboration change fires this trigger."}
+   * @paramDef {"type":"String","label":"Event","name":"event","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Collaboration Created","Collaboration Accepted","Collaboration Rejected","Collaboration Removed","Collaboration Updated"]}},"description":"Which collaboration change fires this trigger."}
    * @returns {Object}
    * @sampleResult {"eventId":"c0ll4b","trigger":"COLLABORATION.CREATED","collaborationId":"55555","source":{"id":"55555","type":"collaboration","role":"editor","status":"pending","accessible_by":{"type":"user","login":"user@example.com"},"item":{"type":"folder","id":"678","name":"New Folder"}},"createdAt":"2024-01-15T09:30:00-08:00","createdBy":{"id":"33333","type":"user","name":"Jane Doe"}}
    */
@@ -1689,8 +1779,9 @@ class Box {
           const itemId = event.source?.item?.id
           const targetMatches = trigger.data.folderId === itemId || trigger.data.folderId === event.source?.id
 
-          return targetMatches && trigger.data.event === event.trigger
-        }), 
+          return targetMatches &&
+            this.#resolveChoice(trigger.data.event, EVENT_LABEL_TO_VALUE) === event.trigger
+        }),
       }
     }
   }
@@ -1759,15 +1850,16 @@ class Box {
       const isFolderScope = event.name === 'onFolderEvent' || event.name === 'onCollaborationEvent'
       const targetType = isFolderScope ? 'folder' : 'file'
       const targetId = isFolderScope ? data.folderId : data.fileId
+      const resolvedEvent = this.#resolveChoice(data.event, EVENT_LABEL_TO_VALUE)
 
       const created = await this.#apiRequest({
         url: `${ API_BASE }/webhooks`,
         method: 'post',
-        body: { target: { id: targetId, type: targetType }, address, triggers: [data.event] },
+        body: { target: { id: targetId, type: targetType }, address, triggers: [resolvedEvent] },
         logTag: 'createWebhook',
       })
 
-      webhooks.push({ triggerId: event.id, webhookId: created?.id, targetType, targetId, event: data.event })
+      webhooks.push({ triggerId: event.id, webhookId: created?.id, targetType, targetId, event: resolvedEvent })
     }
 
     return { webhookData: { webhooks }, connectionId: invocation.connectionId }

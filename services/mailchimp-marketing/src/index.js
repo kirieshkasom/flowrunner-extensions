@@ -10,6 +10,17 @@ const logger = {
   warn: (...args) => console.log('[Mailchimp Marketing Service] warn:', ...args),
 }
 
+const SORT_FIELD_MAP = { 'Date Created': 'date_created' }
+const SORT_DIR_MAP = { Ascending: 'ASC', Descending: 'DESC' }
+const EMAIL_TYPE_MAP = { HTML: 'html', Text: 'text' }
+const MEMBER_STATUS_MAP = {
+  Subscribed: 'subscribed',
+  Unsubscribed: 'unsubscribed',
+  Cleaned: 'cleaned',
+  Pending: 'pending',
+  Transactional: 'transactional',
+}
+
 /**
  *  @requireOAuth
  *  @integrationName Mailchimp Marketing
@@ -39,6 +50,17 @@ class MailchimpMarketing {
     }
 
     return url
+  }
+
+  /**
+   * @param {String} value - Friendly label submitted by the dropdown
+   * @param {Object} mapping - Map of friendly label to API value
+   * @returns {String|undefined}
+   */
+  #resolveChoice(value, mapping) {
+    if (value === undefined || value === null) return undefined
+
+    return Object.prototype.hasOwnProperty.call(mapping, value) ? mapping[value] : value
   }
 
   /**
@@ -704,8 +726,8 @@ class MailchimpMarketing {
    * @paramDef {"type":"String","label":"Before Campaign Last Sent","name":"beforeCampaignLastSent","description":"Restrict results to lists that have sent a campaign before this date. Uses ISO 8601 time format: 2015-10-21T15:41:36+00:00"}
    * @paramDef {"type":"String","label":"Since Campaign Last Sent","name":"sinceCampaignLastSent","description":"Restrict results to lists that have sent a campaign after this date. Uses ISO 8601 time format: 2015-10-21T15:41:36+00:00"}
    * @paramDef {"type":"String","label":"Email","name":"email","description":"Restrict results to lists that include a specific subscriber's email address"}
-   * @paramDef {"type":"String","label":"Sort Field","name":"sortField","uiComponent":"DROPDOWN","options":["date_created"],"description":"Returns files sorted by the specified field"}
-   * @paramDef {"type":"String","label":"Sort Direction","name":"sortDir","uiComponent":"DROPDOWN","options":["ASC","DESC"],"description":"Determines the order direction for sorted results"}
+   * @paramDef {"type":"String","label":"Sort Field","name":"sortField","uiComponent":{"type":"DROPDOWN","options":{"values":["Date Created"]}},"description":"Returns files sorted by the specified field"}
+   * @paramDef {"type":"String","label":"Sort Direction","name":"sortDir","uiComponent":{"type":"DROPDOWN","options":{"values":["Ascending","Descending"]}},"description":"Determines the order direction for sorted results"}
    * @paramDef {"type":"Boolean","label":"Has Ecommerce Store","name":"hasEcommerceStore","description":"Restrict results to lists that have an ecommerce store"}
    * @paramDef {"type":"Boolean","label":"Include Total Contacts","name":"includeTotalContacts","description":"Return the total_contacts field in the stats response, which contains an aggregate count of all subscribed, unsubscribed, pending, cleaned, deleted, transactional, and non-subscribed members"}
    * @sampleResult {"lists":[{"id":"string","web_id":0,"name":"string","contact":{"company":"string","address1":"string","address2":"string","city":"string","state":"string","zip":"string","country":"string","phone":"string"},"permission_reminder":"string","use_archive_bar":false,"campaign_defaults":{"from_name":"string","from_email":"string","subject":"string","language":"string"},"notify_on_subscribe":false,"notify_on_unsubscribe":false,"date_created":"2019-08-24T14:15:22Z","list_rating":0,"email_type_option":true,"subscribe_url_short":"string","subscribe_url_long":"string","beamer_address":"string","visibility":"pub","double_optin":false,"has_welcome":false,"marketing_permissions":false,"modules":["string"],"stats":{"member_count":0,"total_contacts":0,"unsubscribe_count":0,"cleaned_count":0,"member_count_since_send":0,"unsubscribe_count_since_send":0,"cleaned_count_since_send":0,"campaign_count":0,"campaign_last_sent":"2019-08-24T14:15:22Z","merge_field_count":0,"avg_sub_rate":0,"avg_unsub_rate":0,"target_sub_rate":0,"open_rate":0,"click_rate":0,"last_sub_date":"2019-08-24T14:15:22Z","last_unsub_date":"2019-08-24T14:15:22Z"},"_links":[{"rel":"string","href":"string","method":"GET","targetSchema":"string","schema":"string"}]}],"total_items":0,"constraints":{"may_create":true,"max_instances":0,"current_total_instances":0},"_links":[{"rel":"string","href":"string","method":"GET","targetSchema":"string","schema":"string"}]}
@@ -739,8 +761,8 @@ class MailchimpMarketing {
           before_campaign_last_sent: beforeCampaignLastSent,
           since_campaign_last_sent: sinceCampaignLastSent,
           email,
-          sort_field: sortField,
-          sort_dir: sortDir,
+          sort_field: this.#resolveChoice(sortField, SORT_FIELD_MAP),
+          sort_dir: this.#resolveChoice(sortDir, SORT_DIR_MAP),
           has_ecommerce_store: hasEcommerceStore,
           include_total_contacts: includeTotalContacts,
         },
@@ -821,8 +843,8 @@ class MailchimpMarketing {
    * @category Member Management
    * @paramDef {"type":"String","label":"List ID","name":"listId","required":true,"dictionary":"getDictionaryLists","description":"The unique ID for the list"}
    * @paramDef {"type":"String","label":"Email Address","name":"emailAddress","required":true,"description":"Email address for a subscriber"}
-   * @paramDef {"type":"String","label":"Email Type","name":"emailType","uiComponent":"DROPDOWN","options":["html","text"],"description":"Type of email this member asked to get ('html' or 'text')"}
-   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":"DROPDOWN","options":["subscribed","unsubscribed","cleaned","pending","transactional"],"required":true,"description":"Subscriber's current status"}
+   * @paramDef {"type":"String","label":"Email Type","name":"emailType","uiComponent":{"type":"DROPDOWN","options":{"values":["HTML","Text"]}},"description":"Type of email this member asked to get ('html' or 'text')"}
+   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":["Subscribed","Unsubscribed","Cleaned","Pending","Transactional"]}},"required":true,"description":"Subscriber's current status"}
    * @paramDef {"type":"Object","label":"Merge Fields","name":"mergeFields","description":"A dictionary of merge fields where the keys are the merge tags"}
    * @paramDef {"type":"Object","label":"Interests","name":"interests","description":"The key of this object's properties is the ID of the interest in question"}
    * @paramDef {"type":"String","label":"Language","name":"language","description":"If set/detected, the subscriber's language"}
@@ -866,8 +888,8 @@ class MailchimpMarketing {
         logTag: 'addMember',
         body: {
           email_address: emailAddress,
-          email_type: emailType,
-          status,
+          email_type: this.#resolveChoice(emailType, EMAIL_TYPE_MAP),
+          status: this.#resolveChoice(status, MEMBER_STATUS_MAP),
           merge_fields: mergeFields,
           interests,
           language,
@@ -895,9 +917,9 @@ class MailchimpMarketing {
    * @paramDef {"type":"String","label":"List ID","name":"listId","required":true,"dictionary":"getDictionaryLists","description":"The unique ID for the list"}
    * @paramDef {"type":"String","label":"Subscriber Hash","name":"subscriberHash","required":true,"description":"The MD5 hash of the lowercase version of the list member's email address"}
    * @paramDef {"type":"String","label":"Email Address","name":"emailAddress","required":true,"description":"Email address for a subscriber"}
-   * @paramDef {"type":"String","label":"Status If New","name":"statusIfNew","uiComponent":"DROPDOWN","options":["subscribed","unsubscribed","cleaned","pending","transactional"],"description":"Subscriber's status. This value is required only if the email address is not already present on the list"}
-   * @paramDef {"type":"String","label":"Email Type","name":"emailType","uiComponent":"DROPDOWN","options":["html","text"],"description":"Type of email this member asked to get ('html' or 'text')"}
-   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":"DROPDOWN","options":["subscribed","unsubscribed","cleaned","pending","transactional"],"description":"Subscriber's current status"}
+   * @paramDef {"type":"String","label":"Status If New","name":"statusIfNew","uiComponent":{"type":"DROPDOWN","options":{"values":["Subscribed","Unsubscribed","Cleaned","Pending","Transactional"]}},"description":"Subscriber's status. This value is required only if the email address is not already present on the list"}
+   * @paramDef {"type":"String","label":"Email Type","name":"emailType","uiComponent":{"type":"DROPDOWN","options":{"values":["HTML","Text"]}},"description":"Type of email this member asked to get ('html' or 'text')"}
+   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":["Subscribed","Unsubscribed","Cleaned","Pending","Transactional"]}},"description":"Subscriber's current status"}
    * @paramDef {"type":"Object","label":"Merge Fields","name":"mergeFields","description":"A dictionary of merge fields where the keys are the merge tags"}
    * @paramDef {"type":"Object","label":"Interests","name":"interests","description":"The key of this object's properties is the ID of the interest in question"}
    * @paramDef {"type":"String","label":"Language","name":"language","description":"If set/detected, the subscriber's language"}
@@ -941,9 +963,9 @@ class MailchimpMarketing {
         logTag: 'addOrUpdateListMember',
         body: {
           email_address: emailAddress,
-          status_if_new: statusIfNew,
-          email_type: emailType,
-          status,
+          status_if_new: this.#resolveChoice(statusIfNew, MEMBER_STATUS_MAP),
+          email_type: this.#resolveChoice(emailType, EMAIL_TYPE_MAP),
+          status: this.#resolveChoice(status, MEMBER_STATUS_MAP),
           merge_fields: mergeFields,
           interests,
           language,

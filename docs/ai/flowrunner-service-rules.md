@@ -583,7 +583,7 @@ async findBoardByName(idOrganization, name) {
 ## UI Component Types
 
 - `TOGGLE` - Boolean values
-- `DROPDOWN` - Predefined options with `values` array
+- `DROPDOWN` - Predefined options with a `values` array of friendly plain-string labels (never a `[{label,value}]` array or objects-in-`values`); map the label to the API value in code when they differ
 - `MULTI_LINE_TEXT` - Long text content
 - `NUMERIC_STEPPER` - Number inputs with controls (accepted for Number type parameters)
 - `DATE_PICKER` - Date selection

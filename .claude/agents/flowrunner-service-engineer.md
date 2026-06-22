@@ -182,8 +182,24 @@ Each `@paramDef` is a single-line JSON object. Conventions verified against the 
 - **Numeric params:** `"type":"Number"`. A `"uiComponent":{"type":"NUMERIC_STEPPER"}` is the
   accepted convention and is fine to include. Do NOT use `min`/`max` (unsupported).
   `@paramDef {"type":"Number","label":"Page Size","name":"pageSize","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Results per page (default 50)."}`
-- **DROPDOWN options** use the nested object form, never a plain array:
-  `"uiComponent":{"type":"DROPDOWN","options":{"values":["Id","Name","Category"]}}`
+- **DROPDOWN options: friendly labels + code mapping.** A static dropdown submits the displayed
+  string verbatim, so the displayed options MUST be friendly, human-readable labels (never raw API
+  tokens), and the method code maps each label to the API value.
+  - Options use the nested object form with **plain strings**, never a top-level `[{label,value}]`
+    array and never objects inside `values`:
+    `"uiComponent":{"type":"DROPDOWN","options":{"values":["Read","Write","Admin"]}}`
+  - In the method body/query, map the label → API value with a private helper:
+    ```js
+    #resolveChoice(value, mapping) {
+      if (value === undefined || value === null) return undefined
+      return Object.prototype.hasOwnProperty.call(mapping, value) ? mapping[value] : value
+    }
+    ```
+    e.g. `permission: this.#resolveChoice(permission, { Read:'pull', Write:'push', Admin:'admin' })`.
+  - When label === value for every option (e.g. `["Inventory","Service"]`), emit plain strings and
+    add NO mapping. When any label differs (incl. case-only, e.g. `Open`→`open`), add a full mapping.
+  - When ADDING or FIXING methods, apply this even if existing code in the file still uses the old
+    array/object-in-`values` form — and flag the legacy dropdowns you see so they can be normalized.
 - **Array types use `Array<Type>` (NO dot).** Both primitive and custom-typedef element types:
   `"type":"Array<String>"`, `"type":"Array<DataField>"`.
   > This repo uses the no-dot form (verified working in the product, including for custom
@@ -358,7 +374,9 @@ Examine **both** the JSDoc annotations AND the implementation. Fix bugs and inco
 - Ensure `package.json` is minimal (empty `scripts`); remove any `coderunner.js` deploy scaffolding
   expectations.
 - Fix `@returns {Promise.<T>}` → `@returns {T}`; `Array.<T>` → `Array<T>`.
-- Ensure numeric params are `"type":"Number"`; DROPDOWN options use `{"values":[...]}`.
+- Ensure numeric params are `"type":"Number"`; DROPDOWN options use friendly plain-string labels in
+  `{"values":[...]}` with code mapping the label→API value (convert any legacy
+  `[{label,value}]` / object-in-`values` dropdowns).
 - Ensure `@route` verbs are REST-appropriate (don't blanket-rewrite GET→POST).
 - Ensure `@operationName` values are unique; every action has `@description`, `@category`,
   single-line `@sampleResult`.
@@ -377,8 +395,9 @@ Examine **both** the JSDoc annotations AND the implementation. Fix bugs and inco
       `@sampleResult`.
 - [ ] `@route` verbs REST-appropriate; SYSTEM OAuth routes are GET/POST/PUT as in §5.
 - [ ] `@returns {Type}` (no Promise); arrays are `Array<Type>` (no dot).
-- [ ] Numeric params `"type":"Number"`; DROPDOWN options `{"values":[...]}`; `@paramDef`
-      description-last.
+- [ ] Numeric params `"type":"Number"`; DROPDOWN options are friendly plain-string labels in
+      `{"values":[...]}` mapped to API values in code (no `[{label,value}]` / object-in-`values`);
+      `@paramDef` description-last.
 - [ ] Array params have a `uiComponent` ONLY when their values are an enum.
 - [ ] Action methods use individual params; dictionaries use canonical `payload` + typedef with
       `search`/`cursor`.

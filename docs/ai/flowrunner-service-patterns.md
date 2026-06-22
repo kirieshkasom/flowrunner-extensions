@@ -341,8 +341,12 @@ async generateContent_SampleResultLoader({ criteria }) {
 // Array of strings
 @paramDef {"type":"Array<String>","label":"Tags","name":"tags","description":"List of tags"}
 
-// Dropdown with options
+// Dropdown with options — friendly plain-string labels (never [{label,value}] or objects-in-values).
+// A dropdown submits the displayed string as-is; map label -> API value in code when they differ.
 @paramDef {"type":"String","label":"Priority","name":"priority","uiComponent":{"type":"DROPDOWN","options":{"values":["low","medium","high"]}}}
+// e.g. show "Read"/"Write" but send "pull"/"push":
+@paramDef {"type":"String","label":"Permission","name":"permission","uiComponent":{"type":"DROPDOWN","options":{"values":["Read","Write","Admin"]}}}
+// body: { permission: this.#resolveChoice(permission, { Read:'pull', Write:'push', Admin:'admin' }) }
 
 // Multi-line text
 @paramDef {"type":"String","label":"Description","name":"description","uiComponent":{"type":"MULTI_LINE_TEXT"}}

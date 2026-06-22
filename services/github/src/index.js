@@ -89,6 +89,12 @@ class GitHub {
     return obj
   }
 
+  #resolveChoice(value, mapping) {
+    if (value === undefined || value === null) return undefined
+
+    return Object.prototype.hasOwnProperty.call(mapping, value) ? mapping[value] : value
+  }
+
   // ======================================== OAUTH SYSTEM METHODS ========================================
 
   /**
@@ -983,7 +989,7 @@ class GitHub {
      * @paramDef {"type":"String","label":"Issue Number","name":"issueNumber","required":true,"description":"The number of the issue to update.","dictionary":"getIssuesDictionary","dependsOn":["repository"]}
      * @paramDef {"type":"String","label":"Title","name":"title","description":"New issue title"}
      * @paramDef {"type":"String","label":"Body","name":"body","description":"New issue description","uiComponent":{"type":"MULTI_LINE_TEXT"}}
-     * @paramDef {"type":"String","label":"State","name":"state","description":"State of the issue.","uiComponent":{"type":"DROPDOWN","options":[{"label":"Open","value":"open"},{"label":"Closed","value":"closed"}]}}
+     * @paramDef {"type":"String","label":"State","name":"state","description":"State of the issue.","uiComponent":{"type":"DROPDOWN","options":{"values":["Open","Closed"]}}}
      * @paramDef {"type":"String","label":"Assignees","name":"assignees","description":"Logins of users to assign to this issue. Pass as comma-separated string.","dictionary":"getUsersDictionary"}
      * @paramDef {"type":"String","label":"Milestone","name":"milestone","description":"The number of the milestone to associate this issue with.","dictionary":"getMilestonesDictionary","dependsOn":["repository"]}
      * @paramDef {"type":"String","label":"Labels","name":"labels","description":"Labels to apply to this issue. Pass as comma-separated string.","dictionary":"getLabelsDictionary","dependsOn":["repository"]}
@@ -997,7 +1003,7 @@ class GitHub {
     const requestBody = this.#cleanObject({
       title,
       body,
-      state,
+      state: this.#resolveChoice(state, { Open: 'open', Closed: 'closed' }),
       assignees: assignees ? assignees.split(',').map(s => s.trim()) : undefined,
       milestone: milestone ? parseInt(milestone) : undefined,
       labels: labels ? labels.split(',').map(s => s.trim()) : undefined,
@@ -1050,7 +1056,7 @@ class GitHub {
      * @paramDef {"type":"Boolean","label":"Has Issues","name":"has_issues","description":"Whether issues are enabled. Default: true."}
      * @paramDef {"type":"Boolean","label":"Has Projects","name":"has_projects","description":"Whether projects are enabled. Default: true."}
      * @paramDef {"type":"Boolean","label":"Has Wiki","name":"has_wiki","description":"Whether the wiki is enabled. Default: true."}
-     * @paramDef {"type":"String","label":"Visibility","name":"visibility","description":"Can be 'public', 'private', or 'internal'. Default: 'public'.","uiComponent":{"type":"DROPDOWN","options":[{"label":"Public","value":"public"},{"label":"Private","value":"private"},{"label":"Internal","value":"internal"}]}}
+     * @paramDef {"type":"String","label":"Visibility","name":"visibility","description":"Can be 'public', 'private', or 'internal'. Default: 'public'.","uiComponent":{"type":"DROPDOWN","options":{"values":["Public","Private","Internal"]}}}
      *
      * @returns {Object}
      * @sampleResult {"id":1296269,"node_id":"MDEwOlJlcG9zaXRvcnkxMjk2MjY5","name":"Hello-World","full_name":"octocat/Hello-World","owner":{"login":"octocat"},"private":false,"html_url":"https://github.com/octocat/Hello-World","description":"This is your first repo!","fork":false,"url":"https://api.github.com/repos/octocat/Hello-World","created_at":"2011-01-26T19:01:12Z","updated_at":"2011-01-26T19:14:43Z","pushed_at":"2011-01-26T19:06:43Z","git_url":"git://github.com/octocat/Hello-World.git","ssh_url":"git@github.com:octocat/Hello-World.git","clone_url":"https://github.com/octocat/Hello-World.git","svn_url":"https://svn.github.com/octocat/Hello-World","homepage":"https://github.com","size":108,"stargazers_count":80,"watchers_count":80,"language":"C","has_issues":true,"has_projects":true,"has_downloads":true,"has_wiki":true,"has_pages":false,"forks_count":4,"mirror_url":null,"open_issues_count":0,"forks":4,"open_issues":0,"watchers":80,"default_branch":"master","permissions":{"admin":true,"push":true,"pull":true}}
@@ -1064,7 +1070,7 @@ class GitHub {
       has_issues,
       has_projects,
       has_wiki,
-      visibility,
+      visibility: this.#resolveChoice(visibility, { Public: 'public', Private: 'private', Internal: 'internal' }),
     })
 
     return await this.#apiRequest({
@@ -1089,7 +1095,7 @@ class GitHub {
      * @paramDef {"type":"Boolean","label":"Has Issues","name":"has_issues","description":"Whether issues are enabled. Default: true."}
      * @paramDef {"type":"Boolean","label":"Has Projects","name":"has_projects","description":"Whether projects are enabled. Default: true."}
      * @paramDef {"type":"Boolean","label":"Has Wiki","name":"has_wiki","description":"Whether the wiki is enabled. Default: true."}
-     * @paramDef {"type":"String","label":"Visibility","name":"visibility","description":"Can be 'public', 'private', or 'internal'. Default: 'public'.","uiComponent":{"type":"DROPDOWN","options":[{"label":"Public","value":"public"},{"label":"Private","value":"private"},{"label":"Internal","value":"internal"}]}}
+     * @paramDef {"type":"String","label":"Visibility","name":"visibility","description":"Can be 'public', 'private', or 'internal'. Default: 'public'.","uiComponent":{"type":"DROPDOWN","options":{"values":["Public","Private","Internal"]}}}
      *
      * @returns {Object}
      * @sampleResult {"id":1296269,"node_id":"MDEwOlJlcG9zaXRvcnkxMjk2MjY5","name":"Hello-World","full_name":"octocat/Hello-World","owner":{"login":"octocat"},"private":false,"html_url":"https://github.com/octocat/Hello-World","description":"This is your first repo!","fork":false,"url":"https://api.github.com/repos/octocat/Hello-World","created_at":"2011-01-26T19:01:12Z","updated_at":"2011-01-26T19:14:43Z","pushed_at":"2011-01-26T19:06:43Z","git_url":"git://github.com/octocat/Hello-World.git","ssh_url":"git@github.com:octocat/Hello-World.git","clone_url":"https://github.com/octocat/Hello-World.git","svn_url":"https://svn.github.com/octocat/Hello-World","homepage":"https://github.com","size":108,"stargazers_count":80,"watchers_count":80,"language":"C","has_issues":true,"has_projects":true,"has_downloads":true,"has_wiki":true,"has_pages":false,"forks_count":4,"mirror_url":null,"open_issues_count":0,"forks":4,"open_issues":0,"watchers":80,"default_branch":"master","permissions":{"admin":true,"push":true,"pull":true}}
@@ -1103,7 +1109,7 @@ class GitHub {
       has_issues,
       has_projects,
       has_wiki,
-      visibility,
+      visibility: this.#resolveChoice(visibility, { Public: 'public', Private: 'private', Internal: 'internal' }),
     })
 
     return await this.#apiRequest({
@@ -1180,7 +1186,7 @@ class GitHub {
      * @paramDef {"type":"String","label":"Pull Request Number","name":"pullNumber","required":true,"description":"The number of the pull request to merge.","dictionary":"getPullRequestsDictionary","dependsOn":["repository"]}
      * @paramDef {"type":"String","label":"Commit Title","name":"commit_title","description":"Title for the merge commit message."}
      * @paramDef {"type":"String","label":"Commit Message","name":"commit_message","description":"Extra detail to append to the merge commit message.","uiComponent":{"type":"MULTI_LINE_TEXT"}}
-     * @paramDef {"type":"String","label":"Merge Method","name":"merge_method","description":"Merge method to use.","defaultValue":"merge","uiComponent":{"type":"DROPDOWN","options":[{"label":"Merge","value":"merge"},{"label":"Squash","value":"squash"},{"label":"Rebase","value":"rebase"}]}}
+     * @paramDef {"type":"String","label":"Merge Method","name":"merge_method","description":"Merge method to use.","defaultValue":"merge","uiComponent":{"type":"DROPDOWN","options":{"values":["Merge","Squash","Rebase"]}}}
      *
      * @returns {Object}
      * @sampleResult {"sha":"6dcb09b5b57875f334f61aebed695e2e4193db5e","merged":true,"message":"Pull Request successfully merged"}
@@ -1191,7 +1197,7 @@ class GitHub {
     const requestBody = this.#cleanObject({
       commit_title,
       commit_message,
-      merge_method,
+      merge_method: this.#resolveChoice(merge_method, { Merge: 'merge', Squash: 'squash', Rebase: 'rebase' }),
     })
 
     return await this.#apiRequest({
@@ -1586,7 +1592,7 @@ class GitHub {
      *
      * @paramDef {"type":"String","label":"Repository","name":"repository","required":true,"description":"Repository in format owner/repo","dictionary":"getRepositoriesDictionary"}
      * @paramDef {"type":"String","label":"Username","name":"username","required":true,"description":"The username of the collaborator to add.","dictionary":"getUsersDictionary"}
-     * @paramDef {"type":"String","label":"Permission","name":"permission","description":"The permission to grant the collaborator. Default: 'pull'.","uiComponent":{"type":"DROPDOWN","options":[{"label":"Read","value":"pull"},{"label":"Triage","value":"triage"},{"label":"Write","value":"push"},{"label":"Maintain","value":"maintain"},{"label":"Admin","value":"admin"}]}}
+     * @paramDef {"type":"String","label":"Permission","name":"permission","description":"The permission to grant the collaborator. Default: 'pull'.","uiComponent":{"type":"DROPDOWN","options":{"values":["Read","Triage","Write","Maintain","Admin"]}}}
      *
      * @returns {Object}
      * @sampleResult {"status":"201 Created"}
@@ -1595,7 +1601,7 @@ class GitHub {
     const { owner, repo } = this.#parseRepository(repository)
 
     const requestBody = this.#cleanObject({
-      permission,
+      permission: this.#resolveChoice(permission, { Read: 'pull', Triage: 'triage', Write: 'push', Maintain: 'maintain', Admin: 'admin' }),
     })
 
     return await this.#apiRequest({
@@ -1741,7 +1747,7 @@ class GitHub {
      *
      * @paramDef {"type":"String","label":"Repository","name":"repository","required":true,"description":"Repository in format owner/repo","dictionary":"getRepositoriesDictionary"}
      * @paramDef {"type":"String","label":"Config URL","name":"config_url","required":true,"description":"The URL to which the payloads will be delivered."}
-     * @paramDef {"type":"String","label":"Config Content Type","name":"config_content_type","description":"The media type used to serialize the payloads. Default: 'json'.","uiComponent":{"type":"DROPDOWN","options":[{"label":"JSON","value":"json"},{"label":"Form (application/x-www-form-urlencoded)","value":"form"}]}}
+     * @paramDef {"type":"String","label":"Config Content Type","name":"config_content_type","description":"The media type used to serialize the payloads. Default: 'json'.","uiComponent":{"type":"DROPDOWN","options":{"values":["JSON","Form"]}}}
      * @paramDef {"type":"String","label":"Config Secret","name":"config_secret","description":"If provided, the `secret` will be sent as the `X-Hub-Signature` header in each webhook delivery."}
      * @paramDef {"type":"Boolean","label":"Active","name":"active","description":"Determines if the webhook is active. Default: true."}
      * @paramDef {"type":"String","label":"Events","name":"events","description":"A list of events to subscribe to. Pass as comma-separated string. Default: 'push'.","uiComponent":{"type":"MULTI_LINE_TEXT"}}
@@ -1758,7 +1764,7 @@ class GitHub {
       events: events ? events.split(',').map(s => s.trim()) : undefined,
       config: this.#cleanObject({
         url: config_url,
-        content_type: config_content_type,
+        content_type: this.#resolveChoice(config_content_type, { JSON: 'json', Form: 'application/x-www-form-urlencoded' }),
         secret: config_secret,
       }),
     })
@@ -1802,7 +1808,7 @@ class GitHub {
      * @paramDef {"type":"String","label":"Organization","name":"org","required":true,"description":"The organization name.","dictionary":"getOrganizationsDictionary"}
      * @paramDef {"type":"String","label":"Name","name":"name","required":true,"description":"The name of the team."}
      * @paramDef {"type":"String","label":"Description","name":"description","description":"The description of the team.","uiComponent":{"type":"MULTI_LINE_TEXT"}}
-     * @paramDef {"type":"String","label":"Privacy","name":"privacy","description":"The level of privacy for the team. Default: 'secret'.","uiComponent":{"type":"DROPDOWN","options":[{"label":"Secret","value":"secret"},{"label":"Closed","value":"closed"}]}}
+     * @paramDef {"type":"String","label":"Privacy","name":"privacy","description":"The level of privacy for the team. Default: 'secret'.","uiComponent":{"type":"DROPDOWN","options":{"values":["Secret","Closed"]}}}
      * @paramDef {"type":"String","label":"Parent Team ID","name":"parent_team_id","description":"The ID of the parent team to create a nested team.","dictionary":"getTeamsDictionary","dependsOn":["org"]}
      *
      * @returns {Object}
@@ -1812,7 +1818,7 @@ class GitHub {
     const requestBody = this.#cleanObject({
       name,
       description,
-      privacy,
+      privacy: this.#resolveChoice(privacy, { Secret: 'secret', Closed: 'closed' }),
       parent_team_id: parent_team_id ? parseInt(parent_team_id) : undefined,
     })
 
@@ -1853,14 +1859,14 @@ class GitHub {
      * @paramDef {"type":"String","label":"Organization","name":"org","required":true,"description":"The organization name.","dictionary":"getOrganizationsDictionary"}
      * @paramDef {"type":"String","label":"Team Slug","name":"team_slug","required":true,"description":"The slug of the team.","dictionary":"getTeamsDictionary","dependsOn":["org"]}
      * @paramDef {"type":"String","label":"Username","name":"username","required":true,"description":"The username of the user to add to the team.","dictionary":"getUsersDictionary"}
-     * @paramDef {"type":"String","label":"Role","name":"role","description":"The role that the user will have in the team. Default: 'member'.","uiComponent":{"type":"DROPDOWN","options":[{"label":"Member","value":"member"},{"label":"Maintainer","value":"maintainer"}]}}
+     * @paramDef {"type":"String","label":"Role","name":"role","description":"The role that the user will have in the team. Default: 'member'.","uiComponent":{"type":"DROPDOWN","options":{"values":["Member","Maintainer"]}}}
      *
      * @returns {Object}
      * @sampleResult {"status":"200 OK"}
      */
   async addTeamMember(org, team_slug, username, role) {
     const requestBody = this.#cleanObject({
-      role,
+      role: this.#resolveChoice(role, { Member: 'member', Maintainer: 'maintainer' }),
     })
 
     return await this.#apiRequest({
@@ -1901,14 +1907,14 @@ class GitHub {
      * @paramDef {"type":"String","label":"Organization","name":"org","required":true,"description":"The organization name.","dictionary":"getOrganizationsDictionary"}
      * @paramDef {"type":"String","label":"Team Slug","name":"team_slug","required":true,"description":"The slug of the team.","dictionary":"getTeamsDictionary","dependsOn":["org"]}
      * @paramDef {"type":"String","label":"Repository","name":"repository","required":true,"description":"Repository in format owner/repo","dictionary":"getRepositoriesDictionary"}
-     * @paramDef {"type":"String","label":"Permission","name":"permission","description":"The permission to grant the team on this repository. Default: 'pull'.","uiComponent":{"type":"DROPDOWN","options":[{"label":"Read","value":"pull"},{"label":"Triage","value":"triage"},{"label":"Write","value":"push"},{"label":"Maintain","value":"maintain"},{"label":"Admin","value":"admin"}]}}
+     * @paramDef {"type":"String","label":"Permission","name":"permission","description":"The permission to grant the team on this repository. Default: 'pull'.","uiComponent":{"type":"DROPDOWN","options":{"values":["Read","Triage","Write","Maintain","Admin"]}}}
      *
      * @returns {Object}
      * @sampleResult {"status":"204 No Content"}
      */
   async addTeamRepository(org, team_slug, owner, repo, permission) {
     const requestBody = this.#cleanObject({
-      permission,
+      permission: this.#resolveChoice(permission, { Read: 'pull', Triage: 'triage', Write: 'push', Maintain: 'maintain', Admin: 'admin' }),
     })
 
     return await this.#apiRequest({
@@ -2016,7 +2022,7 @@ class GitHub {
      * @appearanceColor #24292f #57606a
      *
      * @paramDef {"type":"String","label":"Repository","name":"repository","required":true,"description":"Repository in format owner/repo","dictionary":"getRepositoriesDictionary"}
-     * @paramDef {"type":"String","label":"Subscribed State","name":"subscribed","required":true,"description":"Describes the level of subscription. 'true' to subscribe to all notifications, 'false' to ignore all notifications.","uiComponent":{"type":"DROPDOWN","options":[{"label":"Subscribed","value":"true"},{"label":"Ignored","value":"false"}]}}
+     * @paramDef {"type":"String","label":"Subscribed State","name":"subscribed","required":true,"description":"Describes the level of subscription. 'true' to subscribe to all notifications, 'false' to ignore all notifications.","uiComponent":{"type":"DROPDOWN","options":{"values":["Subscribed","Ignored"]}}}
      *
      * @returns {Object}
      * @sampleResult {"subscribed":true,"ignored":false,"reason":null,"created_at":"2024-01-01T12:00:00Z","url":"https://api.github.com/repos/octocat/Hello-World/subscription","repository_url":"https://api.github.com/repos/octocat/Hello-World"}
@@ -2024,9 +2030,11 @@ class GitHub {
   async watchRepository(repository, subscribed) {
     const { owner, repo } = this.#parseRepository(repository)
 
+    const isSubscribed = this.#resolveChoice(subscribed, { Subscribed: true, Ignored: false })
+
     const requestBody = {
-      subscribed: subscribed === 'true',
-      ignored: subscribed === 'false',
+      subscribed: isSubscribed === true,
+      ignored: isSubscribed === false,
     }
 
     return await this.#apiRequest({
@@ -2226,7 +2234,7 @@ class GitHub {
      *
      * @paramDef {"type":"String","label":"Repository","name":"repository","required":true,"description":"Repository in format owner/repo","dictionary":"getRepositoriesDictionary"}
      * @paramDef {"type":"String","label":"Title","name":"title","required":true,"description":"The title of the milestone."}
-     * @paramDef {"type":"String","label":"State","name":"state","description":"The state of the milestone.","defaultValue":"open","uiComponent":{"type":"DROPDOWN","options":[{"label":"Open","value":"open"},{"label":"Closed","value":"closed"}]}}
+     * @paramDef {"type":"String","label":"State","name":"state","description":"The state of the milestone.","defaultValue":"open","uiComponent":{"type":"DROPDOWN","options":{"values":["Open","Closed"]}}}
      * @paramDef {"type":"String","label":"Description","name":"description","description":"A short description of the milestone.","uiComponent":{"type":"MULTI_LINE_TEXT"}}
      * @paramDef {"type":"String","label":"Due On","name":"due_on","description":"The milestone due date in ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ."}
      *
@@ -2238,7 +2246,7 @@ class GitHub {
 
     const requestBody = this.#cleanObject({
       title,
-      state,
+      state: this.#resolveChoice(state, { Open: 'open', Closed: 'closed' }),
       description,
       due_on,
     })
@@ -2260,7 +2268,7 @@ class GitHub {
      * @paramDef {"type":"String","label":"Repository","name":"repository","required":true,"description":"Repository in format owner/repo","dictionary":"getRepositoriesDictionary"}
      * @paramDef {"type":"String","label":"Milestone Number","name":"milestone_number","required":true,"description":"The number of the milestone to update.","dictionary":"getMilestonesDictionary","dependsOn":["repository"]}
      * @paramDef {"type":"String","label":"Title","name":"title","description":"The title of the milestone."}
-        * @paramDef {"type":"String","label":"State","name":"state","description":"The state of the milestone.","uiComponent":{"type":"DROPDOWN","options":[{"label":"Open","value":"open"},{"label":"Closed","value":"closed"}]}}
+        * @paramDef {"type":"String","label":"State","name":"state","description":"The state of the milestone.","uiComponent":{"type":"DROPDOWN","options":{"values":["Open","Closed"]}}}
      * @paramDef {"type":"String","label":"Description","name":"description","description":"A short description of the milestone.","uiComponent":{"type":"MULTI_LINE_TEXT"}}
      * @paramDef {"type":"String","label":"Due On","name":"due_on","description":"The milestone due date in ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ."}
      *
@@ -2272,7 +2280,7 @@ class GitHub {
 
     const requestBody = this.#cleanObject({
       title,
-      state,
+      state: this.#resolveChoice(state, { Open: 'open', Closed: 'closed' }),
       description,
       due_on,
     })
@@ -2398,7 +2406,7 @@ class GitHub {
      * @paramDef {"type":"String","label":"Repository","name":"repository","required":true,"description":"Repository in format owner/repo","dictionary":"getRepositoriesDictionary"}
      * @paramDef {"type":"String","label":"Title","name":"title","required":true,"description":"The discussion's title."}
      * @paramDef {"type":"String","label":"Body","name":"body","required":true,"description":"The discussion's body text.","uiComponent":{"type":"MULTI_LINE_TEXT"}}
-     * @paramDef {"type":"String","label":"Category Name","name":"category_name","required":true,"description":"The name of the discussion category.","uiComponent":{"type":"DROPDOWN","options":[{"label":"Announcements","value":"Announcements"},{"label":"General","value":"General"},{"label":"Ideas","value":"Ideas"},{"label":"Q&A","value":"Q&A"},{"label":"Show and Tell","value":"Show and Tell"}]}}
+     * @paramDef {"type":"String","label":"Category Name","name":"category_name","required":true,"description":"The name of the discussion category.","uiComponent":{"type":"DROPDOWN","options":{"values":["Announcements","General","Ideas","Q&A","Show and Tell"]}}}
      *
      * @returns {Object}
      * @sampleResult {"id":1,"node_id":"D_kwDOA_j_M84AAAE_","repository_url":"https://api.github.com/repos/octocat/Hello-World","html_url":"https://github.com/octocat/Hello-World/discussions/1","title":"My first discussion","body":"This is the body of my first discussion.","category":{"id":1,"node_id":"DIC_kwDOA_j_M84AAAE_","repository_id":1,"emoji":"👋","name":"General","description":"General discussion"},"state":"open","locked":false,"comments":0,"created_at":"2024-01-01T12:00:00Z","updated_at":"2024-01-01T12:00:00Z","author":{"login":"octocat"}}
@@ -2518,7 +2526,7 @@ class GitHub {
      * @paramDef {"type":"String","label":"Secret Name","name":"secret_name","required":true,"description":"The name of the secret."}
      * @paramDef {"type":"String","label":"Encrypted Value","name":"encrypted_value","required":true,"description":"The encrypted value of the secret. You must encrypt the secret using LibSodium. For more information, see 'Encrypting secrets for the REST API'.","uiComponent":{"type":"MULTI_LINE_TEXT"}}
      * @paramDef {"type":"String","label":"Key ID","name":"key_id","required":true,"description":"The ID of the key you used to encrypt the secret. You can get this by calling the Get Organization Public Key API."}
-     * @paramDef {"type":"String","label":"Visibility","name":"visibility","description":"The visibility of the secret. Default: 'private'.","uiComponent":{"type":"DROPDOWN","options":[{"label":"All Repositories","value":"all"},{"label":"Private Repositories","value":"private"},{"label":"Selected Repositories","value":"selected"}]}}
+     * @paramDef {"type":"String","label":"Visibility","name":"visibility","description":"The visibility of the secret. Default: 'private'.","uiComponent":{"type":"DROPDOWN","options":{"values":["All Repositories","Private Repositories","Selected Repositories"]}}}
      * @paramDef {"type":"String","label":"Selected Repository IDs","name":"selected_repository_ids","description":"An array of repository IDs that can access the secret. Required when visibility is 'selected'. Pass as comma-separated string of IDs."}
      *
      * @returns {Object}
@@ -2528,7 +2536,7 @@ class GitHub {
     const requestBody = this.#cleanObject({
       encrypted_value,
       key_id,
-      visibility,
+      visibility: this.#resolveChoice(visibility, { 'All Repositories': 'all', 'Private Repositories': 'private', 'Selected Repositories': 'selected' }),
       selected_repository_ids: selected_repository_ids ? selected_repository_ids.split(',').map(s => parseInt(s.trim())) : undefined,
     })
 
@@ -2700,7 +2708,7 @@ class GitHub {
      * @paramDef {"type":"String","label":"Organization","name":"org","required":true,"description":"The organization name.","dictionary":"getOrganizationsDictionary"}
      * @paramDef {"type":"String","label":"Variable Name","name":"name","required":true,"description":"The name of the variable."}
      * @paramDef {"type":"String","label":"Value","name":"value","required":true,"description":"The value of the variable.","uiComponent":{"type":"MULTI_LINE_TEXT"}}
-     * @paramDef {"type":"String","label":"Visibility","name":"visibility","description":"The visibility of the variable. Default: 'private'.","uiComponent":{"type":"DROPDOWN","options":[{"label":"All Repositories","value":"all"},{"label":"Private Repositories","value":"private"},{"label":"Selected Repositories","value":"selected"}]}}
+     * @paramDef {"type":"String","label":"Visibility","name":"visibility","description":"The visibility of the variable. Default: 'private'.","uiComponent":{"type":"DROPDOWN","options":{"values":["All Repositories","Private Repositories","Selected Repositories"]}}}
      * @paramDef {"type":"String","label":"Selected Repository IDs","name":"selected_repository_ids","description":"An array of repository IDs that can access the variable. Required when visibility is 'selected'. Pass as comma-separated string of IDs."}
      *
      * @returns {Object}
@@ -2710,7 +2718,7 @@ class GitHub {
     const requestBody = this.#cleanObject({
       name,
       value,
-      visibility,
+      visibility: this.#resolveChoice(visibility, { 'All Repositories': 'all', 'Private Repositories': 'private', 'Selected Repositories': 'selected' }),
       selected_repository_ids: selected_repository_ids ? selected_repository_ids.split(',').map(s => parseInt(s.trim())) : undefined,
     })
 
@@ -2732,7 +2740,7 @@ class GitHub {
      * @paramDef {"type":"String","label":"Variable Name","name":"name","required":true,"description":"The name of the variable to update."}
      * @paramDef {"type":"String","label":"New Name","name":"new_name","description":"The new name of the variable."}
      * @paramDef {"type":"String","label":"New Value","name":"value","description":"The new value of the variable.","uiComponent":{"type":"MULTI_LINE_TEXT"}}
-     * @paramDef {"type":"String","label":"Visibility","name":"visibility","description":"The visibility of the variable. Default: 'private'.","uiComponent":{"type":"DROPDOWN","options":[{"label":"All Repositories","value":"all"},{"label":"Private Repositories","value":"private"},{"label":"Selected Repositories","value":"selected"}]}}
+     * @paramDef {"type":"String","label":"Visibility","name":"visibility","description":"The visibility of the variable. Default: 'private'.","uiComponent":{"type":"DROPDOWN","options":{"values":["All Repositories","Private Repositories","Selected Repositories"]}}}
      * @paramDef {"type":"String","label":"Selected Repository IDs","name":"selected_repository_ids","description":"An array of repository IDs that can access the variable. Required when visibility is 'selected'. Pass as comma-separated string of IDs."}
      *
      * @returns {Object}
@@ -2742,7 +2750,7 @@ class GitHub {
     const requestBody = this.#cleanObject({
       name: new_name,
       value,
-      visibility,
+      visibility: this.#resolveChoice(visibility, { 'All Repositories': 'all', 'Private Repositories': 'private', 'Selected Repositories': 'selected' }),
       selected_repository_ids: selected_repository_ids ? selected_repository_ids.split(',').map(s => parseInt(s.trim())) : undefined,
     })
 
@@ -3152,8 +3160,8 @@ class GitHub {
      * @appearanceColor #24292f #57606a
      *
      * @paramDef {"type":"String","label":"Query","name":"query","required":true,"description":"The search query using GitHub search syntax (e.g. \"tetris language:assembly stars:>100\")."}
-     * @paramDef {"type":"String","label":"Sort","name":"sort","description":"The field to sort results by. Default: best match.","uiComponent":{"type":"DROPDOWN","options":[{"label":"Stars","value":"stars"},{"label":"Forks","value":"forks"},{"label":"Help Wanted Issues","value":"help-wanted-issues"},{"label":"Updated","value":"updated"}]}}
-     * @paramDef {"type":"String","label":"Order","name":"order","description":"The sort order. Default: desc.","uiComponent":{"type":"DROPDOWN","options":[{"label":"Descending","value":"desc"},{"label":"Ascending","value":"asc"}]}}
+     * @paramDef {"type":"String","label":"Sort","name":"sort","description":"The field to sort results by. Default: best match.","uiComponent":{"type":"DROPDOWN","options":{"values":["Stars","Forks","Help Wanted Issues","Updated"]}}}
+     * @paramDef {"type":"String","label":"Order","name":"order","description":"The sort order. Default: desc.","uiComponent":{"type":"DROPDOWN","options":{"values":["Descending","Ascending"]}}}
      * @paramDef {"type":"Number","label":"Per Page","name":"perPage","description":"Number of results per page (max 100). Default: 30.","uiComponent":{"type":"NUMERIC_STEPPER"}}
      * @paramDef {"type":"Number","label":"Page","name":"page","description":"Page number of the results to fetch. Default: 1.","uiComponent":{"type":"NUMERIC_STEPPER"}}
      *
@@ -3163,8 +3171,8 @@ class GitHub {
   async searchRepositories(query, sort, order, perPage, page) {
     const searchQuery = this.#cleanObject({
       q: query,
-      sort,
-      order,
+      sort: this.#resolveChoice(sort, { Stars: 'stars', Forks: 'forks', 'Help Wanted Issues': 'help-wanted-issues', Updated: 'updated' }),
+      order: this.#resolveChoice(order, { Descending: 'desc', Ascending: 'asc' }),
       per_page: perPage,
       page,
     })
@@ -3183,8 +3191,8 @@ class GitHub {
      * @appearanceColor #24292f #57606a
      *
      * @paramDef {"type":"String","label":"Query","name":"query","required":true,"description":"The search query using GitHub search syntax (e.g. \"repo:octocat/Hello-World is:issue is:open label:bug\")."}
-     * @paramDef {"type":"String","label":"Sort","name":"sort","description":"The field to sort results by. Default: best match.","uiComponent":{"type":"DROPDOWN","options":[{"label":"Comments","value":"comments"},{"label":"Created","value":"created"},{"label":"Updated","value":"updated"}]}}
-     * @paramDef {"type":"String","label":"Order","name":"order","description":"The sort order. Default: desc.","uiComponent":{"type":"DROPDOWN","options":[{"label":"Descending","value":"desc"},{"label":"Ascending","value":"asc"}]}}
+     * @paramDef {"type":"String","label":"Sort","name":"sort","description":"The field to sort results by. Default: best match.","uiComponent":{"type":"DROPDOWN","options":{"values":["Comments","Created","Updated"]}}}
+     * @paramDef {"type":"String","label":"Order","name":"order","description":"The sort order. Default: desc.","uiComponent":{"type":"DROPDOWN","options":{"values":["Descending","Ascending"]}}}
      * @paramDef {"type":"Number","label":"Per Page","name":"perPage","description":"Number of results per page (max 100). Default: 30.","uiComponent":{"type":"NUMERIC_STEPPER"}}
      * @paramDef {"type":"Number","label":"Page","name":"page","description":"Page number of the results to fetch. Default: 1.","uiComponent":{"type":"NUMERIC_STEPPER"}}
      *
@@ -3194,8 +3202,8 @@ class GitHub {
   async searchIssues(query, sort, order, perPage, page) {
     const searchQuery = this.#cleanObject({
       q: query,
-      sort,
-      order,
+      sort: this.#resolveChoice(sort, { Comments: 'comments', Created: 'created', Updated: 'updated' }),
+      order: this.#resolveChoice(order, { Descending: 'desc', Ascending: 'asc' }),
       per_page: perPage,
       page,
     })
@@ -3247,7 +3255,7 @@ class GitHub {
      * @paramDef {"type":"String","label":"Workflow","name":"workflowId","description":"A workflow ID or filename to scope runs to. Leave empty to list runs across all workflows.","dictionary":"getWorkflowsDictionary","dependsOn":["repository"]}
      * @paramDef {"type":"String","label":"Branch","name":"branch","description":"Returns runs associated with a branch name.","dictionary":"getBranchesDictionary","dependsOn":["repository"]}
      * @paramDef {"type":"String","label":"Event","name":"event","description":"Returns runs triggered by the event specified (e.g. push, pull_request, workflow_dispatch)."}
-     * @paramDef {"type":"String","label":"Status","name":"status","description":"Returns runs with the check run status or conclusion specified."}
+     * @paramDef {"type":"String","label":"Status","name":"status","description":"Returns runs with the check run status or conclusion specified.","uiComponent":{"type":"DROPDOWN","options":{"values":["Queued","In Progress","Completed","Success","Failure","Cancelled","Skipped","Timed Out","Action Required"]}}}
      * @paramDef {"type":"String","label":"Actor","name":"actor","description":"Returns runs triggered by the user with this login.","dictionary":"getUsersDictionary"}
      * @paramDef {"type":"Number","label":"Per Page","name":"perPage","description":"Number of results per page (max 100). Default: 30.","uiComponent":{"type":"NUMERIC_STEPPER"}}
      * @paramDef {"type":"Number","label":"Page","name":"page","description":"Page number of the results to fetch. Default: 1.","uiComponent":{"type":"NUMERIC_STEPPER"}}
@@ -3261,7 +3269,7 @@ class GitHub {
     const query = this.#cleanObject({
       branch,
       event,
-      status,
+      status: this.#resolveChoice(status, { Queued: 'queued', 'In Progress': 'in_progress', Completed: 'completed', Success: 'success', Failure: 'failure', Cancelled: 'cancelled', Skipped: 'skipped', 'Timed Out': 'timed_out', 'Action Required': 'action_required' }),
       actor,
       per_page: perPage,
       page,
@@ -3304,7 +3312,7 @@ class GitHub {
      *
      * @paramDef {"type":"String","label":"Repository","name":"repository","required":true,"description":"Repository in format owner/repo","dictionary":"getRepositoriesDictionary"}
      * @paramDef {"type":"String","label":"Run ID","name":"runId","required":true,"description":"The unique identifier of the workflow run."}
-     * @paramDef {"type":"String","label":"Filter","name":"filter","description":"Filters jobs by their attempt. Default: latest.","uiComponent":{"type":"DROPDOWN","options":[{"label":"Latest","value":"latest"},{"label":"All","value":"all"}]}}
+     * @paramDef {"type":"String","label":"Filter","name":"filter","description":"Filters jobs by their attempt. Default: latest.","uiComponent":{"type":"DROPDOWN","options":{"values":["Latest","All"]}}}
      * @paramDef {"type":"Number","label":"Per Page","name":"perPage","description":"Number of results per page (max 100). Default: 30.","uiComponent":{"type":"NUMERIC_STEPPER"}}
      * @paramDef {"type":"Number","label":"Page","name":"page","description":"Page number of the results to fetch. Default: 1.","uiComponent":{"type":"NUMERIC_STEPPER"}}
      *
@@ -3315,7 +3323,7 @@ class GitHub {
     const { owner, repo } = this.#parseRepository(repository)
 
     const query = this.#cleanObject({
-      filter,
+      filter: this.#resolveChoice(filter, { Latest: 'latest', All: 'all' }),
       per_page: perPage,
       page,
     })
