@@ -1,7 +1,16 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(git pull *)"
-    ]
-  }
+"permissions": {
+  "allow": [
+    "Bash",
+    "Workflow",
+    "Agent",
+    "Task"
+  ],
+  "deny": [
+    "Bash(rm -rf:*)",
+    "Bash(git push --force:*)",
+    "Bash(git reset --hard:*)"
+  ],
+  "ask": []
+}
 }
