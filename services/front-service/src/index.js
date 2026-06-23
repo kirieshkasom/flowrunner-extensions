@@ -123,6 +123,21 @@ class FrontService {
     return formData
   }
 
+  async #downloadBinary({ url, logTag }) {
+    logger.debug(`${ logTag } - downloading binary from ${ url }`)
+
+    const response = await Flowrunner.Request
+      .get(url)
+      .set({ Authorization: `Bearer ${ this.apiKey }` })
+      .setEncoding(null)
+      .unwrapBody(false)
+
+    return {
+      buffer: response.body,
+      contentType: response.headers['content-type'] || 'application/octet-stream',
+    }
+  }
+
   // -------------------- Dictionaries --------------------
 
   /**
@@ -621,6 +636,62 @@ class FrontService {
       url,
       body: clean(messageParams),
     })
+  }
+
+  // -------------------- Attachments --------------------
+
+  /**
+   * @operationName Get Attachment
+   * @description Downloads a Front message attachment and stores it in FlowRunner Files, returning a URL to the stored file. Accepts either an attachment id (e.g. fil_123) from a message's attachments list, or the attachment's full Front download URL.
+   * @category Attachments
+   * @route POST /get-attachment
+   * @appearanceColor #A777E3 #C39FE9
+   * @executionTimeoutInSeconds 60
+   *
+   * @paramDef {"type":"String","label":"Attachment","name":"attachment","required":true,"description":"Attachment id (e.g. fil_231iuypv) or the full Front download URL from a message's attachments list."}
+   * @paramDef {"type":"String","label":"File Name","name":"fileName","description":"Optional name to store the file under. Defaults to the name in the URL or 'attachment'."}
+   * @paramDef {"type":"String","label":"Target Directory","name":"targetDirectory","description":"Optional folder in FlowRunner Files. Defaults to /front-attachments."}
+   *
+   * @returns {Object}
+   * @sampleResult {"url":"https://backendlessappcontent.com/APP-ID/REST-KEY/files/front-attachments/invoice.pdf"}
+   */
+  async getAttachment(attachment, fileName, targetDirectory) {
+    const logTag = '[getAttachment]'
+
+    if (!attachment) {
+      throw new Error('Attachment is required')
+    }
+
+    let downloadUrl
+
+    if (/^https?:\/\//i.test(attachment)) {
+      let parsed
+
+      try {
+        parsed = new URL(attachment)
+      } catch (error) {
+        throw new Error('Attachment URL is not a valid URL')
+      }
+
+      const host = parsed.hostname.toLowerCase()
+
+      if (parsed.protocol !== 'https:' || (host !== 'frontapp.com' && !host.endsWith('.frontapp.com'))) {
+        throw new Error('Attachment URL must be a Front (frontapp.com) download link')
+      }
+
+      downloadUrl = parsed.href
+    } else {
+      downloadUrl = `${ API_BASE_URL }/download/${ encodeURIComponent(attachment) }`
+    }
+
+    const { buffer } = await this.#downloadBinary({ url: downloadUrl, logTag })
+
+    const name = fileName || (downloadUrl.split('/').pop() || 'attachment').split('?')[0]
+    const directory = targetDirectory || '/front-attachments'
+
+    const url = await Flowrunner.Files.saveFile(directory, name, buffer, true)
+
+    return { url }
   }
 
   // -------------------- Comments --------------------
