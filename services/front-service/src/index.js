@@ -675,7 +675,11 @@ class FrontService {
 
       const host = parsed.hostname.toLowerCase()
 
-      if (parsed.protocol !== 'https:' || (host !== 'frontapp.com' && !host.endsWith('.frontapp.com'))) {
+      if (parsed.protocol !== 'https:') {
+        throw new Error('Attachment URL must use HTTPS')
+      }
+
+      if (host !== 'frontapp.com' && !host.endsWith('.frontapp.com')) {
         throw new Error('Attachment URL must be a Front (frontapp.com) download link')
       }
 
