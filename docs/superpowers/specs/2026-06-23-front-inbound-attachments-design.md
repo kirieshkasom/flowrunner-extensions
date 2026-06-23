@@ -69,13 +69,24 @@ JSDoc annotations:
 
 Parameters:
 
-- `attachment` (String, required) — an attachment `id` (`fil_...`) **or** a full download URL. If the value starts with `http`, it is used as-is; otherwise the URL is built as `${API_BASE_URL}/download/{attachment}`.
+- `attachment` (String, required) — an attachment `id` (`fil_...`) **or** a full download URL. If the value starts with `http`, it is validated and used as-is (see "URL validation" below); otherwise the URL is built as `${API_BASE_URL}/download/{attachment}`.
 - `fileName` (String, optional) — name to store the file under. Falls back to the basename of the URL or `attachment`.
 - `targetDirectory` (String, optional) — folder in FlowRunner Files. Defaults to `/front-attachments`.
 
+URL validation (security):
+
+The Front Bearer token is attached to the download request, so the request must only ever be sent to a Front host. When `attachment` is a full URL:
+
+- Parse it with `new URL(value)`. Reject (throw) if parsing fails.
+- Require `protocol === 'https:'`.
+- Require the hostname to equal `frontapp.com` or end with `.frontapp.com` (case-insensitive). This covers both `api2.frontapp.com` and per-tenant `<tenant>.api.frontapp.com` download hosts.
+- On any failure, throw a clear error (e.g. `Attachment URL must be a Front (frontapp.com) download link`) **before** issuing the request — never send the token to a non-Front host.
+
+The bare-`id` path needs no validation: the service constructs the api2 URL itself.
+
 Behavior:
 
-1. Resolve the download URL from `attachment`.
+1. Resolve the download URL from `attachment` (validating it per above when it is a URL).
 2. Download the binary with the existing Bearer auth header, in binary mode: `Flowrunner.Request.get(url).set({ Authorization: 'Bearer ...' }).setEncoding(null).unwrapBody(false)` → `response.body` is a Buffer; `response.headers['content-type']` gives the MIME type.
 3. Save via `Flowrunner.Files.saveFile(directory, name, buffer, true)` (the global-`Flowrunner` pattern this service uses; matches `box`/`dropbox`). This returns the stored file URL.
 
@@ -102,4 +113,5 @@ Returns:
 
 - Verify `npx eslint services/front-service --fix` passes.
 - Manual verification in FlowRunner: trigger fires on an inbound email with an attachment → `attachments[]` populated → Get Attachment with one entry's `id` (and separately its `url`) → returns a FlowRunner Files URL that downloads the original file.
+- Get Attachment rejects a non-Front URL (e.g. `https://evil.example.com/x`) with the validation error and does not issue the request.
 - README updated via the `readme-maintainer` agent after implementation.
