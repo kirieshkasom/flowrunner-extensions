@@ -48,6 +48,41 @@ function normalizeAttachment(att) {
   }
 }
 
+const MIME_EXTENSIONS = {
+  'application/pdf': '.pdf',
+  'application/json': '.json',
+  'application/xml': '.xml',
+  'application/zip': '.zip',
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'application/vnd.ms-excel': '.xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+  'application/vnd.ms-powerpoint': '.ppt',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+  'text/plain': '.txt',
+  'text/csv': '.csv',
+  'text/html': '.html',
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'image/svg+xml': '.svg',
+}
+
+function extensionForMimeType(contentType) {
+  if (!contentType) {
+    return ''
+  }
+
+  const type = contentType.split(';')[0].trim().toLowerCase()
+
+  return MIME_EXTENSIONS[type] || ''
+}
+
+function hasFileExtension(name) {
+  return /\.[A-Za-z0-9]{1,8}$/.test(name)
+}
+
 /**
  * @integrationName Front
  * @integrationIcon /logo.png
@@ -699,9 +734,14 @@ class FrontService {
       downloadUrl = `${ API_BASE_URL }/download/${ encodeURIComponent(attachment) }`
     }
 
-    const { buffer } = await this.#downloadBinary({ url: downloadUrl, logTag })
+    const { buffer, contentType } = await this.#downloadBinary({ url: downloadUrl, logTag })
 
-    const name = fileName || (downloadUrl.split('/').pop() || 'attachment').split('?')[0]
+    let name = fileName || (downloadUrl.split('/').pop() || 'attachment').split('?')[0]
+
+    if (!hasFileExtension(name)) {
+      name += extensionForMimeType(contentType)
+    }
+
     const directory = targetDirectory || '/front-attachments'
 
     const url = await Flowrunner.Files.saveFile(directory, name, buffer, true)
