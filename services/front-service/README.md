@@ -16,7 +16,7 @@ Integrates the Front shared inbox platform into FlowRunner workflows. Manage con
 
 - Archive Conversation
 - Get Conversation
-- List Conversation Messages
+- List Conversation Messages — each message includes an `attachments` array (id, filename, content_type, size, url); pass an attachment's `id` or `url` to **Get Attachment** to retrieve the file
 - List Conversations
 - Reply to Conversation
 - Search Conversations
@@ -42,11 +42,15 @@ Integrates the Front shared inbox platform into FlowRunner workflows. Manage con
 - List Accounts
 - Update Account
 
+### Attachments
+
+- Get Attachment
+
 ## List of Triggers
 
 - On New Comment
 - On New Conversation
-- On New Inbound Message
+- On New Inbound Message — fires for each new inbound message; the payload includes an `attachments` array (id, filename, content_type, size, url, is_inline). Pass an attachment's `id` or `url` to **Get Attachment** to download the file into FlowRunner Files.
 
 ## Agent Ideas
 
