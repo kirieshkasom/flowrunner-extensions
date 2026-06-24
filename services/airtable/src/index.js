@@ -970,7 +970,7 @@ class Airtable {
       query.filterByFormula = searchFormula
     } else if (searchByField && searchValue !== undefined) {
       query.filterByFormula = exactMatch
-        ? `${ searchByField } = ${ searchValue }`
+        ? `{${ searchByField }} = ${ JSON.stringify(searchValue) }`
         : `SEARCH('${ searchValue }', {${ searchByField }} & "") > 0`
     }
 
