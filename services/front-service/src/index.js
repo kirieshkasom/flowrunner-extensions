@@ -1169,7 +1169,7 @@ class FrontService {
     const { inboxId } = invocation.triggerData || {}
     const nowSeconds = Math.floor(Date.now() / 1000)
 
-    let query = `updated_after:${ invocation.state?.watermark || nowSeconds - 60 }`
+    let query = `after:${ invocation.state?.watermark || nowSeconds - 60 }`
 
     if (inboxId) {
       query += ` inbox:${ inboxId }`
@@ -1265,7 +1265,7 @@ class FrontService {
     const { inboxId } = invocation.triggerData || {}
     const nowSeconds = Math.floor(Date.now() / 1000)
 
-    let query = `updated_after:${ invocation.state?.watermark || nowSeconds - 60 }`
+    let query = `after:${ invocation.state?.watermark || nowSeconds - 60 }`
 
     if (inboxId) {
       query += ` inbox:${ inboxId }`
