@@ -316,14 +316,24 @@ class BillComService {
    * @executionTimeoutInSeconds 120
    *
    * @paramDef {"type":"Number","label":"Max Results","name":"maxResults","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of vendors to return per page, between 1 and 100. Defaults to 50."}
+   * @paramDef {"type":"String","label":"Name","name":"name","description":"Filter vendors whose name starts with this text (case-sensitive prefix match)."}
    *
    * @returns {Object}
    * @sampleResult {"results":[{"id":"00901ABCDEFGHIJKLMN","name":"Office Supplies Co","email":"vendor@example.com","archived":false}],"nextPage":null,"prevPage":null}
    */
-  async listVendors(maxResults) {
+  async listVendors(maxResults, name) {
+    const filters = []
+
+    if (name) {
+      filters.push(`name:sw:${ name }`)
+    }
+
     return await this.#apiRequest({
       url: `${ this.apiBaseUrl }/vendors`,
-      query: { max: maxResults || DEFAULT_PAGE_SIZE },
+      query: {
+        max: maxResults || DEFAULT_PAGE_SIZE,
+        filters: filters.length ? filters.join(',') : undefined,
+      },
       logTag: 'listVendors',
     })
   }
