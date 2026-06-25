@@ -84,6 +84,7 @@ function hasFileExtension(name) {
 }
 
 /**
+ * @usesFileStorage
  * @integrationName Front
  * @integrationIcon /logo.png
  * @integrationTriggersScope SINGLE_APP
@@ -696,12 +697,12 @@ class FrontService {
    *
    * @paramDef {"type":"String","label":"Attachment","name":"attachment","required":true,"description":"Attachment id (e.g. fil_231iuypv) or the full Front download URL from a message's attachments list."}
    * @paramDef {"type":"String","label":"File Name","name":"fileName","description":"Optional name to store the file under. Defaults to the name in the URL or 'attachment'."}
-   * @paramDef {"type":"String","label":"Target Directory","name":"targetDirectory","description":"Optional folder in FlowRunner Files. Defaults to /front-attachments."}
+   * @paramDef {"type":"FilesUploadOptions","name":"fileOptions","label":"File Settings","required":false,"include":["scope"]}
    *
    * @returns {Object}
    * @sampleResult {"url":"https://backendlessappcontent.com/APP-ID/REST-KEY/files/front-attachments/invoice.pdf"}
    */
-  async getAttachment(attachment, fileName, targetDirectory) {
+  async getAttachment(attachment, fileName, fileOptions) {
     const logTag = '[getAttachment]'
 
     if (!attachment) {
@@ -742,9 +743,12 @@ class FrontService {
       name += extensionForMimeType(contentType)
     }
 
-    const directory = targetDirectory || '/front-attachments'
-
-    const url = await Flowrunner.Files.saveFile(directory, name, buffer, true)
+    const { url } = await this.flowrunner.Files.uploadFile(buffer, {
+      filename: name,
+      generateUrl: true,
+      overwrite: true,
+      ...(fileOptions || { scope: 'FLOW' }),
+    })
 
     return { url }
   }

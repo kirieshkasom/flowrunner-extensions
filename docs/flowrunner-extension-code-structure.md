@@ -89,6 +89,7 @@ class ResponseError extends Error {
  * @integrationName - Display name in the FlowRunner UI
  * @integrationTriggersScope - Trigger scope (SINGLE_APP or ALL_APPS)
  * @integrationIcon - Icon path matching the actual file in public/ (/icon.png|.svg|.webp|.jpeg)
+ * @usesFileStorage - REQUIRED whenever the service calls the Files API (this.flowrunner.Files.*)
  **/
 class Airtable {
   constructor(config) {

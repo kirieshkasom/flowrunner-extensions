@@ -167,6 +167,7 @@ const logger = {
  */
 
 /**
+ * @usesFileStorage
  * @integrationName Box
  * @integrationIcon /icon.svg
  * @requireOAuth
@@ -416,13 +417,18 @@ class Box {
         .setEncoding(null)
 
       const buffer = Buffer.isBuffer(fileBytes) ? fileBytes : Buffer.from(fileBytes)
-      const savedFile = await Flowrunner.Files.saveFile(`box-downloads/${ fileId }`, info.name, buffer, true)
+      const { url } = await this.flowrunner.Files.uploadFile(buffer, {
+        filename: info.name,
+        generateUrl: true,
+        overwrite: true,
+        scope: 'FLOW',
+      })
 
       return {
         fileName: info.name,
         contentType: info.content_type || null,
         sizeBytes: info.size,
-        downloadUrl: savedFile,
+        downloadUrl: url,
       }
     } catch (error) {
       this.#handleError(error, 'downloadFile')

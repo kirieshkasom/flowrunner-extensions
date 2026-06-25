@@ -147,6 +147,8 @@ Notes confirmed by the codebase:
 - `@integrationIcon` — path to the real file in `public/` (see §1).
 - `@requireOAuth` — only for OAuth2 services.
 - `@integrationTriggersScope` — `SINGLE_APP` or `ALL_APPS` (only if the service has triggers).
+- `@usesFileStorage` — REQUIRED whenever the service calls the Files API (`this.flowrunner.Files.*`);
+  without it file storage is never provisioned and Files calls fail at runtime (see §8).
 
 ### Method-level (actions)
 - `@operationName` — UI name. **MUST be unique across the entire service.** No two methods may
@@ -334,8 +336,19 @@ const { url } = await this.flowrunner.Files.uploadFile(buffer, {
   (`include` can also add `filename`; other built-ins: `FilesListOptions`, `FilesGetOptions`,
   `FilesDeleteOptions`). Scope values: `FLOW` (default), `WORKSPACE`, `EXECUTION`.
 - For never-delete files (vector stores, config): `objectTtl: 0`, `overwrite: false`.
-- Alternative (used by box/dropbox): `Flowrunner.Files.saveFile(path, name, buffer, true)` returns
-  a URL directly — acceptable, but prefer `uploadFile` for new work.
+- **REQUIRED — `@usesFileStorage`:** any service that calls the Files API (`this.flowrunner.Files.*`)
+  MUST carry the `@usesFileStorage` class-level JSDoc annotation, or the platform never provisions
+  storage and every Files call fails at runtime. Place it in the class block:
+  ```js
+  /**
+   * @usesFileStorage
+   * @integrationName AI Image Generator
+   * @integrationIcon /icon.png
+   */
+  class AIImageGenerator {}
+  ```
+- `this.flowrunner.Files.uploadFile(...)` is the ONLY sanctioned upload API. Never use
+  `Flowrunner.Files.saveFile(...)` — it does not provision storage correctly.
 
 For binary **downloads**, fetch with `.setEncoding(null)` and wrap in a Buffer:
 ```js
@@ -378,6 +391,10 @@ with the rules above, **the rules above win** (they are verified against current
 
 ## When fixing / reviewing a service
 
+**Before changing any code, load the full rule set:** read this entire file (§1–§10) and the docs in
+§10. Fixing from memory is how documented patterns (e.g. the §8 Files API / `@usesFileStorage` rule)
+get dropped and services break.
+
 Examine **both** the JSDoc annotations AND the implementation. Fix bugs and inconsistencies, and:
 - Correct any `Backendless.*` → `Flowrunner.*`.
 - Ensure every config item has the right `shared` value; `displayName` has no service-name prefix.
@@ -416,4 +433,6 @@ Examine **both** the JSDoc annotations AND the implementation. Fix bugs and inco
 - [ ] Array params have a `uiComponent` ONLY when their values are an enum.
 - [ ] Action methods use individual params; dictionaries use canonical `payload` + typedef with
       `search`/`cursor`.
+- [ ] If the service calls the Files API, the class has `@usesFileStorage` and uploads use
+      `this.flowrunner.Files.uploadFile` — no `Flowrunner.Files.saveFile` anywhere.
 - [ ] All descriptions clear, specific, professional.

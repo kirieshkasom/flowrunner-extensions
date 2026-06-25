@@ -102,6 +102,7 @@ function isCursorResetError(error) {
 }
 
 /**
+ * @usesFileStorage
  * @requireOAuth
  * @integrationName Dropbox
  * @integrationIcon /icon.svg
@@ -539,13 +540,13 @@ class DropboxService {
    * @executionTimeoutInSeconds 120
    *
    * @paramDef {"type":"String","label":"File","name":"path","required":true,"dictionary":"getFilesDictionary","description":"Path or ID of the Dropbox file to download. Examples: '/Reports/summary.pdf', 'id:abc123'."}
-   * @paramDef {"type":"String","label":"Target Directory","name":"targetDirectory","description":"Folder inside Flowrunner Files where the downloaded copy will be saved. Example: '/dropbox-downloads'. Leave blank to save in the root."}
    * @paramDef {"type":"String","label":"Target File Name","name":"targetFileName","description":"Name to assign to the saved file in Flowrunner. Leave blank to reuse the source file's name."}
+   * @paramDef {"type":"FilesUploadOptions","name":"fileOptions","label":"File Settings","required":false,"include":["scope"]}
    *
    * @returns {Object}
    * @sampleResult {"url":"https://backendlessappcontent.com/APP-ID/REST-KEY/files/dropbox-downloads/summary.pdf"}
    */
-  async downloadFile(path, targetDirectory, targetFileName) {
+  async downloadFile(path, targetFileName, fileOptions) {
     assert(path, '"File" is required.')
 
     const buffer = await this.#contentDownload({
@@ -555,9 +556,13 @@ class DropboxService {
     })
 
     const name = targetFileName || basenameFromPath(path) || 'dropbox-file'
-    const directory = targetDirectory || '/'
 
-    const url = await Flowrunner.Files.saveFile(directory, name, buffer, true)
+    const { url } = await this.flowrunner.Files.uploadFile(buffer, {
+      filename: name,
+      generateUrl: true,
+      overwrite: true,
+      ...(fileOptions || { scope: 'FLOW' }),
+    })
 
     return { url }
   }

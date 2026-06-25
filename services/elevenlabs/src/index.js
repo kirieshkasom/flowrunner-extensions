@@ -10,6 +10,7 @@ const logger = {
 }
 
 /**
+ * @usesFileStorage
  * @integrationName ElevenLabs
  * @integrationIcon /icon.png
  */

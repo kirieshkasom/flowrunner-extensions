@@ -4,7 +4,7 @@ Connect FlowRunner to [Box](https://www.box.com/) to manage cloud files and fold
 
 ## Ideal Use Cases
 
-- Upload or download files between Box and Backendless storage.
+- Upload or download files between Box and FlowRunner file storage.
 - Organize, version, comment on, and task content.
 - Apply metadata and share via expiring, password-protected links.
 - Manage collaborators and search content before acting on it.

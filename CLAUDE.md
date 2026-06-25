@@ -45,6 +45,7 @@ Minimal `package.json`:
 - `@integrationIcon` - Path to the icon file in `public/` (e.g. `/icon.png`, `/icon.svg`, `/icon.webp`); must match the actual file. Not base64.
 - `@requireOAuth` - Indicates OAuth2 authentication required
 - `@integrationTriggersScope` - Trigger scope (`SINGLE_APP` or `ALL_APPS`)
+- `@usesFileStorage` - REQUIRED whenever the service calls the Files API (`this.flowrunner.Files.*`); without it file storage is never provisioned and Files calls fail at runtime
 
 #### Method Annotations
 
@@ -196,7 +197,11 @@ These provide comprehensive details but should be used as secondary reference:
 
 ### Quick Reference for AI Agents
 
-**For service review/improvement tasks:**
+**For creating, fixing, patching, or reviewing a service:**
+
+Before changing any code, either dispatch the `flowrunner-service-engineer` agent, or load
+`.claude/agents/flowrunner-service-engineer.md` in full AND the docs below. Fixing from memory is how
+documented patterns (e.g. the §8 Files API / `@usesFileStorage` rule) get dropped and services break.
 
 1. Read `/docs/ai/ai-agent-instructions.md` for complete process
 2. Apply rules from `/docs/ai/flowrunner-service-rules.md`
