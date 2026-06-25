@@ -2,7 +2,7 @@
 
 const crypto = require('crypto')
 
-const API_BASE_URL_PRODUCTION = 'https://gateway.bill.com/connect/v3'
+const API_BASE_URL_PRODUCTION = 'https://gateway.prod.bill.com/connect/v3'
 const API_BASE_URL_SANDBOX = 'https://gateway.stage.bill.com/connect/v3'
 
 const WEBHOOK_BASE_URL_PRODUCTION = 'https://gateway.prod.bill.com/connect-events'
