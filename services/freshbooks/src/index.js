@@ -90,63 +90,6 @@ const COMMON_CURRENCIES = [
   ['AED', 'UAE Dirham'],
 ]
 
-// Friendly invoice status label -> FreshBooks v3_status value (used for filtering).
-const INVOICE_STATUS_FILTER = {
-  Draft: 'draft',
-  Sent: 'sent',
-  Viewed: 'viewed',
-  Paid: 'paid',
-  'Partially Paid': 'partial',
-  Overdue: 'overdue',
-  Disputed: 'disputed',
-}
-
-// Friendly recurring-frequency label -> FreshBooks frequency code (<n><unit>).
-const RECURRING_FREQUENCY = {
-  Weekly: 'w',
-  'Every 2 Weeks': '2w',
-  Monthly: 'm',
-  'Every 3 Months': '3m',
-  'Every 6 Months': '6m',
-  Yearly: 'y',
-}
-
-// Friendly other-income category label -> FreshBooks category_name.
-const OTHER_INCOME_CATEGORY = {
-  Advertising: 'advertising',
-  'In-Person Sales': 'in_person_sales',
-  'Online Sales': 'online_sales',
-  Rentals: 'rentals',
-  Other: 'other',
-}
-
-// Friendly report name -> FreshBooks accounting report slug.
-const REPORT_SLUGS = {
-  'Profit & Loss': 'profitloss',
-  'Tax Summary': 'taxsummary',
-  'Accounts Aging': 'accounts_aging',
-  'Invoice Details': 'invoice_details',
-  'Payments Collected': 'payments_collected',
-  'Expense Summary': 'expense_summary',
-}
-
-// Friendly trigger event label -> FreshBooks webhook event name.
-const TRIGGER_EVENTS = {
-  'New Invoice': 'invoice.create',
-  'Invoice Updated': 'invoice.update',
-  'New Payment': 'payment.create',
-  'New Client': 'client.create',
-  'Client Updated': 'client.update',
-  'New Estimate': 'estimate.create',
-  'New Expense': 'expense.create',
-  'New Credit Note': 'credit_note.create',
-  'New Item': 'item.create',
-  'New Project': 'project.create',
-  'New Time Entry': 'time_entry.create',
-  'New Bill': 'bill.create',
-  'New Tax': 'tax.create',
-}
-
 const logger = {
   info: (...args) => console.log('[FreshBooks Service] info:', ...args),
   debug: (...args) => console.log('[FreshBooks Service] debug:', ...args),
@@ -888,6 +831,433 @@ class FreshBooksService {
     return { cursor: null, items }
   }
 
+  /**
+   * @typedef {Object} getEstimatesDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter estimates by number or client."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Estimates
+   * @description Provides a searchable list of estimates to pick from when filling in other actions.
+   * @route POST /get-estimates-dictionary
+   * @paramDef {"type":"getEstimatesDictionary__payload","label":"Payload","name":"payload","description":"Optional search text and pagination cursor."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"#E-0001 - Acme Corp (USD 800.00)","value":"55","note":"Status: sent"}],"cursor":null}
+   */
+  async getEstimatesDictionary(payload) {
+    const { search, cursor } = payload || {}
+    const page = cursor ? parseInt(cursor) : 1
+
+    const body = await this.#apiRequest({
+      url: this.#accountingUrl('estimates/estimates'),
+      query: { per_page: DEFAULT_PER_PAGE, page },
+      logTag: 'getEstimatesDictionary',
+    })
+
+    const { items, pages } = this.#unwrapList(body, 'estimates')
+    const filtered = searchFilter(items, ['estimate_number', 'current_organization', 'fname', 'lname'], search)
+
+    return {
+      cursor: page < (pages || 1) ? String(page + 1) : null,
+      items: filtered.map(estimate => ({
+        label: `#${ estimate.estimate_number || estimate.estimateid } - ${
+          estimate.current_organization || `${ estimate.fname || '' } ${ estimate.lname || '' }`.trim() || 'Client'
+        } (${ formatMoney(estimate.amount) })`,
+        value: String(estimate.estimateid || estimate.id),
+        note: `Status: ${ estimate.ui_status || 'unknown' }`,
+      })),
+    }
+  }
+
+  /**
+   * @typedef {Object} getExpensesDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter expenses by vendor or note."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Expenses
+   * @description Provides a searchable list of recorded expenses to pick from when filling in other actions.
+   * @route POST /get-expenses-dictionary
+   * @paramDef {"type":"getExpensesDictionary__payload","label":"Payload","name":"payload","description":"Optional search text and pagination cursor."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Staples - USD 42.00 (2026-05-10)","value":"1569533","note":"Printer paper"}],"cursor":null}
+   */
+  async getExpensesDictionary(payload) {
+    const { search, cursor } = payload || {}
+    const page = cursor ? parseInt(cursor) : 1
+
+    const body = await this.#apiRequest({
+      url: this.#accountingUrl('expenses/expenses'),
+      query: { per_page: DEFAULT_PER_PAGE, page },
+      logTag: 'getExpensesDictionary',
+    })
+
+    const { items, pages } = this.#unwrapList(body, 'expenses')
+    const filtered = searchFilter(items, ['vendor', 'notes'], search)
+
+    return {
+      cursor: page < (pages || 1) ? String(page + 1) : null,
+      items: filtered.map(expense => ({
+        label: `${ expense.vendor || 'Expense' } - ${ formatMoney(expense.amount) }${ expense.date ? ` (${ expense.date })` : '' }`,
+        value: String(expense.expenseid || expense.id),
+        note: expense.notes || '',
+      })),
+    }
+  }
+
+  /**
+   * @typedef {Object} getPaymentsDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter payments by method or invoice."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Payments
+   * @description Provides a searchable list of payments received to pick from when filling in other actions.
+   * @route POST /get-payments-dictionary
+   * @paramDef {"type":"getPaymentsDictionary__payload","label":"Payload","name":"payload","description":"Optional search text and pagination cursor."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Payment 42 - USD 1500.00 (2026-05-12)","value":"42","note":"Invoice 987"}],"cursor":null}
+   */
+  async getPaymentsDictionary(payload) {
+    const { search, cursor } = payload || {}
+    const page = cursor ? parseInt(cursor) : 1
+
+    const body = await this.#apiRequest({
+      url: this.#accountingUrl('payments/payments'),
+      query: { per_page: DEFAULT_PER_PAGE, page },
+      logTag: 'getPaymentsDictionary',
+    })
+
+    const { items, pages } = this.#unwrapList(body, 'payments')
+    const filtered = searchFilter(items, ['type', 'invoiceid'], search)
+
+    return {
+      cursor: page < (pages || 1) ? String(page + 1) : null,
+      items: filtered.map(payment => ({
+        label: `Payment ${ payment.id } - ${ formatMoney(payment.amount) }${ payment.date ? ` (${ payment.date })` : '' }`,
+        value: String(payment.id),
+        note: payment.invoiceid ? `Invoice ${ payment.invoiceid }` : (payment.type || ''),
+      })),
+    }
+  }
+
+  /**
+   * @typedef {Object} getTaxRatesDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter taxes by name."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Tax Rates
+   * @description Provides a searchable list of saved tax rates to pick from when editing or removing a tax. Returns the tax's ID.
+   * @route POST /get-tax-rates-dictionary
+   * @paramDef {"type":"getTaxRatesDictionary__payload","label":"Payload","name":"payload","description":"Optional search text and pagination cursor."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"GST (5%)","value":"3","note":"R123"}],"cursor":null}
+   */
+  async getTaxRatesDictionary(payload) {
+    const { search, cursor } = payload || {}
+    const page = cursor ? parseInt(cursor) : 1
+
+    const body = await this.#apiRequest({
+      url: this.#accountingUrl('taxes/taxes'),
+      query: { per_page: DEFAULT_PER_PAGE, page },
+      logTag: 'getTaxRatesDictionary',
+    })
+
+    const { items, pages } = this.#unwrapList(body, 'taxes')
+    const filtered = searchFilter(items, ['name', 'number'], search)
+
+    return {
+      cursor: page < (pages || 1) ? String(page + 1) : null,
+      items: filtered.map(tax => ({
+        label: `${ tax.name }${ tax.amount ? ` (${ tax.amount }%)` : '' }`,
+        value: String(tax.taxid || tax.id),
+        note: tax.number || '',
+      })),
+    }
+  }
+
+  /**
+   * @typedef {Object} getOtherIncomeDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter income by source or category."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Other Income
+   * @description Provides a searchable list of recorded other-income entries to pick from when filling in other actions.
+   * @route POST /get-other-income-dictionary
+   * @paramDef {"type":"getOtherIncomeDictionary__payload","label":"Payload","name":"payload","description":"Optional search text and pagination cursor."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Shopify - USD 250.00 (2026-05-10)","value":"12","note":"online_sales"}],"cursor":null}
+   */
+  async getOtherIncomeDictionary(payload) {
+    const { search, cursor } = payload || {}
+    const page = cursor ? parseInt(cursor) : 1
+
+    const body = await this.#apiRequest({
+      url: this.#accountingUrl('other_incomes/other_incomes'),
+      query: { per_page: DEFAULT_PER_PAGE, page },
+      logTag: 'getOtherIncomeDictionary',
+    })
+
+    const { items, pages } = this.#unwrapList(body, 'other_incomes')
+    const filtered = searchFilter(items, ['source', 'category_name'], search)
+
+    return {
+      cursor: page < (pages || 1) ? String(page + 1) : null,
+      items: filtered.map(income => ({
+        label: `${ income.source || income.category_name || 'Income' } - ${ formatMoney(income.amount) }${ income.date ? ` (${ income.date })` : '' }`,
+        value: String(income.incomeid || income.id),
+        note: income.category_name || '',
+      })),
+    }
+  }
+
+  /**
+   * @typedef {Object} getTasksDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter tasks by name."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Tasks
+   * @description Provides a searchable list of saved billable tasks to pick from when filling in other actions.
+   * @route POST /get-tasks-dictionary
+   * @paramDef {"type":"getTasksDictionary__payload","label":"Payload","name":"payload","description":"Optional search text and pagination cursor."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Consulting","value":"8","note":"USD 150.00"}],"cursor":null}
+   */
+  async getTasksDictionary(payload) {
+    const { search, cursor } = payload || {}
+    const page = cursor ? parseInt(cursor) : 1
+
+    const body = await this.#apiRequest({
+      url: this.#accountingUrl('projects/tasks'),
+      query: { per_page: DEFAULT_PER_PAGE, page },
+      logTag: 'getTasksDictionary',
+    })
+
+    const { items, pages } = this.#unwrapList(body, 'tasks')
+    const filtered = searchFilter(items, ['name', 'description'], search)
+
+    return {
+      cursor: page < (pages || 1) ? String(page + 1) : null,
+      items: filtered.map(task => ({
+        label: task.name || `Task ${ task.taskid }`,
+        value: String(task.taskid || task.id),
+        note: task.rate ? formatMoney(task.rate) : '',
+      })),
+    }
+  }
+
+  /**
+   * @typedef {Object} getCreditNotesDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter credit notes by number or client."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Credit Notes
+   * @description Provides a searchable list of credit notes to pick from when filling in other actions.
+   * @route POST /get-credit-notes-dictionary
+   * @paramDef {"type":"getCreditNotesDictionary__payload","label":"Payload","name":"payload","description":"Optional search text and pagination cursor."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"CN-0001 - Acme Corp (USD 50.00)","value":"7","note":""}],"cursor":null}
+   */
+  async getCreditNotesDictionary(payload) {
+    const { search, cursor } = payload || {}
+    const page = cursor ? parseInt(cursor) : 1
+
+    const body = await this.#apiRequest({
+      url: this.#accountingUrl('credit_notes/credit_notes'),
+      query: { per_page: DEFAULT_PER_PAGE, page },
+      logTag: 'getCreditNotesDictionary',
+    })
+
+    const { items, pages } = this.#unwrapList(body, 'credit_notes')
+    const filtered = searchFilter(items, ['credit_number', 'current_organization', 'fname', 'lname'], search)
+
+    return {
+      cursor: page < (pages || 1) ? String(page + 1) : null,
+      items: filtered.map(creditNote => ({
+        label: `${ creditNote.credit_number || creditNote.creditid } - ${
+          creditNote.current_organization || `${ creditNote.fname || '' } ${ creditNote.lname || '' }`.trim() || 'Client'
+        } (${ formatMoney(creditNote.amount) })`,
+        value: String(creditNote.creditid || creditNote.id),
+        note: '',
+      })),
+    }
+  }
+
+  /**
+   * @typedef {Object} getRecurringInvoicesDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter recurring invoices by client."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Recurring Invoices
+   * @description Provides a searchable list of recurring invoice profiles to pick from when filling in other actions.
+   * @route POST /get-recurring-invoices-dictionary
+   * @paramDef {"type":"getRecurringInvoicesDictionary__payload","label":"Payload","name":"payload","description":"Optional search text and pagination cursor."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Acme Corp (USD 99.00)","value":"4","note":"Repeats: m"}],"cursor":null}
+   */
+  async getRecurringInvoicesDictionary(payload) {
+    const { search, cursor } = payload || {}
+    const page = cursor ? parseInt(cursor) : 1
+
+    const body = await this.#apiRequest({
+      url: this.#accountingUrl('invoice_profiles/invoice_profiles'),
+      query: { per_page: DEFAULT_PER_PAGE, page },
+      logTag: 'getRecurringInvoicesDictionary',
+    })
+
+    const { items, pages } = this.#unwrapList(body, 'invoice_profiles')
+    const filtered = searchFilter(items, ['current_organization', 'fname', 'lname'], search)
+
+    return {
+      cursor: page < (pages || 1) ? String(page + 1) : null,
+      items: filtered.map(profile => ({
+        label: `${
+          profile.current_organization || `${ profile.fname || '' } ${ profile.lname || '' }`.trim() || `Client ${ profile.customerid }`
+        } (${ formatMoney(profile.amount) })`,
+        value: String(profile.id),
+        note: profile.frequency ? `Repeats: ${ profile.frequency }` : '',
+      })),
+    }
+  }
+
+  /**
+   * @typedef {Object} getBillsDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter bills by status or vendor."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Bills
+   * @description Provides a searchable list of vendor bills to pick from when filling in other actions.
+   * @route POST /get-bills-dictionary
+   * @paramDef {"type":"getBillsDictionary__payload","label":"Payload","name":"payload","description":"Optional search text and pagination cursor."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Bill 33 - USD 600.00 (unpaid)","value":"33","note":"Due 2026-06-16"}],"cursor":null}
+   */
+  async getBillsDictionary(payload) {
+    const { search, cursor } = payload || {}
+    const page = cursor ? parseInt(cursor) : 1
+
+    const body = await this.#apiRequest({
+      url: this.#accountingUrl('bills/bills'),
+      query: { per_page: DEFAULT_PER_PAGE, page },
+      logTag: 'getBillsDictionary',
+    })
+
+    const { items, pages } = this.#unwrapList(body, 'bills')
+    const filtered = searchFilter(items, ['status', 'vendorid'], search)
+
+    return {
+      cursor: page < (pages || 1) ? String(page + 1) : null,
+      items: filtered.map(bill => ({
+        label: `Bill ${ bill.id } - ${ formatMoney(bill.amount) }${ bill.status ? ` (${ bill.status })` : '' }`,
+        value: String(bill.id),
+        note: bill.due_date ? `Due ${ bill.due_date }` : '',
+      })),
+    }
+  }
+
+  /**
+   * @typedef {Object} getBillPaymentsDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter bill payments by method or bill."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Bill Payments
+   * @description Provides a searchable list of payments made against vendor bills to pick from when filling in other actions.
+   * @route POST /get-bill-payments-dictionary
+   * @paramDef {"type":"getBillPaymentsDictionary__payload","label":"Payload","name":"payload","description":"Optional search text and pagination cursor."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Bill Payment 9 - USD 600.00 (2026-06-10)","value":"9","note":"Bill 33"}],"cursor":null}
+   */
+  async getBillPaymentsDictionary(payload) {
+    const { search, cursor } = payload || {}
+    const page = cursor ? parseInt(cursor) : 1
+
+    const body = await this.#apiRequest({
+      url: this.#accountingUrl('bill_payments/bill_payments'),
+      query: { per_page: DEFAULT_PER_PAGE, page },
+      logTag: 'getBillPaymentsDictionary',
+    })
+
+    const { items, pages } = this.#unwrapList(body, 'bill_payments')
+    const filtered = searchFilter(items, ['payment_type', 'billid'], search)
+
+    return {
+      cursor: page < (pages || 1) ? String(page + 1) : null,
+      items: filtered.map(billPayment => ({
+        label: `Bill Payment ${ billPayment.id } - ${ formatMoney(billPayment.amount) }${ billPayment.paid_date ? ` (${ billPayment.paid_date })` : '' }`,
+        value: String(billPayment.id),
+        note: billPayment.billid ? `Bill ${ billPayment.billid }` : (billPayment.payment_type || ''),
+      })),
+    }
+  }
+
+  /**
+   * @typedef {Object} getTimeEntriesDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter time entries by note."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Time Entries
+   * @description Provides a searchable list of logged time entries to pick from when filling in other actions.
+   * @route POST /get-time-entries-dictionary
+   * @paramDef {"type":"getTimeEntriesDictionary__payload","label":"Payload","name":"payload","description":"Optional search text and pagination cursor."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Design work - 2.00h (2026-05-10)","value":"5095","note":"billable"}],"cursor":null}
+   */
+  async getTimeEntriesDictionary(payload) {
+    const { search, cursor } = payload || {}
+    const page = cursor ? parseInt(cursor) : 1
+
+    const body = await this.#apiRequest({
+      url: this.#timeUrl('time_entries'),
+      query: { per_page: DEFAULT_PER_PAGE, page },
+      logTag: 'getTimeEntriesDictionary',
+    })
+
+    const entries = body?.time_entries || []
+    const pages = body?.meta?.pages
+    const filtered = searchFilter(entries, ['note'], search)
+
+    return {
+      cursor: page < (pages || 1) ? String(page + 1) : null,
+      items: filtered.map(entry => ({
+        label: `${ entry.note || 'Time entry' } - ${ ((entry.duration || 0) / 3600).toFixed(2) }h${
+          entry.started_at ? ` (${ String(entry.started_at).slice(0, 10) })` : ''
+        }`,
+        value: String(entry.id),
+        note: entry.billable ? 'billable' : '',
+      })),
+    }
+  }
+
   // ============================ 6. RESOURCES ==============================
 
   // ------------------------------- helpers --------------------------------
@@ -1219,7 +1589,7 @@ class FreshBooksService {
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
    * @paramDef {"type":"String","label":"Client","name":"clientId","dictionary":"getClientsDictionary","description":"Only show invoices for this client."}
-   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":["Draft","Sent","Viewed","Paid","Partially Paid","Overdue","Disputed"]}},"description":"Only show invoices in this state."}
+   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"draft","label":"Draft"},{"value":"sent","label":"Sent"},{"value":"viewed","label":"Viewed"},{"value":"paid","label":"Paid"},{"value":"partial","label":"Partially Paid"},{"value":"overdue","label":"Overdue"},{"value":"disputed","label":"Disputed"}]}},"description":"Only show invoices in this state."}
    * @paramDef {"type":"String","label":"From Date","name":"fromDate","uiComponent":{"type":"DATE_PICKER"},"description":"Only show invoices dated on or after this day."}
    * @paramDef {"type":"String","label":"To Date","name":"toDate","uiComponent":{"type":"DATE_PICKER"},"description":"Only show invoices dated on or before this day."}
    * @paramDef {"type":"Number","label":"Max Results","name":"maxResults","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"How many to return at most (up to 100)."}
@@ -1244,9 +1614,8 @@ class FreshBooksService {
 
     let items = this.#unwrapList(body, 'invoices').items
 
-    const wanted = INVOICE_STATUS_FILTER[status]
-
-    if (wanted) items = items.filter(invoice => invoice.v3_status === wanted)
+    // The Status picker passes the FreshBooks v3_status code directly.
+    if (status) items = items.filter(invoice => invoice.v3_status === status)
 
     return items
   }
@@ -1398,7 +1767,7 @@ class FreshBooksService {
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
    * @paramDef {"type":"String","label":"Invoice","name":"invoiceId","required":true,"dictionary":"getInvoicesDictionary","description":"The invoice to send."}
-   * @paramDef {"type":"String","label":"How to Send","name":"sendMethod","uiComponent":{"type":"DROPDOWN","options":{"values":["Email to client","Mark as sent only"]}},"description":"Email it to the client, or just mark it sent without emailing."}
+   * @paramDef {"type":"String","label":"How to Send","name":"sendMethod","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"email","label":"Email to Client"},{"value":"mark_sent","label":"Mark as Sent Only"}]}},"description":"Email it to the client, or just mark it sent without emailing."}
    * @paramDef {"type":"Array<String>","label":"Send To","name":"recipients","description":"Email addresses to send to. Leave blank to use the client's email on file."}
    * @paramDef {"type":"String","label":"Subject","name":"subject","description":"Custom email subject line."}
    * @paramDef {"type":"String","label":"Message","name":"message","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Custom email message to the client."}
@@ -1418,7 +1787,7 @@ class FreshBooksService {
 
     let invoice
 
-    if (sendMethod === 'Mark as sent only') {
+    if (sendMethod === 'mark_sent') {
       invoice = { action_mark_as_sent: true }
     } else {
       invoice = cleanupObject({
@@ -1518,7 +1887,7 @@ class FreshBooksService {
    * @route POST /get-estimate
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Estimate","name":"estimateId","required":true,"description":"The ID of the estimate to retrieve."}
+   * @paramDef {"type":"String","label":"Estimate","name":"estimateId","required":true,"dictionary":"getEstimatesDictionary","description":"The ID of the estimate to retrieve."}
    * @returns {Object}
    * @sampleResult {"estimateid":55,"estimate_number":"E-0001","customerid":2280,"amount":{"amount":"800.00","code":"USD"},"ui_status":"sent","lines":[{"name":"Consulting","qty":"8","unit_cost":{"amount":"100.00","code":"USD"}}]}
    */
@@ -1593,7 +1962,7 @@ class FreshBooksService {
    * @route POST /update-estimate
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Estimate","name":"estimateId","required":true,"description":"The ID of the estimate to update."}
+   * @paramDef {"type":"String","label":"Estimate","name":"estimateId","required":true,"dictionary":"getEstimatesDictionary","description":"The ID of the estimate to update."}
    * @paramDef {"type":"Array.<LineItem>","label":"Line Items","name":"lineItems","description":"Replacement line items. Leave blank to keep existing ones."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","dictionary":"getCurrenciesDictionary","description":"Updated currency."}
    * @paramDef {"type":"String","label":"PO Number","name":"poNumber","description":"Updated purchase order number."}
@@ -1637,8 +2006,8 @@ class FreshBooksService {
    * @route POST /send-estimate
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Estimate","name":"estimateId","required":true,"description":"The ID of the estimate to send."}
-   * @paramDef {"type":"String","label":"How to Send","name":"sendMethod","uiComponent":{"type":"DROPDOWN","options":{"values":["Email to client","Mark as sent only"]}},"description":"Email it to the client, or just mark it sent without emailing."}
+   * @paramDef {"type":"String","label":"Estimate","name":"estimateId","required":true,"dictionary":"getEstimatesDictionary","description":"The ID of the estimate to send."}
+   * @paramDef {"type":"String","label":"How to Send","name":"sendMethod","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"email","label":"Email to Client"},{"value":"mark_sent","label":"Mark as Sent Only"}]}},"description":"Email it to the client, or just mark it sent without emailing."}
    * @paramDef {"type":"Array<String>","label":"Send To","name":"recipients","description":"Email addresses to send to. Leave blank to use the client's email on file."}
    * @paramDef {"type":"String","label":"Subject","name":"subject","description":"Custom email subject line."}
    * @paramDef {"type":"String","label":"Message","name":"message","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Custom email message to the client."}
@@ -1650,7 +2019,7 @@ class FreshBooksService {
 
     let estimate
 
-    if (sendMethod === 'Mark as sent only') {
+    if (sendMethod === 'mark_sent') {
       estimate = { action_mark_as_sent: true }
     } else {
       estimate = cleanupObject({
@@ -1685,7 +2054,7 @@ class FreshBooksService {
    * @route POST /convert-estimate-to-invoice
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Estimate","name":"estimateId","required":true,"description":"The ID of the estimate to convert."}
+   * @paramDef {"type":"String","label":"Estimate","name":"estimateId","required":true,"dictionary":"getEstimatesDictionary","description":"The ID of the estimate to convert."}
    * @returns {Object}
    * @sampleResult {"invoiceid":988,"invoice_number":"0002","customerid":2280,"amount":{"amount":"800.00","code":"USD"},"v3_status":"draft"}
    */
@@ -1738,7 +2107,7 @@ class FreshBooksService {
    * @route POST /delete-estimate
    * @appearanceColor #D64242 #E8635F
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Estimate","name":"estimateId","required":true,"description":"The ID of the estimate to remove."}
+   * @paramDef {"type":"String","label":"Estimate","name":"estimateId","required":true,"dictionary":"getEstimatesDictionary","description":"The ID of the estimate to remove."}
    * @paramDef {"type":"Boolean","label":"Archive Instead of Delete","name":"archiveInstead","uiComponent":{"type":"TOGGLE"},"description":"Keep an archived (hidden) copy instead of permanently deleting."}
    * @returns {Object}
    * @sampleResult {"id":"55","deleted":true,"archived":false}
@@ -1804,7 +2173,7 @@ class FreshBooksService {
    * @route POST /get-expense
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Expense","name":"expenseId","required":true,"description":"The ID of the expense to retrieve."}
+   * @paramDef {"type":"String","label":"Expense","name":"expenseId","required":true,"dictionary":"getExpensesDictionary","description":"The ID of the expense to retrieve."}
    * @returns {Object}
    * @sampleResult {"expenseid":1569533,"amount":{"amount":"42.00","code":"USD"},"categoryid":11228587,"vendor":"Staples","date":"2026-05-10","notes":"Printer paper"}
    */
@@ -1879,7 +2248,7 @@ class FreshBooksService {
    * @route POST /update-expense
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Expense","name":"expenseId","required":true,"description":"The ID of the expense to update."}
+   * @paramDef {"type":"String","label":"Expense","name":"expenseId","required":true,"dictionary":"getExpensesDictionary","description":"The ID of the expense to update."}
    * @paramDef {"type":"Number","label":"Amount","name":"amount","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Updated amount spent."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","dictionary":"getCurrenciesDictionary","description":"Updated currency."}
    * @paramDef {"type":"String","label":"Category","name":"categoryId","dictionary":"getExpenseCategoriesDictionary","description":"Updated category."}
@@ -1925,7 +2294,7 @@ class FreshBooksService {
    * @route POST /delete-expense
    * @appearanceColor #D64242 #E8635F
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Expense","name":"expenseId","required":true,"description":"The ID of the expense to remove."}
+   * @paramDef {"type":"String","label":"Expense","name":"expenseId","required":true,"dictionary":"getExpensesDictionary","description":"The ID of the expense to remove."}
    * @paramDef {"type":"Boolean","label":"Archive Instead of Delete","name":"archiveInstead","uiComponent":{"type":"TOGGLE"},"description":"Keep an archived (hidden) copy instead of permanently deleting."}
    * @returns {Object}
    * @sampleResult {"id":"1569533","deleted":true,"archived":false}
@@ -1989,7 +2358,7 @@ class FreshBooksService {
    * @route POST /get-payment
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Payment","name":"paymentId","required":true,"description":"The ID of the payment to retrieve."}
+   * @paramDef {"type":"String","label":"Payment","name":"paymentId","required":true,"dictionary":"getPaymentsDictionary","description":"The ID of the payment to retrieve."}
    * @returns {Object}
    * @sampleResult {"id":42,"invoiceid":987,"amount":{"amount":"1500.00","code":"USD"},"date":"2026-05-12","type":"Check","note":"Thanks"}
    */
@@ -2015,7 +2384,7 @@ class FreshBooksService {
    * @paramDef {"type":"Number","label":"Amount","name":"amount","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"How much was received."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","dictionary":"getCurrenciesDictionary","description":"Currency of the payment. Defaults to your account currency."}
    * @paramDef {"type":"String","label":"Date","name":"date","uiComponent":{"type":"DATE_PICKER"},"description":"The date the payment was received. Leave blank for today."}
-   * @paramDef {"type":"String","label":"Payment Method","name":"type","uiComponent":{"type":"DROPDOWN","options":{"values":["Check","Credit Card","Cash","Bank Transfer","PayPal","Credit","Debit","Money Order","Other"]}},"description":"How the client paid."}
+   * @paramDef {"type":"String","label":"Payment Method","name":"type","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Check","label":"Check"},{"value":"Credit Card","label":"Credit Card"},{"value":"Cash","label":"Cash"},{"value":"Bank Transfer","label":"Bank Transfer"},{"value":"PayPal","label":"PayPal"},{"value":"Credit","label":"Credit"},{"value":"Debit","label":"Debit"},{"value":"Money Order","label":"Money Order"},{"value":"Other","label":"Other"}]}},"description":"How the client paid."}
    * @paramDef {"type":"Boolean","label":"Notify Client","name":"notifyClient","uiComponent":{"type":"TOGGLE"},"description":"Email the client a payment receipt."}
    * @paramDef {"type":"String","label":"Note","name":"note","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"A note about this payment."}
    * @returns {Object}
@@ -2061,11 +2430,11 @@ class FreshBooksService {
    * @route POST /update-payment
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Payment","name":"paymentId","required":true,"description":"The ID of the payment to update."}
+   * @paramDef {"type":"String","label":"Payment","name":"paymentId","required":true,"dictionary":"getPaymentsDictionary","description":"The ID of the payment to update."}
    * @paramDef {"type":"Number","label":"Amount","name":"amount","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Updated amount received."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","dictionary":"getCurrenciesDictionary","description":"Updated currency."}
    * @paramDef {"type":"String","label":"Date","name":"date","uiComponent":{"type":"DATE_PICKER"},"description":"Updated payment date."}
-   * @paramDef {"type":"String","label":"Payment Method","name":"type","uiComponent":{"type":"DROPDOWN","options":{"values":["Check","Credit Card","Cash","Bank Transfer","PayPal","Credit","Debit","Money Order","Other"]}},"description":"Updated payment method."}
+   * @paramDef {"type":"String","label":"Payment Method","name":"type","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Check","label":"Check"},{"value":"Credit Card","label":"Credit Card"},{"value":"Cash","label":"Cash"},{"value":"Bank Transfer","label":"Bank Transfer"},{"value":"PayPal","label":"PayPal"},{"value":"Credit","label":"Credit"},{"value":"Debit","label":"Debit"},{"value":"Money Order","label":"Money Order"},{"value":"Other","label":"Other"}]}},"description":"Updated payment method."}
    * @paramDef {"type":"String","label":"Note","name":"note","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Updated note."}
    * @returns {Object}
    * @sampleResult {"id":42,"invoiceid":987,"amount":{"amount":"1000.00","code":"USD"},"date":"2026-05-12","type":"Cash"}
@@ -2097,7 +2466,7 @@ class FreshBooksService {
    * @route POST /delete-payment
    * @appearanceColor #D64242 #E8635F
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Payment","name":"paymentId","required":true,"description":"The ID of the payment to remove."}
+   * @paramDef {"type":"String","label":"Payment","name":"paymentId","required":true,"dictionary":"getPaymentsDictionary","description":"The ID of the payment to remove."}
    * @returns {Object}
    * @sampleResult {"id":"42","deleted":true}
    */
@@ -2344,7 +2713,7 @@ class FreshBooksService {
    * @route POST /update-tax
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Tax","name":"taxId","required":true,"description":"The ID of the tax to update."}
+   * @paramDef {"type":"String","label":"Tax","name":"taxId","required":true,"dictionary":"getTaxRatesDictionary","description":"The ID of the tax to update."}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"Updated tax name."}
    * @paramDef {"type":"Number","label":"Percentage","name":"percentage","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Updated rate as a percentage."}
    * @paramDef {"type":"String","label":"Registration Number","name":"number","description":"Updated registration number."}
@@ -2380,7 +2749,7 @@ class FreshBooksService {
    * @route POST /delete-tax
    * @appearanceColor #D64242 #E8635F
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Tax","name":"taxId","required":true,"description":"The ID of the tax to remove."}
+   * @paramDef {"type":"String","label":"Tax","name":"taxId","required":true,"dictionary":"getTaxRatesDictionary","description":"The ID of the tax to remove."}
    * @returns {Object}
    * @sampleResult {"id":"3","deleted":true}
    */
@@ -2431,7 +2800,7 @@ class FreshBooksService {
    * @executionTimeoutInSeconds 120
    * @paramDef {"type":"Number","label":"Amount","name":"amount","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"How much was received."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","dictionary":"getCurrenciesDictionary","description":"Currency of the amount. Defaults to your account currency."}
-   * @paramDef {"type":"String","label":"Category","name":"category","uiComponent":{"type":"DROPDOWN","options":{"values":["Advertising","In-Person Sales","Online Sales","Rentals","Other"]}},"description":"What kind of income this is."}
+   * @paramDef {"type":"String","label":"Category","name":"category","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"advertising","label":"Advertising"},{"value":"in_person_sales","label":"In-Person Sales"},{"value":"online_sales","label":"Online Sales"},{"value":"rentals","label":"Rentals"},{"value":"other","label":"Other"}]}},"description":"What kind of income this is."}
    * @paramDef {"type":"String","label":"Date","name":"date","uiComponent":{"type":"DATE_PICKER"},"description":"The date the income was received. Leave blank for today."}
    * @paramDef {"type":"String","label":"Source","name":"source","description":"Where it came from (e.g. Shopify, Etsy)."}
    * @paramDef {"type":"String","label":"Note","name":"note","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"A note about this income."}
@@ -2444,7 +2813,7 @@ class FreshBooksService {
 
     const otherIncome = cleanupObject({
       amount: toMoney(amount, currency),
-      category_name: OTHER_INCOME_CATEGORY[category],
+      category_name: category,
       date: formatDate(date) || formatDate(new Date().toISOString()),
       source,
       note,
@@ -2467,10 +2836,10 @@ class FreshBooksService {
    * @route POST /update-other-income
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Income","name":"incomeId","required":true,"description":"The ID of the income entry to update."}
+   * @paramDef {"type":"String","label":"Income","name":"incomeId","required":true,"dictionary":"getOtherIncomeDictionary","description":"The ID of the income entry to update."}
    * @paramDef {"type":"Number","label":"Amount","name":"amount","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Updated amount received."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","dictionary":"getCurrenciesDictionary","description":"Updated currency."}
-   * @paramDef {"type":"String","label":"Category","name":"category","uiComponent":{"type":"DROPDOWN","options":{"values":["Advertising","In-Person Sales","Online Sales","Rentals","Other"]}},"description":"Updated category."}
+   * @paramDef {"type":"String","label":"Category","name":"category","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"advertising","label":"Advertising"},{"value":"in_person_sales","label":"In-Person Sales"},{"value":"online_sales","label":"Online Sales"},{"value":"rentals","label":"Rentals"},{"value":"other","label":"Other"}]}},"description":"Updated category."}
    * @paramDef {"type":"String","label":"Date","name":"date","uiComponent":{"type":"DATE_PICKER"},"description":"Date of the income. Leave blank to use today."}
    * @paramDef {"type":"String","label":"Note","name":"note","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Updated note."}
    * @returns {Object}
@@ -2481,7 +2850,7 @@ class FreshBooksService {
 
     const otherIncome = cleanupObject({
       amount: toMoney(amount, currency),
-      category_name: OTHER_INCOME_CATEGORY[category],
+      category_name: category,
       // FreshBooks requires a date on every other-income update.
       date: formatDate(date) || formatDate(new Date().toISOString()),
       note,
@@ -2504,7 +2873,7 @@ class FreshBooksService {
    * @route POST /delete-other-income
    * @appearanceColor #D64242 #E8635F
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Income","name":"incomeId","required":true,"description":"The ID of the income entry to remove."}
+   * @paramDef {"type":"String","label":"Income","name":"incomeId","required":true,"dictionary":"getOtherIncomeDictionary","description":"The ID of the income entry to remove."}
    * @returns {Object}
    * @sampleResult {"id":"12","deleted":true}
    */
@@ -2596,7 +2965,7 @@ class FreshBooksService {
    * @route POST /update-task
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Task","name":"taskId","required":true,"description":"The ID of the task to update."}
+   * @paramDef {"type":"String","label":"Task","name":"taskId","required":true,"dictionary":"getTasksDictionary","description":"The ID of the task to update."}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"Updated task name."}
    * @paramDef {"type":"Number","label":"Hourly Rate","name":"rate","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Updated hourly rate."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","dictionary":"getCurrenciesDictionary","description":"Updated currency."}
@@ -2633,7 +3002,7 @@ class FreshBooksService {
    * @route POST /delete-task
    * @appearanceColor #D64242 #E8635F
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Task","name":"taskId","required":true,"description":"The ID of the task to remove."}
+   * @paramDef {"type":"String","label":"Task","name":"taskId","required":true,"dictionary":"getTasksDictionary","description":"The ID of the task to remove."}
    * @paramDef {"type":"Boolean","label":"Archive Instead of Delete","name":"archiveInstead","uiComponent":{"type":"TOGGLE"},"description":"Keep an archived (hidden) copy instead of permanently deleting."}
    * @returns {Object}
    * @sampleResult {"id":"8","deleted":true,"archived":false}
@@ -2689,7 +3058,7 @@ class FreshBooksService {
    * @route POST /get-credit-note
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Credit Note","name":"creditNoteId","required":true,"description":"The ID of the credit note to retrieve."}
+   * @paramDef {"type":"String","label":"Credit Note","name":"creditNoteId","required":true,"dictionary":"getCreditNotesDictionary","description":"The ID of the credit note to retrieve."}
    * @returns {Object}
    * @sampleResult {"creditid":7,"clientid":2280,"amount":{"amount":"50.00","code":"USD"},"credit_number":"CN-0001","lines":[{"name":"Refund","unit_cost":{"amount":"50.00","code":"USD"}}]}
    */
@@ -2752,7 +3121,7 @@ class FreshBooksService {
    * @route POST /update-credit-note
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Credit Note","name":"creditNoteId","required":true,"description":"The ID of the credit note to update."}
+   * @paramDef {"type":"String","label":"Credit Note","name":"creditNoteId","required":true,"dictionary":"getCreditNotesDictionary","description":"The ID of the credit note to update."}
    * @paramDef {"type":"Array.<LineItem>","label":"Line Items","name":"lineItems","description":"Replacement line items. Leave blank to keep existing ones."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","dictionary":"getCurrenciesDictionary","description":"Updated currency."}
    * @paramDef {"type":"String","label":"Notes","name":"notes","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Updated notes."}
@@ -2785,7 +3154,7 @@ class FreshBooksService {
    * @route POST /delete-credit-note
    * @appearanceColor #D64242 #E8635F
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Credit Note","name":"creditNoteId","required":true,"description":"The ID of the credit note to remove."}
+   * @paramDef {"type":"String","label":"Credit Note","name":"creditNoteId","required":true,"dictionary":"getCreditNotesDictionary","description":"The ID of the credit note to remove."}
    * @paramDef {"type":"Boolean","label":"Archive Instead of Delete","name":"archiveInstead","uiComponent":{"type":"TOGGLE"},"description":"Keep an archived (hidden) copy instead of permanently deleting."}
    * @returns {Object}
    * @sampleResult {"id":"7","deleted":true,"archived":false}
@@ -2845,7 +3214,7 @@ class FreshBooksService {
    * @route POST /get-recurring-invoice
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Recurring Invoice","name":"profileId","required":true,"description":"The ID of the recurring invoice profile to retrieve."}
+   * @paramDef {"type":"String","label":"Recurring Invoice","name":"profileId","required":true,"dictionary":"getRecurringInvoicesDictionary","description":"The ID of the recurring invoice profile to retrieve."}
    * @returns {Object}
    * @sampleResult {"id":4,"customerid":2280,"frequency":"m","amount":{"amount":"99.00","code":"USD"},"lines":[{"name":"Subscription","unit_cost":{"amount":"99.00","code":"USD"}}]}
    */
@@ -2872,7 +3241,7 @@ class FreshBooksService {
    * @executionTimeoutInSeconds 120
    * @paramDef {"type":"String","label":"Client","name":"clientId","required":true,"dictionary":"getClientsDictionary","description":"The client to bill on a schedule."}
    * @paramDef {"type":"Array.<LineItem>","label":"Line Items","name":"lineItems","required":true,"description":"What to bill each time. Add a row for each item."}
-   * @paramDef {"type":"String","label":"Repeats","name":"frequency","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Weekly","Every 2 Weeks","Monthly","Every 3 Months","Every 6 Months","Yearly"]}},"description":"How often the invoice is generated."}
+   * @paramDef {"type":"String","label":"Repeats","name":"frequency","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"w","label":"Weekly"},{"value":"2w","label":"Every 2 Weeks"},{"value":"m","label":"Monthly"},{"value":"3m","label":"Every 3 Months"},{"value":"6m","label":"Every 6 Months"},{"value":"y","label":"Yearly"}]}},"description":"How often the invoice is generated."}
    * @paramDef {"type":"String","label":"Start Date","name":"startDate","uiComponent":{"type":"DATE_PICKER"},"description":"When the first invoice goes out. Leave blank for today."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","dictionary":"getCurrenciesDictionary","description":"Currency for the invoice. Defaults to your account currency."}
    * @paramDef {"type":"Number","label":"Number of Times","name":"occurrences","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"How many invoices to send in total. Leave blank or 0 for unlimited."}
@@ -2899,7 +3268,7 @@ class FreshBooksService {
       customerid: clientId,
       create_date:
         formatDate(startDate) || formatDate(new Date().toISOString()),
-      frequency: RECURRING_FREQUENCY[frequency],
+      frequency: frequency,
       currency_code: currency,
       numberRecurring:
         occurrences === undefined || occurrences === null || occurrences === ''
@@ -2926,9 +3295,9 @@ class FreshBooksService {
    * @route POST /update-recurring-invoice
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Recurring Invoice","name":"profileId","required":true,"description":"The ID of the recurring invoice profile to update."}
+   * @paramDef {"type":"String","label":"Recurring Invoice","name":"profileId","required":true,"dictionary":"getRecurringInvoicesDictionary","description":"The ID of the recurring invoice profile to update."}
    * @paramDef {"type":"Array.<LineItem>","label":"Line Items","name":"lineItems","description":"Replacement line items. Leave blank to keep existing ones."}
-   * @paramDef {"type":"String","label":"Repeats","name":"frequency","uiComponent":{"type":"DROPDOWN","options":{"values":["Weekly","Every 2 Weeks","Monthly","Every 3 Months","Every 6 Months","Yearly"]}},"description":"Updated schedule."}
+   * @paramDef {"type":"String","label":"Repeats","name":"frequency","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"w","label":"Weekly"},{"value":"2w","label":"Every 2 Weeks"},{"value":"m","label":"Monthly"},{"value":"3m","label":"Every 3 Months"},{"value":"6m","label":"Every 6 Months"},{"value":"y","label":"Yearly"}]}},"description":"Updated schedule."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","dictionary":"getCurrenciesDictionary","description":"Updated currency."}
    * @paramDef {"type":"String","label":"Notes","name":"notes","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Updated notes."}
    * @returns {Object}
@@ -2944,7 +3313,7 @@ class FreshBooksService {
     if (!profileId) throw new Error('"Recurring Invoice" is required.')
 
     const profile = cleanupObject({
-      frequency: RECURRING_FREQUENCY[frequency],
+      frequency: frequency,
       currency_code: currency,
       notes,
       lines: await this.#mapLineItems(lineItems, currency),
@@ -2969,7 +3338,7 @@ class FreshBooksService {
    * @route POST /delete-recurring-invoice
    * @appearanceColor #D64242 #E8635F
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Recurring Invoice","name":"profileId","required":true,"description":"The ID of the recurring invoice profile to remove."}
+   * @paramDef {"type":"String","label":"Recurring Invoice","name":"profileId","required":true,"dictionary":"getRecurringInvoicesDictionary","description":"The ID of the recurring invoice profile to remove."}
    * @paramDef {"type":"Boolean","label":"Archive Instead of Delete","name":"archiveInstead","uiComponent":{"type":"TOGGLE"},"description":"Keep an archived (hidden) copy instead of permanently deleting."}
    * @returns {Object}
    * @sampleResult {"id":"4","deleted":true,"archived":false}
@@ -3219,7 +3588,7 @@ class FreshBooksService {
    * @route POST /get-bill
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Bill","name":"billId","required":true,"description":"The ID of the bill to retrieve."}
+   * @paramDef {"type":"String","label":"Bill","name":"billId","required":true,"dictionary":"getBillsDictionary","description":"The ID of the bill to retrieve."}
    * @returns {Object}
    * @sampleResult {"id":33,"vendorid":1562,"amount":{"amount":"600.00","code":"USD"},"status":"unpaid","lines":[{"description":"Supplies","unit_cost":{"amount":"600.00","code":"USD"}}]}
    */
@@ -3285,7 +3654,7 @@ class FreshBooksService {
    * @route POST /update-bill
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Bill","name":"billId","required":true,"description":"The ID of the bill to update."}
+   * @paramDef {"type":"String","label":"Bill","name":"billId","required":true,"dictionary":"getBillsDictionary","description":"The ID of the bill to update."}
    * @paramDef {"type":"Array.<BillLine>","label":"Line Items","name":"billLines","description":"Replacement line items. Leave blank to keep existing ones."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","dictionary":"getCurrenciesDictionary","description":"Updated currency."}
    * @returns {Object}
@@ -3316,7 +3685,7 @@ class FreshBooksService {
    * @route POST /delete-bill
    * @appearanceColor #D64242 #E8635F
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Bill","name":"billId","required":true,"description":"The ID of the bill to remove."}
+   * @paramDef {"type":"String","label":"Bill","name":"billId","required":true,"dictionary":"getBillsDictionary","description":"The ID of the bill to remove."}
    * @paramDef {"type":"Boolean","label":"Archive Instead of Delete","name":"archiveInstead","uiComponent":{"type":"TOGGLE"},"description":"Keep an archived (hidden) copy instead of permanently deleting."}
    * @returns {Object}
    * @sampleResult {"id":"33","deleted":true,"archived":false}
@@ -3367,11 +3736,11 @@ class FreshBooksService {
    * @route POST /record-bill-payment
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Bill","name":"billId","required":true,"description":"The ID of the bill being paid."}
+   * @paramDef {"type":"String","label":"Bill","name":"billId","required":true,"dictionary":"getBillsDictionary","description":"The ID of the bill being paid."}
    * @paramDef {"type":"Number","label":"Amount","name":"amount","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"How much was paid."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","dictionary":"getCurrenciesDictionary","description":"Currency of the payment. Defaults to your account currency."}
    * @paramDef {"type":"String","label":"Date","name":"date","uiComponent":{"type":"DATE_PICKER"},"description":"The date you paid. Leave blank for today."}
-   * @paramDef {"type":"String","label":"Payment Method","name":"paymentType","uiComponent":{"type":"DROPDOWN","options":{"values":["Check","Credit Card","Cash","Bank Transfer","PayPal","Credit","Debit","Money Order","Other"]}},"description":"How you paid."}
+   * @paramDef {"type":"String","label":"Payment Method","name":"paymentType","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Check","label":"Check"},{"value":"Credit Card","label":"Credit Card"},{"value":"Cash","label":"Cash"},{"value":"Bank Transfer","label":"Bank Transfer"},{"value":"PayPal","label":"PayPal"},{"value":"Credit","label":"Credit"},{"value":"Debit","label":"Debit"},{"value":"Money Order","label":"Money Order"},{"value":"Other","label":"Other"}]}},"description":"How you paid."}
    * @paramDef {"type":"String","label":"Note","name":"note","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"A note about this payment."}
    * @returns {Object}
    * @sampleResult {"id":9,"billid":33,"amount":{"amount":"600.00","code":"USD"},"payment_type":"Check"}
@@ -3406,10 +3775,10 @@ class FreshBooksService {
    * @route POST /update-bill-payment
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Bill Payment","name":"billPaymentId","required":true,"description":"The ID of the bill payment to update."}
+   * @paramDef {"type":"String","label":"Bill Payment","name":"billPaymentId","required":true,"dictionary":"getBillPaymentsDictionary","description":"The ID of the bill payment to update."}
    * @paramDef {"type":"Number","label":"Amount","name":"amount","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Updated amount paid."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","dictionary":"getCurrenciesDictionary","description":"Updated currency."}
-   * @paramDef {"type":"String","label":"Payment Method","name":"paymentType","uiComponent":{"type":"DROPDOWN","options":{"values":["Check","Credit Card","Cash","Bank Transfer","PayPal","Credit","Debit","Money Order","Other"]}},"description":"Updated payment method."}
+   * @paramDef {"type":"String","label":"Payment Method","name":"paymentType","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Check","label":"Check"},{"value":"Credit Card","label":"Credit Card"},{"value":"Cash","label":"Cash"},{"value":"Bank Transfer","label":"Bank Transfer"},{"value":"PayPal","label":"PayPal"},{"value":"Credit","label":"Credit"},{"value":"Debit","label":"Debit"},{"value":"Money Order","label":"Money Order"},{"value":"Other","label":"Other"}]}},"description":"Updated payment method."}
    * @paramDef {"type":"String","label":"Note","name":"note","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Updated note."}
    * @returns {Object}
    * @sampleResult {"id":9,"billid":33,"amount":{"amount":"300.00","code":"USD"},"payment_type":"Cash"}
@@ -3440,7 +3809,7 @@ class FreshBooksService {
    * @route POST /delete-bill-payment
    * @appearanceColor #D64242 #E8635F
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Bill Payment","name":"billPaymentId","required":true,"description":"The ID of the bill payment to remove."}
+   * @paramDef {"type":"String","label":"Bill Payment","name":"billPaymentId","required":true,"dictionary":"getBillPaymentsDictionary","description":"The ID of the bill payment to remove."}
    * @returns {Object}
    * @sampleResult {"id":"9","deleted":true}
    */
@@ -3466,7 +3835,7 @@ class FreshBooksService {
    * @route POST /get-financial-report
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 180
-   * @paramDef {"type":"String","label":"Report","name":"report","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Profit & Loss","Tax Summary","Accounts Aging","Invoice Details","Payments Collected","Expense Summary"]}},"description":"Which report to run."}
+   * @paramDef {"type":"String","label":"Report","name":"report","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"profitloss","label":"Profit & Loss"},{"value":"taxsummary","label":"Tax Summary"},{"value":"accounts_aging","label":"Accounts Aging"},{"value":"invoice_details","label":"Invoice Details"},{"value":"payments_collected","label":"Payments Collected"},{"value":"expense_summary","label":"Expense Summary"}]}},"description":"Which report to run."}
    * @paramDef {"type":"String","label":"From Date","name":"fromDate","uiComponent":{"type":"DATE_PICKER"},"description":"Start of the reporting period."}
    * @paramDef {"type":"String","label":"To Date","name":"toDate","uiComponent":{"type":"DATE_PICKER"},"description":"End of the reporting period."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","dictionary":"getCurrenciesDictionary","description":"Currency to report in. Defaults to your account currency."}
@@ -3474,7 +3843,8 @@ class FreshBooksService {
    * @sampleResult {"profitloss":{"currency_code":"USD","start_date":"2026-01-01","end_date":"2026-05-31","total_income":{"amount":"12000.00"}}}
    */
   async getFinancialReport(report, fromDate, toDate, currency) {
-    const slug = REPORT_SLUGS[report]
+    // The Report picker passes the FreshBooks report slug directly.
+    const slug = report
 
     if (!slug) throw new Error('Please choose a valid report.')
 
@@ -3584,7 +3954,7 @@ class FreshBooksService {
    * @executionTimeoutInSeconds 120
    * @paramDef {"type":"String","label":"Title","name":"title","required":true,"description":"Name of the project."}
    * @paramDef {"type":"String","label":"Client","name":"clientId","required":true,"dictionary":"getClientsDictionary","description":"The client this project is for."}
-   * @paramDef {"type":"String","label":"Billing Type","name":"billingType","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Fixed Price","Hourly Rate"]}},"description":"Charge a single flat price, or bill by the hour."}
+   * @paramDef {"type":"String","label":"Billing Type","name":"billingType","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"fixed_price","label":"Fixed Price"},{"value":"hourly_rate","label":"Hourly Rate"}]}},"description":"Charge a single flat price, or bill by the hour."}
    * @paramDef {"type":"Number","label":"Price or Hourly Rate","name":"amount","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The flat price (for Fixed Price) or the hourly rate (for Hourly Rate)."}
    * @paramDef {"type":"Number","label":"Budget (hours)","name":"budgetHours","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Optional time budget for the project, in hours."}
    * @paramDef {"type":"String","label":"Due Date","name":"dueDate","uiComponent":{"type":"DATE_PICKER"},"description":"Target completion date."}
@@ -3604,7 +3974,7 @@ class FreshBooksService {
     if (!title) throw new Error('"Title" is required.')
     if (!clientId) throw new Error('"Client" is required.')
 
-    const hourly = billingType === 'Hourly Rate'
+    const hourly = billingType === 'hourly_rate'
     const hasAmount = amount !== undefined && amount !== null && amount !== ''
 
     const project = cleanupObject({
@@ -3747,7 +4117,7 @@ class FreshBooksService {
    * @route POST /get-time-entry
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Time Entry","name":"timeEntryId","required":true,"description":"The ID of the time entry to retrieve."}
+   * @paramDef {"type":"String","label":"Time Entry","name":"timeEntryId","required":true,"dictionary":"getTimeEntriesDictionary","description":"The ID of the time entry to retrieve."}
    * @returns {Object}
    * @sampleResult {"id":5095,"duration":7200,"note":"Design work","client_id":2280,"project_id":153125,"billable":true,"started_at":"2026-05-10T12:00:00Z"}
    */
@@ -3810,7 +4180,7 @@ class FreshBooksService {
    * @route POST /update-time-entry
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Time Entry","name":"timeEntryId","required":true,"description":"The ID of the time entry to update."}
+   * @paramDef {"type":"String","label":"Time Entry","name":"timeEntryId","required":true,"dictionary":"getTimeEntriesDictionary","description":"The ID of the time entry to update."}
    * @paramDef {"type":"Number","label":"Hours","name":"hours","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Updated number of hours."}
    * @paramDef {"type":"Boolean","label":"Billable","name":"billable","uiComponent":{"type":"TOGGLE"},"description":"Updated billable setting."}
    * @paramDef {"type":"String","label":"Note","name":"note","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Updated note."}
@@ -3848,7 +4218,7 @@ class FreshBooksService {
    * @route POST /delete-time-entry
    * @appearanceColor #D64242 #E8635F
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Time Entry","name":"timeEntryId","required":true,"description":"The ID of the time entry to remove."}
+   * @paramDef {"type":"String","label":"Time Entry","name":"timeEntryId","required":true,"dictionary":"getTimeEntriesDictionary","description":"The ID of the time entry to remove."}
    * @returns {Object}
    * @sampleResult {"id":"5095","deleted":true}
    */
@@ -3993,7 +4363,7 @@ class FreshBooksService {
    * @route POST /on-record-event
    * @appearanceColor #0075DD #21C0E8
    * @executionTimeoutInSeconds 120
-   * @paramDef {"type":"String","label":"Event","name":"event","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["New Invoice","Invoice Updated","New Payment","New Client","Client Updated","New Estimate","New Expense","New Credit Note","New Item","New Project","New Time Entry","New Bill","New Tax"]}},"description":"Which FreshBooks event should start this flow."}
+   * @paramDef {"type":"String","label":"Event","name":"event","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"invoice.create","label":"New Invoice"},{"value":"invoice.update","label":"Invoice Updated"},{"value":"payment.create","label":"New Payment"},{"value":"client.create","label":"New Client"},{"value":"client.update","label":"Client Updated"},{"value":"estimate.create","label":"New Estimate"},{"value":"expense.create","label":"New Expense"},{"value":"credit_note.create","label":"New Credit Note"},{"value":"item.create","label":"New Item"},{"value":"project.create","label":"New Project"},{"value":"time_entry.create","label":"New Time Entry"},{"value":"bill.create","label":"New Bill"},{"value":"tax.create","label":"New Tax"}]}},"description":"Which FreshBooks event should start this flow."}
    * @returns {Object}
    * @sampleResult {"event":"invoice.create","objectId":987,"accountId":"ZykWor","businessId":14691043}
    */
@@ -4035,7 +4405,7 @@ class FreshBooksService {
     const desired = [
       ...new Set(
         (invocation.events || [])
-          .map(e => TRIGGER_EVENTS[e.triggerData?.event])
+          .map(e => e.triggerData?.event)
           .filter(Boolean)
       ),
     ]
@@ -4171,7 +4541,7 @@ class FreshBooksService {
 
         if (!picked) return true
 
-        return TRIGGER_EVENTS[picked] === firedEvent
+        return picked === firedEvent
       })
       .map(trigger => trigger.id)
 

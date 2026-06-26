@@ -1,5 +1,7 @@
 'use strict'
 
+const crypto = require('crypto')
+
 const SERVICE_NAME = 'Supabase'
 
 const logger = {
@@ -30,10 +32,12 @@ class Supabase {
    * @param {Object} config
    * @param {String} config.supabaseUrl
    * @param {String} config.supabaseKey
+   * @param {String} [config.webhookSecret]
    */
   constructor(config) {
     this.supabaseUrl = config.supabaseUrl
     this.supabaseKey = config.supabaseKey
+    this.webhookSecret = config.webhookSecret
   }
 
   /**
@@ -130,7 +134,7 @@ class Supabase {
    * @category CRUD
    * @description Inserts a new record into a specified table.
    * @paramDef {"type":"String","label":"Table","name":"table","dictionary":"getTablesDictionary","required":true,"description":"The table to insert into."}
-   * @paramDef {"type":"Array<DataField>","label":"Data","name":"data","required":true,"dependsOn":["table"],"description":"List of fields to insert."}
+   * @paramDef {"type":"Array.<DataField>","label":"Data","name":"data","required":true,"dependsOn":["table"],"description":"List of fields to insert."}
    * @returns {Object}
    * @sampleResultLoader { "methodName": "getRecordSchema", "dependsOn": ["table"] }
    */
@@ -161,7 +165,7 @@ class Supabase {
    * @category CRUD
    * @description Updates existing records in a specified table matching the filter criteria.
    * @paramDef {"type":"String","label":"Table","name":"table","dictionary":"getTablesDictionary","required":true,"description":"The table to update."}
-   * @paramDef {"type":"Array<DataField>","label":"Data","name":"data","required":true,"description":"List of fields to update."}
+   * @paramDef {"type":"Array.<DataField>","label":"Data","name":"data","required":true,"description":"List of fields to update."}
    * @paramDef {"type":"Filter","label":"Filter","name":"filter","required":false,"description":"Simple filter conditions."}
    * @paramDef {"type":"String","label":"Advanced Filter","name":"advancedFilter","description":"Raw query filter string (e.g., 'id=eq.1'). Appended to Simple Filter."}
    * @returns {Array}
@@ -454,10 +458,40 @@ class Supabase {
    * @description Processes incoming webhook events from Supabase.
    */
   async handleTriggerResolveEvents(req) {
+    if (!this.#verifyWebhookSecret(req)) {
+      logger.warn('handleTriggerResolveEvents: webhook secret verification failed - rejecting delivery')
+
+      return []
+    }
+
     const event = req.body
     if (!event || !event.type) return []
 
     return [event]
+  }
+
+  // Supabase Database Webhooks do not sign payloads. When a Webhook Secret is configured, the
+  // user sets the same value as an "x-webhook-secret" header (or "Authorization: Bearer <secret>")
+  // on the webhook in the Supabase dashboard; every delivery is verified against it with a
+  // constant-time compare before the payload is trusted. With no secret configured, deliveries
+  // pass through (verification is opt-in for this manually-created webhook).
+  #verifyWebhookSecret(req) {
+    const expected = this.webhookSecret
+    if (!expected) return true
+
+    const headers = (req && req.headers) || {}
+    const read = name => headers[name] || headers[name.toLowerCase()] || headers[name.toUpperCase()]
+
+    let provided = read('x-webhook-secret')
+
+    if (!provided) provided = String(read('Authorization') || '').replace(/^Bearer\s+/i, '')
+    if (!provided) return false
+
+    const expectedBuffer = Buffer.from(String(expected))
+    const providedBuffer = Buffer.from(String(provided))
+
+    return expectedBuffer.length === providedBuffer.length &&
+      crypto.timingSafeEqual(expectedBuffer, providedBuffer)
   }
 
   /**
@@ -543,6 +577,14 @@ Flowrunner.ServerCode.addService(Supabase, [
     required: true,
     hint: 'Your Supabase API Key (anon or service_role). Found in Settings > API.',
     order: 2,
+  },
+  {
+    name: 'webhookSecret',
+    displayName: 'Webhook Secret',
+    type: 'STRING',
+    required: false,
+    hint: 'Optional shared secret for realtime triggers. Set the same value as an "x-webhook-secret" HTTP header when creating the Database Webhook (Database > Webhooks). Deliveries that omit or mismatch it are rejected.',
+    order: 3,
   },
 ])
 

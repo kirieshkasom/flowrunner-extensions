@@ -166,8 +166,8 @@ class Instantly {
    * @description Add tags to one or more campaigns in your Instantly workspace. Tags help organize and categorize campaigns for better filtering and management.
    * @route POST /add-tags-to-campaigns
    *
-   * @paramDef {"type":"Array<String>","label":"Campaigns","name":"campaignIds","required":true,"description":"List of campaign IDs to add tags to.","dictionary":"getCampaignsDict"}
-   * @paramDef {"type":"Array<String>","label":"Tags","name":"tagIds","required":true,"description":"List of tag IDs to assign to the campaigns.","dictionary":"getTagsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Campaigns","name":"campaignIds","required":true,"description":"List of campaign IDs to add tags to.","dictionary":"getCampaignsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Tags","name":"tagIds","required":true,"description":"List of tag IDs to assign to the campaigns.","dictionary":"getTagsDict"}
    *
    * @returns {Object}
    * @sampleResult {"success":true,"message":"Tags added to campaigns successfully"}
@@ -210,8 +210,8 @@ class Instantly {
    * @operationName Remove Tags From Campaigns
    * @category Tags
    * @description Remove tags from one or more campaigns in your Instantly workspace. This helps maintain clean campaign organization by removing outdated or unnecessary tags.
-   * @route POST /remove-tags-from"type":"Array<String>","label":"Campaigns","name":"campaignIds","required":true,"description":"List of campaign IDs to remove tags from.","dictionary":"getCampaignsDict"}paign IDs to remove tags from."}
-   * @paramDef {"type":"Array<String>","label":"Tags","name":"tagIds","required":true,"description":"List of tag IDs to remove from the campaigns.","dictionary":"getTagsDict"}
+   * @route POST /remove-tags-from"type":"Array.<String>","label":"Campaigns","name":"campaignIds","required":true,"description":"List of campaign IDs to remove tags from.","dictionary":"getCampaignsDict"}paign IDs to remove tags from."}
+   * @paramDef {"type":"Array.<String>","label":"Tags","name":"tagIds","required":true,"description":"List of tag IDs to remove from the campaigns.","dictionary":"getTagsDict"}
    *
    * @returns {Object}
    * @sampleResult {"success":true,"message":"Tags removed from campaigns successfully"}
@@ -256,7 +256,7 @@ class Instantly {
    * @description Add a lead to a campaign in your Instantly workspace. This moves or adds a lead to the specified campaign for outreach sequences. Lead IDs must be in UUID format (e.g., "01996da2-2642-7217-9b78-c20b687ade51"). Use the Find Lead action to retrieve proper lead IDs.
    * @route POST /add-lead-to-campaign
    *
-   * @paramDef {"type":"Array<String>","label":"Leads","name":"leadIds","required":true,"description":"List of lead UUIDs to add to the campaign. Use Find Lead action to get valid lead IDs (format: 01996da2-2642-7217-9b78-c20b687ade51).","dictionary":"getLeadsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Leads","name":"leadIds","required":true,"description":"List of lead UUIDs to add to the campaign. Use Find Lead action to get valid lead IDs (format: 01996da2-2642-7217-9b78-c20b687ade51).","dictionary":"getLeadsDict"}
    * @paramDef {"type":"String","label":"Campaign","name":"campaignId","required":true,"dictionary":"getCampaignsDict","description":"The campaign where leads will be added."}
    * @paramDef {"type":"Boolean","label":"Check Duplicates","name":"checkDuplicates","uiComponent":{"type":"TOGGLE"},"description":"Skip leads if they already exist in the campaign."}
    *
@@ -315,7 +315,7 @@ class Instantly {
    * @description Permanently delete leads from your Instantly workspace. This removes the lead records entirely, not just from a specific campaign. Use with caution as this action cannot be undone.
    * @route POST /delete-leads
    *
-   * @paramDef {"type":"Array<String>","label":"Leads","name":"leadIds","required":true,"description":"List of lead UUIDs to delete permanently."}
+   * @paramDef {"type":"Array.<String>","label":"Leads","name":"leadIds","required":true,"description":"List of lead UUIDs to delete permanently."}
    *
    * @returns {Object}
    * @sampleResult {"success":true,"message":"Leads deleted successfully","count":3}
@@ -368,7 +368,7 @@ class Instantly {
    * @paramDef {"type":"Number","label":"Limit","name":"limit","default":50,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of leads to return per page (1-100)."}
    * @paramDef {"type":"String","label":"Starting After","name":"startingAfter","description":"Pagination cursor - ID of the last lead from the previous page. Leave empty for the first page."}
    * @paramDef {"type":"String","label":"Campaign","name":"campaignId","dictionary":"getCampaignsDict","description":"Filter leads by campaign UUID."}
-   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":["active","paused","completed","bounced","unsubscribed"]}},"description":"Filter leads by status."}
+   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"active","label":"Active"},{"value":"paused","label":"Paused"},{"value":"completed","label":"Completed"},{"value":"bounced","label":"Bounced"},{"value":"unsubscribed","label":"Unsubscribed"}]}},"description":"Filter leads by status."}
    *
    * @returns {Object}
    * @sampleResult {"items":[{"id":"01996da2-2642-7217-9b78-c20b687ade51","email":"john@example.com","first_name":"John","last_name":"Doe","company_name":"Example Corp","status":"active"}],"next_starting_after":"01996da2-2642-7217-9b78-c20b687ade51"}
@@ -475,8 +475,8 @@ class Instantly {
    * @description Add tags to one or more email accounts in your Instantly workspace. Tags help organize and categorize accounts for better filtering and management.
    * @route POST /add-tags-to-accounts
    *
-   * @paramDef {"type":"Array<String>","label":"Account IDs","name":"accountIds","required":true,"description":"List of email account IDs to add tags to.","dictionary":"getAccountsDict"}
-   * @paramDef {"type":"Array<String>","label":"Tags","name":"tagIds","required":true,"description":"List of tag IDs to assign to the accounts.","dictionary":"getTagsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Account IDs","name":"accountIds","required":true,"description":"List of email account IDs to add tags to.","dictionary":"getAccountsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Tags","name":"tagIds","required":true,"description":"List of tag IDs to assign to the accounts.","dictionary":"getTagsDict"}
    *
    * @returns {Object}
    * @sampleResult {"success":true,"message":"Tags added to accounts successfully"}
@@ -521,8 +521,8 @@ class Instantly {
    * @description Remove tags from one or more email accounts in your Instantly workspace. This helps maintain clean account organization by removing outdated or unnecessary tags.
    * @route POST /remove-tags-from-accounts
    *
-   * @paramDef {"type":"Array<String>","label":"Account IDs","name":"accountIds","required":true,"description":"List of email account IDs to remove tags from.","dictionary":"getAccountsDict"}
-   * @paramDef {"type":"Array<String>","label":"Tags","name":"tagIds","required":true,"description":"List of tag IDs to remove from the accounts.","dictionary":"getTagsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Account IDs","name":"accountIds","required":true,"description":"List of email account IDs to remove tags from.","dictionary":"getAccountsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Tags","name":"tagIds","required":true,"description":"List of tag IDs to remove from the accounts.","dictionary":"getTagsDict"}
    *
    * @returns {Object}
    * @sampleResult {"success":true,"message":"Tags removed from accounts successfully"}
@@ -567,7 +567,7 @@ class Instantly {
    * @description Add email addresses or domains to the global blocklist in your Instantly workspace. Blocked emails will not receive any outreach and will be automatically filtered from campaigns.
    * @route POST /add-to-blocklist
    *
-   * @paramDef {"type":"Array<String>","label":"Emails or Domains","name":"emailsOrDomains","required":true,"description":"List of email addresses or domains to add to the blocklist (e.g., 'spam@example.com' or 'example.com' to block entire domain)."}
+   * @paramDef {"type":"Array.<String>","label":"Emails or Domains","name":"emailsOrDomains","required":true,"description":"List of email addresses or domains to add to the blocklist (e.g., 'spam@example.com' or 'example.com' to block entire domain)."}
    *
    * @returns {Object}
    * @sampleResult {"success":true,"message":"Entries added to blocklist successfully","added_count":2}
@@ -661,7 +661,7 @@ class Instantly {
    * @description List custom tags in your Instantly workspace with optional filtering and pagination.
    * @route POST /list-tags
    *
-   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of tags to return (default: 10, max: 100).","uiComponent":{"type":"NUMERIC"}}
+   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of tags to return (default: 10, max: 100).","uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Starting After","name":"startingAfter","description":"Cursor for pagination. Use the next_starting_after value from the previous response."}
    * @paramDef {"type":"String","label":"Search","name":"search","description":"Search term for filtering tags by label."}
    *
@@ -704,8 +704,8 @@ class Instantly {
  * @description Update the status of a lead in your Instantly workspace. This allows you to track the progress of leads through your outreach workflow and maintain accurate lead states.
  * @route POST /update-lead-status
  *
- * @paramDef {"type":"String","label":"Lead","name":"leadId","required":true,"description":"The UUID of the lead to update."}
- * @paramDef {"type":"String","label":"Status","name":"status","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["active","paused","completed","bounced","unsubscribed"]}},"description":"The new status for the lead."}
+ * @paramDef {"type":"String","label":"Lead","name":"leadId","required":true,"dictionary":"getLeadsDict","description":"The lead to update."}
+ * @paramDef {"type":"String","label":"Status","name":"status","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"active","label":"Active"},{"value":"paused","label":"Paused"},{"value":"completed","label":"Completed"},{"value":"bounced","label":"Bounced"},{"value":"unsubscribed","label":"Unsubscribed"}]}},"description":"The new status for the lead."}
  *
  * @returns {Object}
  * @sampleResult {"success":true,"message":"Lead status updated successfully","lead_id":"01234567-89ab-cdef-0123-456789abcdef","status":"completed"}
@@ -763,9 +763,9 @@ class Instantly {
    * @paramDef {"type":"Number","label":"Limit","name":"limit","default":50,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of accounts to return per page (1-100)."}
    * @paramDef {"type":"String","label":"Starting After","name":"startingAfter","description":"Pagination cursor - ID of the last account from the previous page."}
    * @paramDef {"type":"String","label":"Search","name":"search","description":"Search term to filter accounts by email or name."}
-   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":["Active","Paused","Connection Error","Soft Bounce Error","Sending Error"]}},"description":"Filter accounts by status."}
-   * @paramDef {"type":"String","label":"Provider","name":"provider","uiComponent":{"type":"DROPDOWN","options":{"values":["Custom IMAP/SMTP","Google","Microsoft","AWS"]}},"description":"Filter by email provider."}
-   * @paramDef {"type":"Array<String>","label":"Tags","name":"tags","description":"Filter by tags. Returns accounts with any of the specified tags.","dictionary":"getTagsDict"}
+   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Active","label":"Active"},{"value":"Paused","label":"Paused"},{"value":"Connection Error","label":"Connection Error"},{"value":"Soft Bounce Error","label":"Soft Bounce Error"},{"value":"Sending Error","label":"Sending Error"}]}},"description":"Filter accounts by status."}
+   * @paramDef {"type":"String","label":"Provider","name":"provider","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Custom IMAP/SMTP","label":"Custom IMAP/SMTP"},{"value":"Google","label":"Google"},{"value":"Microsoft","label":"Microsoft"},{"value":"AWS","label":"AWS"}]}},"description":"Filter by email provider."}
+   * @paramDef {"type":"Array.<String>","label":"Tags","name":"tags","description":"Filter by tags. Returns accounts with any of the specified tags.","dictionary":"getTagsDict"}
    *
    * @returns {Object}
    * @sampleResult {"items":[{"email":"sender@example.com","first_name":"John","last_name":"Doe","status":1,"provider_code":2,"daily_limit":50}],"next_starting_after":"abc123"}
@@ -982,7 +982,7 @@ class Instantly {
    * @paramDef {"type":"String","label":"Email","name":"email","required":true,"description":"Email address of the account."}
    * @paramDef {"type":"String","label":"First Name","name":"firstName","required":true,"description":"First name associated with the account."}
    * @paramDef {"type":"String","label":"Last Name","name":"lastName","required":true,"description":"Last name associated with the account."}
-   * @paramDef {"type":"String","label":"Provider","name":"provider","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Custom IMAP/SMTP","Google","Microsoft","AWS"]}},"description":"Email provider for the account."}
+   * @paramDef {"type":"String","label":"Provider","name":"provider","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Custom IMAP/SMTP","label":"Custom IMAP/SMTP"},{"value":"Google","label":"Google"},{"value":"Microsoft","label":"Microsoft"},{"value":"AWS","label":"AWS"}]}},"description":"Email provider for the account."}
    * @paramDef {"type":"Object","label":"IMAP Settings","name":"imapSettings","required":true,"schemaLoader":"createImapSettingsSchemaLoader","description":"IMAP configuration for receiving emails."}
    * @paramDef {"type":"Object","label":"SMTP Settings","name":"smtpSettings","required":true,"schemaLoader":"createSmtpSettingsSchemaLoader","description":"SMTP configuration for sending emails."}
    * @paramDef {"type":"Number","label":"Daily Sending Limit","name":"dailyLimit","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Daily email sending limit for this account."}
@@ -1185,7 +1185,7 @@ class Instantly {
    * @operationName Delete Account
    * @category Accounts
    * @description Permanently delete an email account from your Instantly workspace. This action cannot be undone. Use with caution.
-   * @route DELETE /delete-account
+   * @route POST /delete-account
    *
    * @paramDef {"type":"String","label":"Email","name":"email","required":true,"dictionary":"getAccountsDict","description":"The email address of the account to delete permanently."}
    *
@@ -1221,9 +1221,9 @@ class Instantly {
    * @description Enable email warmup for one or more accounts. Warmup gradually increases sending volume to build sender reputation.
    * @route POST /enable-warmup
    *
-   * @paramDef {"type":"Array<String>","label":"Emails","name":"emails","description":"List of account email addresses to enable warmup for. Leave empty if using Include All Emails option.","dictionary":"getAccountsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Emails","name":"emails","description":"List of account email addresses to enable warmup for. Leave empty if using Include All Emails option.","dictionary":"getAccountsDict"}
    * @paramDef {"type":"Boolean","label":"Include All Emails","name":"includeAllEmails","uiComponent":{"type":"TOGGLE"},"description":"Enable warmup for all accounts in the workspace."}
-   * @paramDef {"type":"Array<String>","label":"Excluded Emails","name":"excludedEmails","description":"List of account emails to exclude when Include All Emails is enabled.","dictionary":"getAccountsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Excluded Emails","name":"excludedEmails","description":"List of account emails to exclude when Include All Emails is enabled.","dictionary":"getAccountsDict"}
    *
    * @returns {Object}
    * @sampleResult {"success":true,"message":"Warmup enabled successfully"}
@@ -1269,9 +1269,9 @@ class Instantly {
    * @description Disable email warmup for one or more accounts. Stops the gradual warmup process.
    * @route POST /disable-warmup
    *
-   * @paramDef {"type":"Array<String>","label":"Emails","name":"emails","description":"List of account email addresses to disable warmup for. Leave empty if using Include All Emails option.","dictionary":"getAccountsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Emails","name":"emails","description":"List of account email addresses to disable warmup for. Leave empty if using Include All Emails option.","dictionary":"getAccountsDict"}
    * @paramDef {"type":"Boolean","label":"Include All Emails","name":"includeAllEmails","uiComponent":{"type":"TOGGLE"},"description":"Disable warmup for all accounts in the workspace."}
-   * @paramDef {"type":"Array<String>","label":"Excluded Emails","name":"excludedEmails","description":"List of account emails to exclude when Include All Emails is enabled.","dictionary":"getAccountsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Excluded Emails","name":"excludedEmails","description":"List of account emails to exclude when Include All Emails is enabled.","dictionary":"getAccountsDict"}
    *
    * @returns {Object}
    * @sampleResult {"success":true,"message":"Warmup disabled successfully"}
@@ -1317,7 +1317,7 @@ class Instantly {
    * @description Retrieve warmup analytics and statistics for specified email accounts. Shows warmup progress, email volumes, and performance metrics.
    * @route POST /get-warmup-analytics
    *
-   * @paramDef {"type":"Array<String>","label":"Emails","name":"emails","required":true,"description":"List of account email addresses to get warmup analytics for.","dictionary":"getAccountsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Emails","name":"emails","required":true,"description":"List of account email addresses to get warmup analytics for.","dictionary":"getAccountsDict"}
    *
    * @returns {Object}
    * @sampleResult {"analytics":[{"email":"sender@example.com","warmup_stage":"building","emails_sent":45,"open_rate":0.78,"reply_rate":0.12}]}
@@ -1353,7 +1353,7 @@ class Instantly {
    * @description Test the health and connection status of email accounts. Validates SMTP/IMAP settings and checks account vitals.
    * @route POST /test-account-vitals
    *
-   * @paramDef {"type":"Array<String>","label":"Accounts","name":"accounts","required":true,"description":"List of account email addresses to test connection and vitals.","dictionary":"getAccountsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Accounts","name":"accounts","required":true,"description":"List of account email addresses to test connection and vitals.","dictionary":"getAccountsDict"}
    *
    * @returns {Object}
    * @sampleResult {"results":[{"email":"sender@example.com","status":"healthy","smtp_valid":true,"imap_valid":true}]}
@@ -1576,7 +1576,7 @@ class Instantly {
    * @operationName Delete Lead List
    * @category Lead Lists
    * @description Permanently delete a lead list from your Instantly workspace. This action cannot be undone.
-   * @route DELETE /delete-lead-list
+   * @route POST /delete-lead-list
    *
    * @paramDef {"type":"String","label":"Lead List","name":"id","required":true,"dictionary":"getLeadListsDict","description":"The lead list to delete."}
    *
@@ -1648,7 +1648,7 @@ class Instantly {
    * @route POST /create-lead-label
    *
    * @paramDef {"type":"String","label":"Label","name":"label","required":true,"description":"Display label for the custom lead label."}
-   * @paramDef {"type":"String","label":"Interest Status","name":"interestStatusLabel","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["positive","negative","neutral"]}},"description":"Interest status: positive, negative, or neutral."}
+   * @paramDef {"type":"String","label":"Interest Status","name":"interestStatusLabel","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"positive","label":"Positive"},{"value":"negative","label":"Negative"},{"value":"neutral","label":"Neutral"}]}},"description":"Interest status: positive, negative, or neutral."}
    * @paramDef {"type":"String","label":"Description","name":"description","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Detailed description of the custom lead label purpose."}
    * @paramDef {"type":"Boolean","label":"Use With AI","name":"useWithAi","uiComponent":{"type":"TOGGLE"},"description":"Whether this label should be used with AI features."}
    *
@@ -1702,7 +1702,7 @@ class Instantly {
    * @paramDef {"type":"Number","label":"Limit","name":"limit","default":50,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of lead labels to return per page."}
    * @paramDef {"type":"String","label":"Starting After","name":"startingAfter","description":"Pagination cursor - timestamp to start after."}
    * @paramDef {"type":"String","label":"Search","name":"search","description":"Search query to filter lead labels."}
-   * @paramDef {"type":"String","label":"Interest Status","name":"interestStatus","uiComponent":{"type":"DROPDOWN","options":{"values":["positive","negative","neutral"]}},"description":"Filter by interest status."}
+   * @paramDef {"type":"String","label":"Interest Status","name":"interestStatus","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"positive","label":"Positive"},{"value":"negative","label":"Negative"},{"value":"neutral","label":"Neutral"}]}},"description":"Filter by interest status."}
    *
    * @returns {Object}
    * @sampleResult {"items":[{"id":"label123","label":"Hot Lead","interest_status_label":"positive"}],"next_starting_after":"2023-01-01T00:00:00Z"}
@@ -1789,7 +1789,7 @@ class Instantly {
  *
  * @paramDef {"type":"String","label":"Lead Label","name":"id","required":true,"dictionary":"getLeadLabelsDict","description":"The lead label to update."}
  * @paramDef {"type":"String","label":"Label","name":"label","description":"New display label."}
- * @paramDef {"type":"String","label":"Interest Status","name":"interestStatusLabel","uiComponent":{"type":"DROPDOWN","options":{"values":["positive","negative","neutral"]}},"description":"New interest status."}
+ * @paramDef {"type":"String","label":"Interest Status","name":"interestStatusLabel","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"positive","label":"Positive"},{"value":"negative","label":"Negative"},{"value":"neutral","label":"Neutral"}]}},"description":"New interest status."}
  * @paramDef {"type":"String","label":"Description","name":"description","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"New description."}
  * @paramDef {"type":"Boolean","label":"Use With AI","name":"useWithAi","uiComponent":{"type":"TOGGLE"},"description":"Whether this label should be used with AI features."}
  *
@@ -1843,7 +1843,7 @@ class Instantly {
    * @operationName Delete Lead Label
    * @category Lead Lists
    * @description Permanently delete a lead label. Leads and emails with this label will be reassigned to the specified status.
-   * @route DELETE /delete-lead-label
+   * @route POST /delete-lead-label
    *
    * @paramDef {"type":"String","label":"Lead Label","name":"id","required":true,"dictionary":"getLeadLabelsDict","description":"The lead label to delete."}
    * @paramDef {"type":"Number","label":"Reassigned Status","name":"reassignedStatus","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The interest status to reassign leads and emails to."}
@@ -1893,7 +1893,7 @@ class Instantly {
    * @paramDef {"type":"String","label":"Campaign","name":"campaignId","dictionary":"getCampaignsDict","description":"Filter by campaign."}
    * @paramDef {"type":"String","label":"Email Account","name":"eaccount","description":"Filter by email account (comma-separated for multiple).","dictionary":"getAccountsDict"}
    * @paramDef {"type":"Boolean","label":"Is Unread","name":"isUnread","uiComponent":{"type":"TOGGLE"},"description":"Filter by unread status."}
-   * @paramDef {"type":"String","label":"Sort Order","name":"sortOrder","uiComponent":{"type":"DROPDOWN","options":{"values":["Ascending","Descending"]}},"description":"Sort order by creation date (default: desc)."}
+   * @paramDef {"type":"String","label":"Sort Order","name":"sortOrder","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Ascending","label":"Ascending"},{"value":"Descending","label":"Descending"}]}},"description":"Sort order by creation date (default: desc)."}
    *
    * @returns {Object}
    * @sampleResult {"items":[{"id":"email123","subject":"Meeting Follow-up","from":"john@example.com","is_unread":true}],"next_starting_after":"email456"}
@@ -2006,7 +2006,7 @@ class Instantly {
    * @operationName Delete Email
    * @category Emails
    * @description Permanently delete an email from your Instantly workspace. This action cannot be undone.
-   * @route DELETE /delete-email
+   * @route POST /delete-email
    *
    * @paramDef {"type":"String","label":"Email","name":"id","required":true,"description":"The ID of the email to delete."}
    *
@@ -2043,7 +2043,7 @@ class Instantly {
    * @paramDef {"type":"String","label":"Email Account","name":"eaccount","required":true,"description":"The email account to send from (must be connected to your workspace).","dictionary":"getAccountsDict"}
    * @paramDef {"type":"String","label":"Reply To UUID","name":"replyToUuid","required":true,"description":"The ID of the email to reply to."}
    * @paramDef {"type":"String","label":"Subject","name":"subject","required":true,"description":"Subject line of the reply."}
-   * @paramDef {"type":"Object","label":"Body","name":"body","required":true,"description":"Email body object with 'html' and/or 'text' fields."}
+   * @paramDef {"type":"Object","label":"Body","name":"body","required":true,"schemaLoader":"createEmailBodySchemaLoader","description":"Email body with HTML and/or plain text content."}
    * @paramDef {"type":"String","label":"CC Addresses","name":"ccAddressEmailList","description":"Comma-separated list of CC email addresses."}
    * @paramDef {"type":"String","label":"BCC Addresses","name":"bccAddressEmailList","description":"Comma-separated list of BCC email addresses."}
    * @paramDef {"type":"String","label":"Reminder Timestamp","name":"reminderTs","description":"Schedule email for later (ISO timestamp)."}
@@ -2122,7 +2122,7 @@ class Instantly {
    * @description Mark all emails in a specific thread as read.
    * @route POST /mark-thread-as-read
    *
-   * @paramDef {"type":"String","label":"Thread ID","name":"threadId","required":true,"description":"The ID of the email thread to mark as read."}
+   * @paramDef {"type":"String","label":"Thread","name":"threadId","required":true,"dictionary":"getThreadsDict","description":"The email thread to mark as read."}
    *
    * @returns {Object}
    * @sampleResult {"success":true,"message":"Thread marked as read"}
@@ -2229,7 +2229,7 @@ class Instantly {
    * @paramDef {"type":"Number","label":"Limit","name":"limit","default":50,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of campaigns to return per page."}
    * @paramDef {"type":"String","label":"Starting After","name":"startingAfter","description":"Campaign ID to start from for pagination."}
    * @paramDef {"type":"String","label":"Search","name":"search","description":"Search by campaign name."}
-   * @paramDef {"type":"Array<String>","label":"Tags","name":"tags","description":"Filter by tags. Returns campaigns with any of the specified tags.","dictionary":"getTagsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Tags","name":"tags","description":"Filter by tags. Returns campaigns with any of the specified tags.","dictionary":"getTagsDict"}
    *
    * @returns {Object}
    * @sampleResult {"items":[{"id":"campaign123","name":"Outreach Q1","status":1}],"next_starting_after":"campaign456"}
@@ -2273,33 +2273,33 @@ class Instantly {
    *
    * @paramDef {"type":"String","label":"Name","name":"name","required":true,"description":"Name of the campaign."}
    * @paramDef {"type":"Object","label":"Campaign Schedule","name":"campaignSchedule","required":true,"schemaLoader":"createCampaignScheduleSchemaLoader","description":"Campaign schedule configuration including timezone, days of week, and time slots."}
-   * @paramDef {"type":"Number","label":"Positive Lead Value","name":"plValue","uiComponent":{"type":"NUMERIC"},"description":"Value of every positive lead."}
+   * @paramDef {"type":"Number","label":"Positive Lead Value","name":"plValue","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Value of every positive lead."}
    * @paramDef {"type":"Boolean","label":"Is Evergreen","name":"isEvergreen","uiComponent":{"type":"TOGGLE"},"description":"Whether the campaign is evergreen."}
-   * @paramDef {"type":"Array<Object>","label":"Sequences","name":"sequences","description":"List of sequences (the actual email copy). Only the first element is used, so provide one array item with steps."}
-   * @paramDef {"type":"Number","label":"Email Gap (minutes)","name":"emailGap","uiComponent":{"type":"NUMERIC"},"description":"The gap between emails in minutes."}
-   * @paramDef {"type":"Number","label":"Random Wait Max (minutes)","name":"randomWaitMax","uiComponent":{"type":"NUMERIC"},"description":"The maximum random wait time in minutes."}
+   * @paramDef {"type":"Array.<Object>","label":"Sequences","name":"sequences","description":"List of sequences (the actual email copy). Only the first element is used, so provide one array item with steps."}
+   * @paramDef {"type":"Number","label":"Email Gap (minutes)","name":"emailGap","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The gap between emails in minutes."}
+   * @paramDef {"type":"Number","label":"Random Wait Max (minutes)","name":"randomWaitMax","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The maximum random wait time in minutes."}
    * @paramDef {"type":"Boolean","label":"Text Only","name":"textOnly","uiComponent":{"type":"TOGGLE"},"description":"Whether the campaign emails are text only."}
    * @paramDef {"type":"Boolean","label":"First Email Text Only","name":"firstEmailTextOnly","uiComponent":{"type":"TOGGLE"},"description":"Whether to send the first email as text only."}
-   * @paramDef {"type":"Array<String>","label":"Email List","name":"emailList","description":"List of account emails to use for sending.","dictionary":"getAccountsDict"}
-   * @paramDef {"type":"Number","label":"Daily Limit","name":"dailyLimit","uiComponent":{"type":"NUMERIC"},"description":"The daily limit for sending emails."}
+   * @paramDef {"type":"Array.<String>","label":"Email List","name":"emailList","description":"List of account emails to use for sending.","dictionary":"getAccountsDict"}
+   * @paramDef {"type":"Number","label":"Daily Limit","name":"dailyLimit","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The daily limit for sending emails."}
    * @paramDef {"type":"Boolean","label":"Stop On Reply","name":"stopOnReply","uiComponent":{"type":"TOGGLE"},"description":"Whether to stop the campaign on reply."}
-   * @paramDef {"type":"Array<String>","label":"Email Tag List","name":"emailTagList","description":"List of tags to use for sending emails.","dictionary":"getTagsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Email Tag List","name":"emailTagList","description":"List of tags to use for sending emails.","dictionary":"getTagsDict"}
    * @paramDef {"type":"Boolean","label":"Link Tracking","name":"linkTracking","uiComponent":{"type":"TOGGLE"},"description":"Whether to track links in emails."}
    * @paramDef {"type":"Boolean","label":"Open Tracking","name":"openTracking","uiComponent":{"type":"TOGGLE"},"description":"Whether to track opens in emails."}
    * @paramDef {"type":"Boolean","label":"Stop On Auto Reply","name":"stopOnAutoReply","uiComponent":{"type":"TOGGLE"},"description":"Whether to stop the campaign on auto reply."}
-   * @paramDef {"type":"Number","label":"Daily Max Leads","name":"dailyMaxLeads","uiComponent":{"type":"NUMERIC"},"description":"The daily maximum new leads to contact."}
+   * @paramDef {"type":"Number","label":"Daily Max Leads","name":"dailyMaxLeads","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The daily maximum new leads to contact."}
    * @paramDef {"type":"Boolean","label":"Prioritize New Leads","name":"prioritizeNewLeads","uiComponent":{"type":"TOGGLE"},"description":"Whether to prioritize new leads."}
-   * @paramDef {"type":"Object","label":"Auto Variant Select","name":"autoVariantSelect","description":"Auto variant select settings."}
+   * @paramDef {"type":"Object","label":"Auto Variant Select","name":"autoVariantSelect","schemaLoader":"createAutoVariantSelectSchemaLoader","description":"Automatically pick the winning email variant based on a chosen metric."}
    * @paramDef {"type":"Boolean","label":"Match Lead ESP","name":"matchLeadEsp","uiComponent":{"type":"TOGGLE"},"description":"Whether to match leads by ESP."}
    * @paramDef {"type":"Boolean","label":"Stop For Company","name":"stopForCompany","uiComponent":{"type":"TOGGLE"},"description":"Whether to stop the campaign for the entire company (domain) when a lead replies."}
    * @paramDef {"type":"Boolean","label":"Insert Unsubscribe Header","name":"insertUnsubscribeHeader","uiComponent":{"type":"TOGGLE"},"description":"Whether to insert an unsubscribe header in emails."}
    * @paramDef {"type":"Boolean","label":"Allow Risky Contacts","name":"allowRiskyContacts","uiComponent":{"type":"TOGGLE"},"description":"Whether to allow risky contacts."}
    * @paramDef {"type":"Boolean","label":"Disable Bounce Protect","name":"disableBounceProtect","uiComponent":{"type":"TOGGLE"},"description":"Whether to disable bounce protection."}
-   * @paramDef {"type":"Object","label":"Limit Emails Per Company Override","name":"limitEmailsPerCompanyOverride","description":"Overrides the workspace-wide limit emails per company setting for this campaign."}
-   * @paramDef {"type":"Array<String>","label":"CC List","name":"ccList","description":"List of accounts to CC on emails.","dictionary":"getAccountsDict"}
-   * @paramDef {"type":"Array<String>","label":"BCC List","name":"bccList","description":"List of accounts to BCC on emails.","dictionary":"getAccountsDict"}
+   * @paramDef {"type":"Object","label":"Limit Emails Per Company Override","name":"limitEmailsPerCompanyOverride","schemaLoader":"createLimitEmailsPerCompanyOverrideSchemaLoader","description":"Overrides the workspace-wide limit emails per company setting for this campaign."}
+   * @paramDef {"type":"Array.<String>","label":"CC List","name":"ccList","description":"List of accounts to CC on emails.","dictionary":"getAccountsDict"}
+   * @paramDef {"type":"Array.<String>","label":"BCC List","name":"bccList","description":"List of accounts to BCC on emails.","dictionary":"getAccountsDict"}
    * @paramDef {"type":"String","label":"Owner ID","name":"ownedBy","description":"Owner ID."}
-   * @paramDef {"type":"Array<Object>","label":"Provider Routing Rules","name":"providerRoutingRules","description":"Provider routing rules for campaign."}
+   * @paramDef {"type":"Array.<Object>","label":"Provider Routing Rules","name":"providerRoutingRules","description":"Provider routing rules for campaign."}
    *
    * @returns {Object}
    * @sampleResult {"id":"new-campaign-123","name":"My First Campaign","status":0,"created_at":"2024-01-01T00:00:00Z"}
@@ -2399,7 +2399,7 @@ class Instantly {
    * @operationName Delete Campaign
    * @category Campaigns
    * @description Permanently delete a campaign from your Instantly workspace. This action cannot be undone.
-   * @route DELETE /delete-campaign
+   * @route POST /delete-campaign
    *
    * @paramDef {"type":"String","label":"Campaign","name":"id","required":true,"dictionary":"getCampaignsDict","description":"The campaign to delete."}
    *
@@ -2435,34 +2435,34 @@ class Instantly {
    *
    * @paramDef {"type":"String","label":"Campaign","name":"id","required":true,"dictionary":"getCampaignsDict","description":"The campaign to update."}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"Name of the campaign."}
-   * @paramDef {"type":"Number","label":"Positive Lead Value","name":"plValue","uiComponent":{"type":"NUMERIC"},"description":"Value of every positive lead."}
+   * @paramDef {"type":"Number","label":"Positive Lead Value","name":"plValue","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Value of every positive lead."}
    * @paramDef {"type":"Boolean","label":"Is Evergreen","name":"isEvergreen","uiComponent":{"type":"TOGGLE"},"description":"Whether the campaign is evergreen."}
    * @paramDef {"type":"Object","label":"Campaign Schedule","name":"campaignSchedule","schemaLoader":"createCampaignScheduleSchemaLoader","description":"Campaign schedule configuration including timezone, days of week, and time slots."}
-   * @paramDef {"type":"Array<Object>","label":"Sequences","name":"sequences","description":"List of sequences (the actual email copy). Only the first element is used, so provide one array item with steps."}
-   * @paramDef {"type":"Number","label":"Email Gap (minutes)","name":"emailGap","uiComponent":{"type":"NUMERIC"},"description":"The gap between emails in minutes."}
-   * @paramDef {"type":"Number","label":"Random Wait Max (minutes)","name":"randomWaitMax","uiComponent":{"type":"NUMERIC"},"description":"The maximum random wait time in minutes."}
+   * @paramDef {"type":"Array.<Object>","label":"Sequences","name":"sequences","description":"List of sequences (the actual email copy). Only the first element is used, so provide one array item with steps."}
+   * @paramDef {"type":"Number","label":"Email Gap (minutes)","name":"emailGap","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The gap between emails in minutes."}
+   * @paramDef {"type":"Number","label":"Random Wait Max (minutes)","name":"randomWaitMax","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The maximum random wait time in minutes."}
    * @paramDef {"type":"Boolean","label":"Text Only","name":"textOnly","uiComponent":{"type":"TOGGLE"},"description":"Whether the campaign emails are text only."}
    * @paramDef {"type":"Boolean","label":"First Email Text Only","name":"firstEmailTextOnly","uiComponent":{"type":"TOGGLE"},"description":"Whether to send the first email as text only."}
-   * @paramDef {"type":"Array<String>","label":"Email List","name":"emailList","description":"List of account emails to use for sending.","dictionary":"getAccountsDict"}
-   * @paramDef {"type":"Number","label":"Daily Limit","name":"dailyLimit","uiComponent":{"type":"NUMERIC"},"description":"The daily limit for sending emails."}
+   * @paramDef {"type":"Array.<String>","label":"Email List","name":"emailList","description":"List of account emails to use for sending.","dictionary":"getAccountsDict"}
+   * @paramDef {"type":"Number","label":"Daily Limit","name":"dailyLimit","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The daily limit for sending emails."}
    * @paramDef {"type":"Boolean","label":"Stop On Reply","name":"stopOnReply","uiComponent":{"type":"TOGGLE"},"description":"Whether to stop the campaign on reply."}
-   * @paramDef {"type":"Array<String>","label":"Email Tag List","name":"emailTagList","description":"List of tags to use for sending emails.","dictionary":"getTagsDict"}
+   * @paramDef {"type":"Array.<String>","label":"Email Tag List","name":"emailTagList","description":"List of tags to use for sending emails.","dictionary":"getTagsDict"}
    * @paramDef {"type":"Boolean","label":"Link Tracking","name":"linkTracking","uiComponent":{"type":"TOGGLE"},"description":"Whether to track links in emails."}
    * @paramDef {"type":"Boolean","label":"Open Tracking","name":"openTracking","uiComponent":{"type":"TOGGLE"},"description":"Whether to track opens in emails."}
    * @paramDef {"type":"Boolean","label":"Stop On Auto Reply","name":"stopOnAutoReply","uiComponent":{"type":"TOGGLE"},"description":"Whether to stop the campaign on auto reply."}
-   * @paramDef {"type":"Number","label":"Daily Max Leads","name":"dailyMaxLeads","uiComponent":{"type":"NUMERIC"},"description":"The daily maximum new leads to contact."}
+   * @paramDef {"type":"Number","label":"Daily Max Leads","name":"dailyMaxLeads","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The daily maximum new leads to contact."}
    * @paramDef {"type":"Boolean","label":"Prioritize New Leads","name":"prioritizeNewLeads","uiComponent":{"type":"TOGGLE"},"description":"Whether to prioritize new leads."}
-   * @paramDef {"type":"Object","label":"Auto Variant Select","name":"autoVariantSelect","description":"Auto variant select settings."}
+   * @paramDef {"type":"Object","label":"Auto Variant Select","name":"autoVariantSelect","schemaLoader":"createAutoVariantSelectSchemaLoader","description":"Automatically pick the winning email variant based on a chosen metric."}
    * @paramDef {"type":"Boolean","label":"Match Lead ESP","name":"matchLeadEsp","uiComponent":{"type":"TOGGLE"},"description":"Whether to match leads by ESP."}
    * @paramDef {"type":"Boolean","label":"Stop For Company","name":"stopForCompany","uiComponent":{"type":"TOGGLE"},"description":"Whether to stop the campaign for the entire company (domain) when a lead replies."}
    * @paramDef {"type":"Boolean","label":"Insert Unsubscribe Header","name":"insertUnsubscribeHeader","uiComponent":{"type":"TOGGLE"},"description":"Whether to insert an unsubscribe header in emails."}
    * @paramDef {"type":"Boolean","label":"Allow Risky Contacts","name":"allowRiskyContacts","uiComponent":{"type":"TOGGLE"},"description":"Whether to allow risky contacts."}
    * @paramDef {"type":"Boolean","label":"Disable Bounce Protect","name":"disableBounceProtect","uiComponent":{"type":"TOGGLE"},"description":"Whether to disable bounce protection."}
-   * @paramDef {"type":"Object","label":"Limit Emails Per Company Override","name":"limitEmailsPerCompanyOverride","description":"Overrides the workspace-wide limit emails per company setting for this campaign."}
-   * @paramDef {"type":"Array<String>","label":"CC List","name":"ccList","description":"List of accounts to CC on emails.","dictionary":"getAccountsDict"}
-   * @paramDef {"type":"Array<String>","label":"BCC List","name":"bccList","description":"List of accounts to BCC on emails.","dictionary":"getAccountsDict"}
+   * @paramDef {"type":"Object","label":"Limit Emails Per Company Override","name":"limitEmailsPerCompanyOverride","schemaLoader":"createLimitEmailsPerCompanyOverrideSchemaLoader","description":"Overrides the workspace-wide limit emails per company setting for this campaign."}
+   * @paramDef {"type":"Array.<String>","label":"CC List","name":"ccList","description":"List of accounts to CC on emails.","dictionary":"getAccountsDict"}
+   * @paramDef {"type":"Array.<String>","label":"BCC List","name":"bccList","description":"List of accounts to BCC on emails.","dictionary":"getAccountsDict"}
    * @paramDef {"type":"String","label":"Owner ID","name":"ownedBy","description":"Owner ID."}
-   * @paramDef {"type":"Array<Object>","label":"Provider Routing Rules","name":"providerRoutingRules","description":"Provider routing rules for campaign."}
+   * @paramDef {"type":"Array.<Object>","label":"Provider Routing Rules","name":"providerRoutingRules","description":"Provider routing rules for campaign."}
    *
    * @returns {Object}
    * @sampleResult {"id":"campaign-123","name":"Updated Campaign Name","status":1,"updated_at":"2024-01-01T00:00:00Z"}
@@ -2630,7 +2630,7 @@ class Instantly {
    *
    * @paramDef {"type":"String","label":"Search","name":"search","description":"Lead email address to search for.","dictionary":"getLeadsDict"}
    * @paramDef {"type":"String","label":"Sort Column","name":"sortColumn","description":"Column name to sort by."}
-   * @paramDef {"type":"String","label":"Sort Order","name":"sortOrder","uiComponent":{"type":"DROPDOWN","options":{"values":["Ascending","Descending"]}},"description":"Sort direction."}
+   * @paramDef {"type":"String","label":"Sort Order","name":"sortOrder","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Ascending","label":"Ascending"},{"value":"Descending","label":"Descending"}]}},"description":"Sort direction."}
    *
    * @returns {Object}
    * @sampleResult {"campaigns":[{"id":"campaign123","name":"Outreach Q1","has_contact":true}]}
@@ -3058,6 +3058,54 @@ class Instantly {
   }
 
   /**
+   * @typedef {Object} getThreadsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search term for filtering email threads by subject or address."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for retrieving the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Threads Dictionary
+   * @description Provides a searchable list of email threads for dynamic parameter selection. Threads are derived from your most recent emails.
+   * @route POST /get-threads-dict
+   * @paramDef {"type":"getThreadsDict__payload","label":"Payload","name":"payload","description":"Contains optional search string and pagination cursor for retrieving and filtering email threads."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Meeting Follow-up","value":"thread-123","note":"john@example.com"}],"cursor":"next-page-cursor"}
+   */
+  async getThreadsDict(payload) {
+    try {
+      const { search, cursor } = payload || {}
+      const response = await this.listEmails(100, cursor, search)
+
+      const seen = new Set()
+      const items = []
+
+      for (const email of response.items || []) {
+        const threadId = email.thread_id
+
+        if (!threadId || seen.has(threadId)) continue
+
+        seen.add(threadId)
+
+        items.push({
+          label: email.subject || threadId,
+          value: threadId,
+          note: email.from_address_email || email.eaccount || 'Email thread',
+        })
+      }
+
+      return {
+        items,
+        cursor: response.next_starting_after || undefined,
+      }
+    } catch (error) {
+      logger.error('[getThreadsDict] Error:', error.message)
+
+      return { items: [] }
+    }
+  }
+
+  /**
    * @registerAs DICTIONARY
    * @operationName Get Event Types Dictionary
    * @description Provides a list of available Instantly activity event types for trigger configuration. Fetches the latest event types dynamically from the Instantly API.
@@ -3289,7 +3337,7 @@ class Instantly {
         description: 'Timezone for campaign scheduling (e.g., "America/New_York").',
       },
       {
-        type: 'Array<Number>',
+        type: 'Array.<Number>',
         label: 'Days of Week',
         name: 'days',
         required: false,
@@ -3321,6 +3369,109 @@ class Instantly {
     ]
   }
 
+  /**
+   * @registerAs PARAM_SCHEMA_DEFINITION
+   * @paramDef {"type":"Object", "name":"payload", "required":true}
+   * @returns {Object}
+   * */
+  async createEmailBodySchemaLoader() {
+    return [
+      {
+        type: 'String',
+        label: 'HTML',
+        name: 'html',
+        required: false,
+        description: 'HTML version of the email body. Provide HTML, plain text, or both.',
+        uiComponent: { type: 'MULTI_LINE_TEXT' },
+      },
+      {
+        type: 'String',
+        label: 'Text',
+        name: 'text',
+        required: false,
+        description: 'Plain text version of the email body. Provide HTML, plain text, or both.',
+        uiComponent: { type: 'MULTI_LINE_TEXT' },
+      },
+    ]
+  }
+
+  /**
+   * @registerAs PARAM_SCHEMA_DEFINITION
+   * @paramDef {"type":"Object", "name":"payload", "required":true}
+   * @returns {Object}
+   * */
+  async createAutoVariantSelectSchemaLoader() {
+    return [
+      {
+        type: 'String',
+        label: 'Trigger',
+        name: 'trigger',
+        required: true,
+        description: 'The metric used to automatically select the winning email variant.',
+        uiComponent: {
+          type: 'DROPDOWN',
+          options: {
+            values: [
+              { value: 'reply_rate', label: 'Reply Rate' },
+              { value: 'click_rate', label: 'Click Rate' },
+              { value: 'open_rate', label: 'Open Rate' },
+            ],
+          },
+        },
+      },
+    ]
+  }
+
+  /**
+   * @registerAs PARAM_SCHEMA_DEFINITION
+   * @paramDef {"type":"Object", "name":"payload", "required":true}
+   * @returns {Object}
+   * */
+  async createLimitEmailsPerCompanyOverrideSchemaLoader() {
+    return [
+      {
+        type: 'String',
+        label: 'Mode',
+        name: 'mode',
+        required: true,
+        description: 'Use a custom per-company limit for this campaign, or disable the limit entirely.',
+        uiComponent: {
+          type: 'DROPDOWN',
+          options: {
+            values: [
+              { value: 'custom', label: 'Custom' },
+              { value: 'disabled', label: 'Disabled' },
+            ],
+          },
+        },
+      },
+      {
+        type: 'Number',
+        label: 'Daily Limit',
+        name: 'daily_limit',
+        required: true,
+        description: 'Maximum number of leads on the same company domain to email per day (minimum 1).',
+        uiComponent: { type: 'NUMERIC_STEPPER' },
+      },
+      {
+        type: 'String',
+        label: 'Scope',
+        name: 'scope',
+        required: true,
+        description: 'Whether the limit applies to this campaign only or across the whole workspace.',
+        uiComponent: {
+          type: 'DROPDOWN',
+          options: {
+            values: [
+              { value: 'per_campaign', label: 'Per Campaign' },
+              { value: 'across_workspace', label: 'Across Workspace' },
+            ],
+          },
+        },
+      },
+    ]
+  }
+
   // ============================================================================
   // TRIGGER SYSTEM
   // ============================================================================
@@ -3332,6 +3483,35 @@ class Instantly {
    */
   async handleTriggerResolveEvents(invocation) {
     logger.debug('[handleTriggerResolveEvents] Processing webhook event:', JSON.stringify(invocation.body))
+
+    // Instantly does not sign its deliveries, so at subscription time we registered a random
+    // shared secret that Instantly echoes back on every call in a custom header. Verify it with a
+    // constant-time compare before trusting the payload - a missing or mismatched secret means we
+    // cannot prove the request came from Instantly, so we reject it (it would otherwise be forgeable).
+    const crypto = require('crypto')
+    const secret = invocation.webhookData?.secret
+    const headers = invocation.headers || {}
+    const provided = headers['x-flowrunner-webhook-secret'] || headers['X-FlowRunner-Webhook-Secret']
+
+    if (!secret) {
+      logger.error('[handleTriggerResolveEvents] No stored webhook secret - refusing to process delivery')
+      throw new Error('Webhook secret is missing - cannot verify the delivery')
+    }
+
+    if (!provided) {
+      logger.error('[handleTriggerResolveEvents] Webhook secret header is missing - refusing to process delivery')
+      throw new Error('Webhook secret header is missing - cannot verify the delivery')
+    }
+
+    const expectedBuffer = Buffer.from(secret, 'utf8')
+    const providedBuffer = Buffer.from(provided, 'utf8')
+    const valid = expectedBuffer.length === providedBuffer.length &&
+      crypto.timingSafeEqual(providedBuffer, expectedBuffer)
+
+    if (!valid) {
+      logger.error('[handleTriggerResolveEvents] Webhook secret mismatch - refusing to process delivery')
+      throw new Error('Invalid webhook secret')
+    }
 
     return {
       events: [
@@ -3351,8 +3531,15 @@ class Instantly {
   async handleTriggerUpsertWebhook(invocation) {
     logger.debug('[handleTriggerUpsertWebhook] Upserting webhook:', JSON.stringify(invocation.events))
 
+    const crypto = require('crypto')
     const webhookData = invocation.webhookData || {}
     const existingWebhooks = webhookData.webhooks || []
+
+    // Instantly does not sign its deliveries, so we generate our own shared secret and ask Instantly
+    // to echo it back on every delivery via a custom header (a supported option on the create-webhook
+    // endpoint). handleTriggerResolveEvents verifies that header before trusting any payload. The
+    // secret is generated once and kept stable across upserts so existing webhooks stay verifiable.
+    const secret = webhookData.secret || crypto.randomBytes(32).toString('hex')
 
     // Get the callback URL for ALL_APPS scope
     const callbackUrl = invocation.callbackUrl
@@ -3364,7 +3551,7 @@ class Instantly {
     if (!eventTypeUi) {
       logger.error('[handleTriggerUpsertWebhook] No event type found in trigger data')
 
-      return { webhookData: { webhooks: existingWebhooks } }
+      return { webhookData: { webhooks: existingWebhooks, secret } }
     }
 
     // Convert plain English to API format (snake_case)
@@ -3376,7 +3563,7 @@ class Instantly {
     if (existingWebhook) {
       logger.debug('[handleTriggerUpsertWebhook] Webhook already exists for event type:', eventType)
 
-      return { webhookData: { webhooks: existingWebhooks } }
+      return { webhookData: { webhooks: existingWebhooks, secret } }
     }
 
     // Create new webhook in Instantly
@@ -3388,6 +3575,7 @@ class Instantly {
         body: {
           target_hook_url: callbackUrl,
           event_type: eventType,
+          headers: { 'X-FlowRunner-Webhook-Secret': secret },
         },
       })
 
@@ -3404,7 +3592,7 @@ class Instantly {
       ]
 
       return {
-        webhookData: { webhooks: newWebhooks },
+        webhookData: { webhooks: newWebhooks, secret },
         eventScopeId: eventType,
       }
     } catch (error) {

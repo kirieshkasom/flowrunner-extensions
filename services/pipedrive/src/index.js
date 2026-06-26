@@ -277,7 +277,7 @@ class PipedriveService {
 
   /**
    * @description Retrieves information about the current authenticated user
-   * @route GET /get-current-user
+   * @route POST /get-current-user
    * @operationName Get Current User
    * @category User Management
    * @appearanceColor #2f97e8 #1a7dc4
@@ -345,7 +345,7 @@ class PipedriveService {
 
   /**
    * @typedef {Object} getStagesDictionary__payloadCriteria
-   * @paramDef {"type":"Number","label":"Pipeline","name":"pipeline_id","description":"Optional pipeline to restrict the stages to."}
+   * @paramDef {"type":"Number","label":"Pipeline","name":"pipeline_id","description":"Optional pipeline to restrict the stages to.","uiComponent":{"type":"NUMERIC_STEPPER"}}
    */
 
   /**
@@ -501,6 +501,66 @@ class PipedriveService {
   }
 
 
+  /**
+   * @typedef {Object} getNoteCommentsDictionary__payloadCriteria
+   * @paramDef {"type":"Number","label":"Note","name":"id","required":true,"description":"The note whose comments will be listed.","uiComponent":{"type":"NUMERIC_STEPPER"}}
+   */
+
+  /**
+   * @typedef {Object} getNoteCommentsDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter comments by their text content."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor (offset) for retrieving the next page of results."}
+   * @paramDef {"type":"getNoteCommentsDictionary__payloadCriteria","label":"Criteria","name":"criteria","required":true,"description":"The note whose comments will be listed."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Note Comments
+   * @category Notes
+   * @description Retrieves the comments of a note so a comment can be selected from a list.
+   * @route POST /get-note-comments-dictionary
+   *
+   * @paramDef {"type":"getNoteCommentsDictionary__payload","label":"Payload","name":"payload","description":"Contains the note identifier, an optional search string, and a pagination cursor."}
+   *
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Looks good to me","value":"a1b2c3d4-0000-0000-0000-000000000000","note":"ID: a1b2c3d4-0000-0000-0000-000000000000"}],"cursor":null}
+   */
+  async getNoteCommentsDictionary({ search, cursor, criteria } = {}) {
+    const noteId = criteria?.id
+
+    const response = await this.#apiRequest({
+      url: `${ API_BASE_URL }/notes/${ noteId }/comments`,
+      method: 'get',
+      query: { start: cursor || 0, limit: 100 },
+    })
+
+    const term = (search || '').toLowerCase()
+
+    const items = (response.data || [])
+      .map(comment => {
+        const value = comment.uuid || comment.id
+        const text = String(comment.content || '')
+          .replace(/<[^>]*>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+
+        return {
+          label: text ? text.slice(0, 80) : `Comment ${ value }`,
+          value,
+          note: `ID: ${ value }`,
+        }
+      })
+      .filter(item => !term || item.label.toLowerCase().includes(term))
+
+    const pagination = response.additional_data?.pagination
+
+    return {
+      items,
+      cursor: pagination?.more_items_in_collection ? pagination.next_start : null,
+    }
+  }
+
+
   // ======================================== ACTIVITIES ========================================
 
 
@@ -516,10 +576,10 @@ class PipedriveService {
    * @paramDef {"type":"String","label":"Due Time","name":"dueTime","description":"The time when the activity is due (HH:MM).","required":false}
    * @paramDef {"type":"String","label":"Duration","name":"duration","description":"The duration of the activity (HH:MM).","required":false}
    * @paramDef {"type":"String","label":"Note","name":"note","description":"Content of the note in HTML format.","uiComponent":{"type":"MULTI_LINE_TEXT"},"required":false}
-   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
    * @paramDef {"type":"Boolean","label":"Mark as Done","name":"done","description":"Whether the activity is completed.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"String","label":"Location","name":"location","description":"The location of the activity (address, meeting room, etc.).","required":false}
    * @paramDef {"type":"String","label":"Participants","name":"participants","description":"List of participants for the activity.","required":false}
@@ -564,11 +624,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific activity.
-   * @route GET /activities/:id
+   * @route POST /activities/:id
    * @operationName Get Activity
    * @category Activities
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    * @sampleResult {"id":501,"subject":"Follow-up call","type":"call","done":false,"due_date":"2024-02-01","due_time":"14:00","duration":"00:30","deal_id":1,"person_id":101,"org_id":201,"user_id":12345,"add_time":"2024-01-15 10:30:00","update_time":"2024-01-18 09:00:00","marked_as_done_time":null,"active_flag":true,"busy_flag":false,"location":"Conference Room A","note":"Discuss contract renewal"}
@@ -584,21 +644,21 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of an activity.
-   * @route PUT /activities/:id
+   * @route POST /activities/:id
    * @operationName Update Activity
    * @category Activities
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Subject","name":"subject","description":"The subject or title of the record.","required":false}
    * @paramDef {"type":"String","label":"Type","name":"type","description":"The type of the record.","required":false}
    * @paramDef {"type":"String","label":"Due Date","name":"dueDate","description":"The date when the activity is due (YYYY-MM-DD).","uiComponent":{"type":"DATE_PICKER"},"required":false}
    * @paramDef {"type":"String","label":"Due Time","name":"dueTime","description":"The time when the activity is due (HH:MM).","required":false}
    * @paramDef {"type":"String","label":"Duration","name":"duration","description":"The duration of the activity (HH:MM).","required":false}
    * @paramDef {"type":"String","label":"Note","name":"note","description":"Content of the note in HTML format.","uiComponent":{"type":"MULTI_LINE_TEXT"},"required":false}
-   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
    * @paramDef {"type":"Boolean","label":"Mark as Done","name":"done","description":"Whether the activity is completed.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"String","label":"Location","name":"location","description":"The location of the activity (address, meeting room, etc.).","required":false}
    * @paramDef {"type":"String","label":"Participants","name":"participants","description":"List of participants for the activity.","required":false}
@@ -643,11 +703,11 @@ class PipedriveService {
 
   /**
    * @description Marks an activity as deleted.
-   * @route DELETE /activities/:id
+   * @route POST /activities/:id
    * @operationName Delete Activity
    * @category Activities
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -662,17 +722,17 @@ class PipedriveService {
 
   /**
    * @description Returns all activities.
-   * @route GET /activities
+   * @route POST /activities
    * @operationName List Activities
    * @category Activities
    *
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
-   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Type","name":"type","description":"The type of the record.","required":false}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
-   * @paramDef {"type":"Number","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
-   * @paramDef {"type":"Number","label":"End Date and Time","name":"endDateTime","description":"End date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
+   * @paramDef {"type":"String","label":"End Date and Time","name":"endDateTime","description":"End date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
    * @paramDef {"type":"Boolean","label":"Mark as Done","name":"done","description":"Whether the activity is completed.","uiComponent":{"type":"TOGGLE"},"required":false}
    *
    * @returns {Object}
@@ -704,7 +764,7 @@ class PipedriveService {
 
   /**
    * @description Marks multiple activities as deleted.
-   * @route DELETE /activities
+   * @route POST /activities
    * @operationName Delete Activities
    * @category Activities
    *
@@ -730,7 +790,7 @@ class PipedriveService {
 
   /**
    * @description Returns all activity fields.
-   * @route GET /activityFields
+   * @route POST /activityFields
    * @operationName List Activity Fields
    * @category ActivityFields
    *
@@ -751,7 +811,7 @@ class PipedriveService {
 
   /**
    * @description Returns all activity types.
-   * @route GET /activityTypes
+   * @route POST /activityTypes
    * @operationName List Activity Types
    * @category ActivityTypes
    *
@@ -799,7 +859,7 @@ class PipedriveService {
 
   /**
    * @description Marks multiple activity types as deleted.
-   * @route DELETE /activityTypes
+   * @route POST /activityTypes
    * @operationName Delete Activity Types
    * @category ActivityTypes
    *
@@ -821,11 +881,11 @@ class PipedriveService {
 
   /**
    * @description Marks an activity type as deleted.
-   * @route DELETE /activityTypes/:id
+   * @route POST /activityTypes/:id
    * @operationName Delete Activity Type
    * @category ActivityTypes
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -840,15 +900,15 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of an activity type.
-   * @route PUT /activityTypes/:id
+   * @route POST /activityTypes/:id
    * @operationName Update Activity Type
    * @category ActivityTypes
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
    * @paramDef {"type":"String","label":"Icon Key","name":"icon_key","description":"Icon key for the activity type.","required":false}
    * @paramDef {"type":"String","label":"Color","name":"color","description":"Color code for the activity type.","required":false}
-   * @paramDef {"type":"Number","label":"Order Number","name":"order_nr","description":"Order number.","required":false}
+   * @paramDef {"type":"Number","label":"Order Number","name":"order_nr","description":"Order number.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -878,7 +938,7 @@ class PipedriveService {
 
   /**
    * @description Returns all billing add-ons for the company.
-   * @route GET /billing/subscriptions/addons
+   * @route POST /billing/subscriptions/addons
    * @operationName List Billing Add-ons
    * @category Billing
    *
@@ -899,11 +959,11 @@ class PipedriveService {
 
   /**
    * @description Returns all call logs.
-   * @route GET /callLogs
+   * @route POST /callLogs
    * @operationName List Call Logs
    * @category CallLogs
    *
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -933,15 +993,15 @@ class PipedriveService {
    * @paramDef {"type":"String","label":"Outcome","name":"outcome","description":"Outcome of the call.","required":true}
    * @paramDef {"type":"String","label":"Call Start Time","name":"start_time","description":"The time when the call started (ISO 8601 format or HH:MM).","required":true}
    * @paramDef {"type":"String","label":"Call End Time","name":"end_time","description":"The time when the call ended (ISO 8601 format or HH:MM).","required":true}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
-   * @paramDef {"type":"Number","label":"Activity","name":"activity_id","description":"The activity associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"Number","label":"Activity","name":"activity_id","description":"The activity associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Subject","name":"subject","description":"The subject or title of the record.","required":false}
    * @paramDef {"type":"String","label":"Duration","name":"duration","description":"The duration of the activity (HH:MM).","required":false}
    * @paramDef {"type":"String","label":"From Phone Number","name":"from_phone_number","description":"Phone number the call was made from.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Lead","name":"lead_id","description":"Identifier of the lead.","required":false}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Lead","name":"lead_id","description":"Identifier of the lead.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Note","name":"note","description":"Content of the note in HTML format.","uiComponent":{"type":"MULTI_LINE_TEXT"},"required":false}
    *
    * @returns {Object}
@@ -978,11 +1038,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific call log.
-   * @route GET /callLogs/:id
+   * @route POST /callLogs/:id
    * @operationName Get Call Log
    * @category CallLogs
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -997,11 +1057,11 @@ class PipedriveService {
 
   /**
    * @description Marks a call log as deleted.
-   * @route DELETE /callLogs/:id
+   * @route POST /callLogs/:id
    * @operationName Delete Call Log
    * @category CallLogs
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -1020,7 +1080,7 @@ class PipedriveService {
    * @operationName Attach Call Log Recording
    * @category CallLogs
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"File","name":"file","description":"The file to upload.","required":true}
    *
    * @returns {Object}
@@ -1048,7 +1108,7 @@ class PipedriveService {
    * @category Channels
    *
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
-   * @paramDef {"type":"Number","label":"Provider Channel","name":"provider_channel_id","description":"Identifier of the provider channel.","required":false}
+   * @paramDef {"type":"Number","label":"Provider Channel","name":"provider_channel_id","description":"Identifier of the provider channel.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Avatar URL","name":"avatar_url","description":"URL of the user avatar image.","required":false}
    * @paramDef {"type":"Boolean","label":"Template Support","name":"template_support","description":"Whether template support is enabled.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"String","label":"Provider Type","name":"provider_type","description":"Type of the provider.","required":false}
@@ -1072,11 +1132,11 @@ class PipedriveService {
 
   /**
    * @description Marks a channel as deleted.
-   * @route DELETE /channels/:id
+   * @route POST /channels/:id
    * @operationName Delete channel
    * @category Channels
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -1096,12 +1156,12 @@ class PipedriveService {
    * @operationName Receives incoming message
    * @category Channels
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":false}
-   * @paramDef {"type":"String","label":"Channel","name":"channel_id","description":"The channel identifier.","required":true}
-   * @paramDef {"type":"Number","label":"Sender","name":"sender_id","description":"Identifier of the message sender.","required":false}
-   * @paramDef {"type":"Number","label":"Conversation","name":"conversation_id","description":"Identifier of the conversation.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Channel","name":"channel_id","description":"The messaging channel ID returned when the channel was registered through the Channels API. Pipedrive has no endpoint that lists channels, so enter it directly.","freeform":true,"required":true}
+   * @paramDef {"type":"Number","label":"Sender","name":"sender_id","description":"Identifier of the message sender.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Conversation","name":"conversation_id","description":"Identifier of the conversation.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Message","name":"message","description":"Message content.","required":false}
-   * @paramDef {"type":"String","label":"Status","name":"status","description":"The delivery status of the message.","uiComponent":{"type":"DROPDOWN","options":{"values":["sent","delivered","read","failed"]}},"required":true}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"The delivery status of the message.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"sent","label":"Sent"},{"value":"delivered","label":"Delivered"},{"value":"read","label":"Read"},{"value":"failed","label":"Failed"}]}},"required":true}
    * @paramDef {"type":"String","label":"Created At","name":"created_at","description":"Timestamp when the item was created.","required":false}
    * @paramDef {"type":"String","label":"Reply By","name":"reply_by","description":"Expected reply deadline.","required":false}
    * @paramDef {"type":"String","label":"Conversation Link","name":"conversation_link","description":"Link to the conversation.","required":false}
@@ -1126,12 +1186,12 @@ class PipedriveService {
 
   /**
    * @description Marks a channel as deleted.
-   * @route DELETE /channels/:channel-id/conversations/:conversation-id
+   * @route POST /channels/:channel-id/conversations/:conversation-id
    * @operationName Delete conversation
    * @category Channels
    *
-   * @paramDef {"type":"String","label":"Channel","name":"channel_id","description":"The channel identifier.","required":true}
-   * @paramDef {"type":"Number","label":"Conversation","name":"conversation_id","description":"Identifier of the conversation.","required":true}
+   * @paramDef {"type":"String","label":"Channel","name":"channel_id","description":"The messaging channel ID returned when the channel was registered through the Channels API. Pipedrive has no endpoint that lists channels, so enter it directly.","freeform":true,"required":true}
+   * @paramDef {"type":"Number","label":"Conversation","name":"conversation_id","description":"Identifier of the conversation.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -1151,7 +1211,7 @@ class PipedriveService {
 
   /**
    * @description Returns all supported currencies.
-   * @route GET /currencies
+   * @route POST /currencies
    * @operationName List Currencies
    * @category Currencies
    *
@@ -1180,11 +1240,11 @@ class PipedriveService {
 
   /**
    * @description Returns all deal fields.
-   * @route GET /dealFields
+   * @route POST /dealFields
    * @operationName List Deal Fields
    * @category DealFields
    *
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -1239,7 +1299,7 @@ class PipedriveService {
 
   /**
    * @description Marks multiple deal fields as deleted.
-   * @route DELETE /dealFields
+   * @route POST /dealFields
    * @operationName Delete Deal Fields
    * @category DealFields
    *
@@ -1261,11 +1321,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific deal field.
-   * @route GET /dealFields/:id
+   * @route POST /dealFields/:id
    * @operationName Get Deal Field
    * @category DealFields
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -1280,11 +1340,11 @@ class PipedriveService {
 
   /**
    * @description Marks a deal field as deleted.
-   * @route DELETE /dealFields/:id
+   * @route POST /dealFields/:id
    * @operationName Delete Deal Field
    * @category DealFields
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -1299,11 +1359,11 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a deal field.
-   * @route PUT /dealFields/:id
+   * @route POST /dealFields/:id
    * @operationName Update Deal Field
    * @category DealFields
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
    * @paramDef {"type":"String","label":"Options","name":"options","description":"Options for the field (JSON array).","required":false}
    * @paramDef {"type":"Boolean","label":"Add Visible Flag","name":"add_visible_flag","description":"Whether the field is visible in add dialogs.","uiComponent":{"type":"TOGGLE"},"required":false}
@@ -1335,15 +1395,15 @@ class PipedriveService {
 
   /**
    * @description Returns all deals.
-   * @route GET /deals
+   * @route POST /deals
    * @operationName List Deals
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
-   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false}
-   * @paramDef {"type":"Number","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
-   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter deals by status.","uiComponent":{"type":"DROPDOWN","options":{"values":["open","won","lost","deleted","all_not_deleted"]}},"defaultValue":"all_not_deleted","required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter deals by status.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open"},{"value":"won","label":"Won"},{"value":"lost","label":"Lost"},{"value":"deleted","label":"Deleted"},{"value":"all_not_deleted","label":"All Not Deleted"}]}},"defaultValue":"all_not_deleted","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"String","label":"Sort By","name":"sort","description":"Field to sort by (e.g., \"id DESC\").","required":false}
    * @paramDef {"type":"String","label":"Owned By You","name":"owned_by_you","description":"Filter for items owned by current user.","required":false}
@@ -1384,18 +1444,18 @@ class PipedriveService {
    * @paramDef {"type":"String","label":"Title","name":"title","description":"The title of the record.","required":true}
    * @paramDef {"type":"String","label":"Value","name":"value","description":"The monetary value of the deal.","required":false}
    * @paramDef {"type":"String","label":"Currency","name":"currency","description":"The currency of the deal value.","required":false}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
-   * @paramDef {"type":"String","label":"Status","name":"status","description":"The status of the deal.","uiComponent":{"type":"DROPDOWN","options":{"values":["open","won","lost","deleted"]}},"defaultValue":"open","required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"The status of the deal.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open"},{"value":"won","label":"Won"},{"value":"lost","label":"Lost"},{"value":"deleted","label":"Deleted"}]}},"defaultValue":"open","required":false}
    * @paramDef {"type":"String","label":"Expected Close Date","name":"expected_close_date","description":"The expected close date of the deal (YYYY-MM-DD).","uiComponent":{"type":"DATE_PICKER"},"required":false}
    * @paramDef {"type":"Number","label":"Probability","name":"probability","description":"Success probability percentage (0-100).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":100,"step":1},"required":false}
    * @paramDef {"type":"String","label":"Lost Reason","name":"lost_reason","description":"The reason why the deal was lost.","required":false}
-   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":["Owner & followers (private)","Entire company"]}},"required":false}
+   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"1","label":"Owner & followers (private)"},{"value":"3","label":"Entire company"}]}},"required":false}
    * @paramDef {"type":"String","label":"Created At","name":"add_time","description":"The creation date and time of the record (UTC).","required":false}
-   * @paramDef {"type":"Number","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Label","name":"label","description":"Label identifier.","required":false}
+   * @paramDef {"type":"String","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Label","name":"label","description":"Label identifier.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    * @sampleResult {"id":1,"title":"New Business Deal","value":5000,"currency":"USD","status":"open","stage_id":1,"pipeline_id":1,"person_id":101,"org_id":201,"user_id":12345,"probability":50,"add_time":"2024-01-15 10:30:00","update_time":"2024-01-15 10:30:00","stage_change_time":null,"active":true,"deleted":false,"won_time":null,"lost_time":null,"close_time":null,"expected_close_date":"2024-02-15"}
@@ -1433,7 +1493,7 @@ class PipedriveService {
 
   /**
    * @description Marks multiple deals as deleted.
-   * @route DELETE /deals
+   * @route POST /deals
    * @operationName Delete Deals
    * @category Deals
    *
@@ -1455,17 +1515,17 @@ class PipedriveService {
 
   /**
    * @description Returns all archived deals.
-   * @route GET /deals/archived
+   * @route POST /deals/archived
    * @operationName List Archived Deals
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
-   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
-   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter deals by status.","uiComponent":{"type":"DROPDOWN","options":{"values":["open","won","lost","deleted","all_not_deleted"]}},"required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter deals by status.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open"},{"value":"won","label":"Won"},{"value":"lost","label":"Lost"},{"value":"deleted","label":"Deleted"},{"value":"all_not_deleted","label":"All Not Deleted"}]}},"required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"String","label":"Sort By","name":"sort","description":"Field to sort by (e.g., \"id DESC\").","required":false}
    * @paramDef {"type":"String","label":"Owned By You","name":"owned_by_you","description":"Filter for items owned by current user.","required":false}
@@ -1500,7 +1560,7 @@ class PipedriveService {
 
   /**
    * @description Returns all deals.
-   * @route GET /deals/collection
+   * @route POST /deals/collection
    * @operationName List Deals Collection
    * @category Deals
    *
@@ -1508,9 +1568,9 @@ class PipedriveService {
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"String","label":"Since","name":"since","description":"Timestamp to filter items modified since.","required":false}
    * @paramDef {"type":"String","label":"Until","name":"until","description":"Timestamp to filter items modified until.","required":false}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
-   * @paramDef {"type":"Number","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
-   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter deals by status.","uiComponent":{"type":"DROPDOWN","options":{"values":["open","won","lost","deleted","all_not_deleted"]}},"required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
+   * @paramDef {"type":"String","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter deals by status.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open"},{"value":"won","label":"Won"},{"value":"lost","label":"Lost"},{"value":"deleted","label":"Deleted"},{"value":"all_not_deleted","label":"All Not Deleted"}]}},"required":false}
    *
    * @returns {Object}
    */
@@ -1539,17 +1599,17 @@ class PipedriveService {
 
   /**
    * @description Searches all deals.
-   * @route GET /deals/search
+   * @route POST /deals/search
    * @operationName Search Deals
    * @category Deals
    *
    * @paramDef {"type":"String","label":"Search Term","name":"term","description":"The term to search for.","required":true}
    * @paramDef {"type":"Array","label":"Fields","name":"fields","description":"Array of field names to include in response.","required":false}
    * @paramDef {"type":"String","label":"Exact Match","name":"exact_match","description":"Whether to perform exact matching in search.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":true}
-   * @paramDef {"type":"Number","label":"Organization","name":"organization_id","description":"The organization associated with this record.","required":false}
-   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter deals by status.","uiComponent":{"type":"DROPDOWN","options":{"values":["open","won","lost"]}},"required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":true}
+   * @paramDef {"type":"Number","label":"Organization","name":"organization_id","description":"The organization associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter deals by status.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open"},{"value":"won","label":"Won"},{"value":"lost","label":"Lost"}]}},"required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -1580,15 +1640,15 @@ class PipedriveService {
 
   /**
    * @description Returns a summary of deals.
-   * @route GET /deals/summary
+   * @route POST /deals/summary
    * @operationName Get Deals Summary
    * @category Deals
    *
-   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter the summary by deal status.","uiComponent":{"type":"DROPDOWN","options":{"values":["open","won","lost"]}},"required":false}
-   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
-   * @paramDef {"type":"Number","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter the summary by deal status.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open"},{"value":"won","label":"Won"},{"value":"lost","label":"Lost"}]}},"required":false}
+   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
+   * @paramDef {"type":"String","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
    *
    * @returns {Object}
    */
@@ -1615,15 +1675,15 @@ class PipedriveService {
 
   /**
    * @description Returns a summary of archived deals.
-   * @route GET /deals/summary/archived
+   * @route POST /deals/summary/archived
    * @operationName Get Archived Deals Summary
    * @category Deals
    *
-   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter the summary by deal status.","uiComponent":{"type":"DROPDOWN","options":{"values":["open","won","lost"]}},"required":false}
-   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
-   * @paramDef {"type":"Number","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter the summary by deal status.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open"},{"value":"won","label":"Won"},{"value":"lost","label":"Lost"}]}},"required":false}
+   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
+   * @paramDef {"type":"String","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
    *
    * @returns {Object}
    */
@@ -1650,18 +1710,18 @@ class PipedriveService {
 
   /**
    * @description Returns a timeline of deals.
-   * @route GET /deals/timeline
+   * @route POST /deals/timeline
    * @operationName Get Deals Timeline
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":true}
-   * @paramDef {"type":"Number","label":"Interval","name":"interval","description":"Interval for statistics (day, week, month).","required":true}
-   * @paramDef {"type":"Number","label":"Amount","name":"amount","description":"Monetary amount.","required":true}
+   * @paramDef {"type":"String","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":true}
+   * @paramDef {"type":"Number","label":"Interval","name":"interval","description":"Interval for statistics (day, week, month).","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Amount","name":"amount","description":"Monetary amount.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Field Key","name":"field_key","description":"Key of the field.","required":true}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
-   * @paramDef {"type":"Number","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false}
-   * @paramDef {"type":"Number","label":"Exclude Deals","name":"exclude_deals","description":"Deal IDs to exclude from results.","required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
+   * @paramDef {"type":"String","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Exclude Deals","name":"exclude_deals","description":"Deal IDs to exclude from results.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Totals Convert Currency","name":"totals_convert_currency","description":"Currency to convert totals to.","required":false}
    *
    * @returns {Object}
@@ -1693,18 +1753,18 @@ class PipedriveService {
 
   /**
    * @description Returns a timeline of archived deals.
-   * @route GET /deals/timeline/archived
+   * @route POST /deals/timeline/archived
    * @operationName Get Archived Deals Timeline
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":true}
-   * @paramDef {"type":"Number","label":"Interval","name":"interval","description":"Interval for statistics (day, week, month).","required":true}
-   * @paramDef {"type":"Number","label":"Amount","name":"amount","description":"Monetary amount.","required":true}
+   * @paramDef {"type":"String","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":true}
+   * @paramDef {"type":"Number","label":"Interval","name":"interval","description":"Interval for statistics (day, week, month).","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Amount","name":"amount","description":"Monetary amount.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Field Key","name":"field_key","description":"Key of the field.","required":true}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
-   * @paramDef {"type":"Number","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false}
-   * @paramDef {"type":"Number","label":"Exclude Deals","name":"exclude_deals","description":"Deal IDs to exclude from results.","required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
+   * @paramDef {"type":"String","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Exclude Deals","name":"exclude_deals","description":"Deal IDs to exclude from results.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Totals Convert Currency","name":"totals_convert_currency","description":"Currency to convert totals to.","required":false}
    *
    * @returns {Object}
@@ -1736,11 +1796,11 @@ class PipedriveService {
 
   /**
    * @description Marks a deal as deleted.
-   * @route DELETE /deals/:id
+   * @route POST /deals/:id
    * @operationName Delete Deal
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -1755,11 +1815,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific deal.
-   * @route GET /deals/:id
+   * @route POST /deals/:id
    * @operationName Get Deal
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    * @sampleResult {"id":1,"title":"New Business Deal","value":5000,"currency":"USD","status":"open","stage_id":1,"pipeline_id":1,"person_id":101,"org_id":201,"user_id":12345,"probability":50,"add_time":"2024-01-15 10:30:00","update_time":"2024-01-20 14:05:00","stage_change_time":"2024-01-18 09:00:00","active":true,"deleted":false,"won_time":null,"lost_time":null,"close_time":null,"expected_close_date":"2024-02-15","activities_count":3,"done_activities_count":1}
@@ -1775,26 +1835,26 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a deal.
-   * @route PUT /deals/:id
+   * @route POST /deals/:id
    * @operationName Update Deal
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Title","name":"title","description":"The title of the record.","required":false}
    * @paramDef {"type":"String","label":"Value","name":"value","description":"The monetary value of the deal.","required":false}
    * @paramDef {"type":"String","label":"Currency","name":"currency","description":"The currency of the deal value.","required":false}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
-   * @paramDef {"type":"String","label":"Status","name":"status","description":"The status of the deal.","uiComponent":{"type":"DROPDOWN","options":{"values":["open","won","lost","deleted"]}},"required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"The status of the deal.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open"},{"value":"won","label":"Won"},{"value":"lost","label":"Lost"},{"value":"deleted","label":"Deleted"}]}},"required":false}
    * @paramDef {"type":"String","label":"Expected Close Date","name":"expected_close_date","description":"The expected close date of the deal (YYYY-MM-DD).","uiComponent":{"type":"DATE_PICKER"},"required":false}
    * @paramDef {"type":"Number","label":"Probability","name":"probability","description":"Success probability percentage (0-100).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":100,"step":1},"required":false}
    * @paramDef {"type":"String","label":"Lost Reason","name":"lost_reason","description":"The reason why the deal was lost.","required":false}
-   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":["Owner & followers (private)","Entire company"]}},"required":false}
+   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"1","label":"Owner & followers (private)"},{"value":"3","label":"Entire company"}]}},"required":false}
    * @paramDef {"type":"String","label":"Created At","name":"add_time","description":"The creation date and time of the record (UTC).","required":false}
-   * @paramDef {"type":"Number","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Label","name":"label","description":"Label identifier.","required":false}
+   * @paramDef {"type":"String","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Label","name":"label","description":"Label identifier.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    * @sampleResult {"id":1,"title":"Updated Deal Title","value":7500,"currency":"USD","status":"open","stage_id":2,"pipeline_id":1,"person_id":101,"org_id":201,"user_id":12345,"probability":75,"add_time":"2024-01-15 10:30:00","update_time":"2024-01-25 11:45:00","active":true,"deleted":false,"won_time":null,"lost_time":null,"close_time":null,"expected_close_date":"2024-02-15"}
@@ -1832,12 +1892,12 @@ class PipedriveService {
 
   /**
    * @description Returns all activities associated with a deal.
-   * @route GET /deals/:id/activities
+   * @route POST /deals/:id/activities
    * @operationName List Deal Activities
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"Boolean","label":"Mark as Done","name":"done","description":"Whether the activity is completed.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"Array","label":"Exclude","name":"exclude","description":"Items to exclude from results.","required":false}
@@ -1866,11 +1926,11 @@ class PipedriveService {
 
   /**
    * @description Returns updates about deal field values.
-   * @route GET /deals/:id/changelog
+   * @route POST /deals/:id/changelog
    * @operationName List Deal Updates
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for retrieving next page of results.","required":false}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
@@ -1897,7 +1957,7 @@ class PipedriveService {
    * @operationName Duplicate Deal
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -1912,12 +1972,12 @@ class PipedriveService {
 
   /**
    * @description Returns all files attached to a deal.
-   * @route GET /deals/:id/files
+   * @route POST /deals/:id/files
    * @operationName List Deal Files
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"String","label":"Sort By","name":"sort","description":"Field to sort by (e.g., \"id DESC\").","required":false}
    *
@@ -1940,14 +2000,14 @@ class PipedriveService {
 
   /**
    * @description Returns updates about a deal.
-   * @route GET /deals/:id/flow
+   * @route POST /deals/:id/flow
    * @operationName List Deal Flow
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
-   * @paramDef {"type":"Number","label":"All Changes","name":"all_changes","description":"Include all changes since specified date.","uiComponent":{"type":"DATE_PICKER"},"required":false}
+   * @paramDef {"type":"String","label":"All Changes","name":"all_changes","description":"Include all changes since specified date.","uiComponent":{"type":"DATE_PICKER"},"required":false}
    * @paramDef {"type":"Array","label":"Items","name":"items","description":"Array of items.","required":false}
    *
    * @returns {Object}
@@ -1974,11 +2034,11 @@ class PipedriveService {
 
   /**
    * @description Returns updates about participants of a deal.
-   * @route GET /deals/:id/participantsChangelog
+   * @route POST /deals/:id/participantsChangelog
    * @operationName List Deal Participants Updates
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for retrieving next page of results.","required":false}
    *
@@ -2001,11 +2061,11 @@ class PipedriveService {
 
   /**
    * @description Returns all followers of a deal.
-   * @route GET /deals/:id/followers
+   * @route POST /deals/:id/followers
    * @operationName List Deal Followers
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -2024,8 +2084,8 @@ class PipedriveService {
    * @operationName Add Deal Follower
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
    *
    * @returns {Object}
    */
@@ -2043,12 +2103,12 @@ class PipedriveService {
 
   /**
    * @description Removes a follower from a deal.
-   * @route DELETE /deals/:id/followers/:follower_id
+   * @route POST /deals/:id/followers/:follower_id
    * @operationName Delete Deal Follower
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Follower","name":"follower_id","description":"Identifier of the follower user.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Follower","name":"follower_id","description":"Identifier of the follower user.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -2063,12 +2123,12 @@ class PipedriveService {
 
   /**
    * @description Returns all mail messages associated with a deal.
-   * @route GET /deals/:id/mailMessages
+   * @route POST /deals/:id/mailMessages
    * @operationName List Deal Mail Messages
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -2090,12 +2150,12 @@ class PipedriveService {
 
   /**
    * @description Merges a deal with another deal.
-   * @route PUT /deals/:id/merge
+   * @route POST /deals/:id/merge
    * @operationName Merge Deals
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Merge With","name":"merge_with_id","description":"Identifier of the organization to merge with.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Merge With","name":"merge_with_id","description":"Identifier of the organization to merge with.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -2113,12 +2173,12 @@ class PipedriveService {
 
   /**
    * @description Returns all participants of a deal.
-   * @route GET /deals/:id/participants
+   * @route POST /deals/:id/participants
    * @operationName List Deal Participants
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -2144,8 +2204,8 @@ class PipedriveService {
    * @operationName Add Deal Participant
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":true}
    *
    * @returns {Object}
    */
@@ -2163,12 +2223,12 @@ class PipedriveService {
 
   /**
    * @description Removes a participant from a deal.
-   * @route DELETE /deals/:id/participants/:deal_participant_id
+   * @route POST /deals/:id/participants/:deal_participant_id
    * @operationName Delete Deal Participant
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Deal Participant","name":"deal_participant_id","description":"Identifier of the deal participant.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Deal Participant","name":"deal_participant_id","description":"Identifier of the deal participant.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -2183,11 +2243,11 @@ class PipedriveService {
 
   /**
    * @description Returns users permitted to access a deal.
-   * @route GET /deals/:id/permittedUsers
+   * @route POST /deals/:id/permittedUsers
    * @operationName List Deal Permitted Users
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -2202,12 +2262,12 @@ class PipedriveService {
 
   /**
    * @description Returns all persons associated with a deal.
-   * @route GET /deals/:id/persons
+   * @route POST /deals/:id/persons
    * @operationName List Deal Persons
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -2229,12 +2289,12 @@ class PipedriveService {
 
   /**
    * @description Returns all products attached to a deal.
-   * @route GET /deals/:id/products
+   * @route POST /deals/:id/products
    * @operationName List Deal Products
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"String","label":"Include Product Data","name":"include_product_data","description":"Whether to include product data in response.","required":false}
    *
@@ -2265,16 +2325,16 @@ class PipedriveService {
    * @operationName Add Deal Product
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Product","name":"product_id","description":"The product associated with this record.","required":true}
-   * @paramDef {"type":"Number","label":"Item Price","name":"item_price","description":"Price of the item.","required":false}
-   * @paramDef {"type":"Number","label":"Quantity","name":"quantity","description":"Quantity of the item.","required":false}
-   * @paramDef {"type":"Number","label":"Discount %","name":"discount_percentage","description":"Discount percentage (0-100).","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Product","name":"product_id","description":"The product associated with this record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Item Price","name":"item_price","description":"Price of the item.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Quantity","name":"quantity","description":"Quantity of the item.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Discount %","name":"discount_percentage","description":"Discount percentage (0-100).","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Duration","name":"duration","description":"The duration of the activity (HH:MM).","required":false}
-   * @paramDef {"type":"Number","label":"Variation","name":"product_variation_id","description":"Identifier of the product variation.","required":false}
+   * @paramDef {"type":"Number","label":"Variation","name":"product_variation_id","description":"Identifier of the product variation.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Comments","name":"comments","description":"Comments about the product attachment.","required":false}
    * @paramDef {"type":"Boolean","label":"Enabled","name":"enabled_flag","description":"Whether the product attachment is enabled.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"Number","label":"Tax","name":"tax","description":"Tax percentage.","required":false}
+   * @paramDef {"type":"Number","label":"Tax","name":"tax","description":"Tax percentage.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Tax Method","name":"tax_method","required":false}
    *
    * @returns {Object}
@@ -2307,20 +2367,20 @@ class PipedriveService {
 
   /**
    * @description Updates a product attached to a deal.
-   * @route PUT /deals/:id/products/:product_attachment_id
+   * @route POST /deals/:id/products/:product_attachment_id
    * @operationName Update Deal Product
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Product Attachment","name":"product_attachment_id","description":"Identifier of the attached product.","required":true}
-   * @paramDef {"type":"Number","label":"Item Price","name":"item_price","description":"Price of the item.","required":false}
-   * @paramDef {"type":"Number","label":"Quantity","name":"quantity","description":"Quantity of the item.","required":false}
-   * @paramDef {"type":"Number","label":"Discount %","name":"discount_percentage","description":"Discount percentage (0-100).","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Product Attachment","name":"product_attachment_id","description":"Identifier of the attached product.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Item Price","name":"item_price","description":"Price of the item.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Quantity","name":"quantity","description":"Quantity of the item.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Discount %","name":"discount_percentage","description":"Discount percentage (0-100).","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Duration","name":"duration","description":"The duration of the activity (HH:MM).","required":false}
-   * @paramDef {"type":"Number","label":"Variation","name":"product_variation_id","description":"Identifier of the product variation.","required":false}
+   * @paramDef {"type":"Number","label":"Variation","name":"product_variation_id","description":"Identifier of the product variation.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Comments","name":"comments","description":"Comments about the product attachment.","required":false}
    * @paramDef {"type":"Boolean","label":"Enabled","name":"enabled_flag","description":"Whether the product attachment is enabled.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"Number","label":"Tax","name":"tax","description":"Tax percentage.","required":false}
+   * @paramDef {"type":"Number","label":"Tax","name":"tax","description":"Tax percentage.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Tax Method","name":"tax_method","required":false}
    *
    * @returns {Object}
@@ -2352,12 +2412,12 @@ class PipedriveService {
 
   /**
    * @description Removes a product from a deal.
-   * @route DELETE /deals/:id/products/:product_attachment_id
+   * @route POST /deals/:id/products/:product_attachment_id
    * @operationName Delete Deal Product
    * @category Deals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Product Attachment","name":"product_attachment_id","description":"Identifier of the attached product.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Product Attachment","name":"product_attachment_id","description":"Identifier of the attached product.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -2376,11 +2436,11 @@ class PipedriveService {
 
   /**
    * @description Returns all files.
-   * @route GET /files
+   * @route POST /files
    * @operationName List Files
    * @category Files
    *
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"String","label":"Sort By","name":"sort","description":"Field to sort by (e.g., \"id DESC\").","required":false}
    *
@@ -2408,12 +2468,12 @@ class PipedriveService {
    * @category Files
    *
    * @paramDef {"type":"String","label":"File","name":"file","description":"The file to upload.","required":true}
-   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Product","name":"product_id","description":"The product associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Activity","name":"activity_id","description":"The activity associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Lead","name":"lead_id","description":"Identifier of the lead.","required":false}
+   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Product","name":"product_id","description":"The product associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Activity","name":"activity_id","description":"The activity associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Lead","name":"lead_id","description":"Identifier of the lead.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -2449,7 +2509,7 @@ class PipedriveService {
    * @paramDef {"type":"String","label":"File Type","name":"file_type","description":"The type of the file.","required":true}
    * @paramDef {"type":"String","label":"Title","name":"title","description":"The title of the record.","required":true}
    * @paramDef {"type":"String","label":"Item Type","name":"item_type","description":"The type of item to associate the file with (deal, person, organization, etc.).","required":true}
-   * @paramDef {"type":"Number","label":"Item","name":"item_id","description":"The Identifier of the item to associate the file with.","required":true}
+   * @paramDef {"type":"Number","label":"Item","name":"item_id","description":"The Identifier of the item to associate the file with.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Remote Location","name":"remote_location","description":"The location type to send the file to (e.g., googledrive).","required":true}
    *
    * @returns {Object}
@@ -2482,8 +2542,8 @@ class PipedriveService {
    * @category Files
    *
    * @paramDef {"type":"String","label":"Item Type","name":"item_type","description":"The type of item to associate the file with (deal, person, organization, etc.).","required":true}
-   * @paramDef {"type":"Number","label":"Item","name":"item_id","description":"The Identifier of the item to associate the file with.","required":true}
-   * @paramDef {"type":"String","label":"Remote","name":"remote_id","description":"The remote item identifier.","required":true}
+   * @paramDef {"type":"Number","label":"Item","name":"item_id","description":"The Identifier of the item to associate the file with.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Remote","name":"remote_id","description":"The file's ID in the remote storage system (e.g. Google Drive); supplied by that system, not listed by Pipedrive.","freeform":true,"required":true}
    * @paramDef {"type":"String","label":"Remote Location","name":"remote_location","description":"The location type to send the file to (e.g., googledrive).","required":true}
    *
    * @returns {Object}
@@ -2510,11 +2570,11 @@ class PipedriveService {
 
   /**
    * @description Marks a file as deleted.
-   * @route DELETE /files/:id
+   * @route POST /files/:id
    * @operationName Delete File
    * @category Files
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -2529,11 +2589,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific file.
-   * @route GET /files/:id
+   * @route POST /files/:id
    * @operationName Get File
    * @category Files
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -2548,11 +2608,11 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a file.
-   * @route PUT /files/:id
+   * @route POST /files/:id
    * @operationName Update File
    * @category Files
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
    * @paramDef {"type":"String","label":"Description","name":"description","description":"Description of the record.","uiComponent":{"type":"MULTI_LINE_TEXT"},"required":false}
    *
@@ -2575,11 +2635,11 @@ class PipedriveService {
 
   /**
    * @description Initializes a file download.
-   * @route GET /files/:id/download
+   * @route POST /files/:id/download
    * @operationName Download File
    * @category Files
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -2598,7 +2658,7 @@ class PipedriveService {
 
   /**
    * @description Returns all filters.
-   * @route GET /filters
+   * @route POST /filters
    * @operationName List Filters
    * @category Filters
    *
@@ -2650,7 +2710,7 @@ class PipedriveService {
 
   /**
    * @description Marks multiple filters as deleted.
-   * @route DELETE /filters
+   * @route POST /filters
    * @operationName Delete Filters
    * @category Filters
    *
@@ -2672,11 +2732,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific filter.
-   * @route GET /filters/:id
+   * @route POST /filters/:id
    * @operationName Get Filter
    * @category Filters
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -2691,11 +2751,11 @@ class PipedriveService {
 
   /**
    * @description Marks a filter as deleted.
-   * @route DELETE /filters/:id
+   * @route POST /filters/:id
    * @operationName Delete Filter
    * @category Filters
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -2710,11 +2770,11 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a filter.
-   * @route PUT /filters/:id
+   * @route POST /filters/:id
    * @operationName Update Filter
    * @category Filters
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
    * @paramDef {"type":"String","label":"Conditions","name":"conditions","description":"Filter conditions (JSON string).","required":false}
    *
@@ -2737,7 +2797,7 @@ class PipedriveService {
 
   /**
    * @description Returns all filter helpers.
-   * @route GET /filters/helpers
+   * @route POST /filters/helpers
    * @operationName List Filter Helpers
    * @category Filters
    *
@@ -2766,7 +2826,7 @@ class PipedriveService {
    * @paramDef {"type":"String","label":"Assignee","name":"assignee","description":"User assigned to the item.","required":false}
    * @paramDef {"type":"String","label":"Expected Outcome","name":"expected_outcome","description":"Expected outcome for the goal.","required":false}
    * @paramDef {"type":"String","label":"Duration","name":"duration","description":"The duration of the activity (HH:MM).","required":false}
-   * @paramDef {"type":"Number","label":"Interval","name":"interval","description":"Interval for statistics (day, week, month).","required":false}
+   * @paramDef {"type":"Number","label":"Interval","name":"interval","description":"Interval for statistics (day, week, month).","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Title","name":"title","description":"The title of the record.","required":false}
    *
    * @returns {Object}
@@ -2790,23 +2850,23 @@ class PipedriveService {
 
   /**
    * @description Returns data about goals based on criteria. For searching, append `{searchField}={searchValue}` to t...
-   * @route GET /goals/find
+   * @route POST /goals/find
    * @operationName Find goals
    * @category Goals
    *
    * @paramDef {"type":"String","label":"Type Name","name":"type.name","description":"Name of the type.","required":false}
    * @paramDef {"type":"String","label":"Title","name":"title","description":"The title of the record.","required":false}
    * @paramDef {"type":"Boolean","label":"Is Active","name":"is_active","description":"Whether the item is active.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"Number","label":"Assignee","name":"assignee_id","description":"Identifier of the user assigned to the task.","required":false}
+   * @paramDef {"type":"Number","label":"Assignee","name":"assignee_id","description":"Identifier of the user assigned to the task.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Assignee Type","name":"assignee.type","description":"Type of assignee (user, team, etc).","required":false}
    * @paramDef {"type":"String","label":"Expected Outcome Target","name":"expected_outcome.target","description":"Target value for the expected outcome.","required":false}
    * @paramDef {"type":"String","label":"Expected Outcome Tracking Metric","name":"expected_outcome.tracking_metric","description":"Metric used to track the expected outcome.","required":false}
-   * @paramDef {"type":"Number","label":"Expected Outcome Currency","name":"expected_outcome.currency_id","description":"Currency ID for the expected outcome.","required":false}
-   * @paramDef {"type":"Number","label":"Type Params Pipeline","name":"type.params.pipeline_id","description":"Pipeline ID for goal parameters.","required":false}
-   * @paramDef {"type":"Number","label":"Type Params Stage","name":"type.params.stage_id","description":"Stage ID for goal parameters.","required":false}
-   * @paramDef {"type":"Number","label":"Type Params Activity Type","name":"type.params.activity_type_id","description":"Activity type ID for goal parameters.","required":false}
-   * @paramDef {"type":"Number","label":"Period Start","name":"period.start","description":"Start of the reporting period.","uiComponent":{"type":"DATE_PICKER"},"required":false}
-   * @paramDef {"type":"Number","label":"Period End","name":"period.end","description":"End of the reporting period.","uiComponent":{"type":"DATE_PICKER"},"required":false}
+   * @paramDef {"type":"Number","label":"Expected Outcome Currency","name":"expected_outcome.currency_id","description":"Currency ID for the expected outcome.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Type Params Pipeline","name":"type.params.pipeline_id","description":"Pipeline ID for goal parameters.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Type Params Stage","name":"type.params.stage_id","description":"Stage ID for goal parameters.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Type Params Activity Type","name":"type.params.activity_type_id","description":"Activity type ID for goal parameters.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Period Start","name":"period.start","description":"Start of the reporting period.","uiComponent":{"type":"DATE_PICKER"},"required":false}
+   * @paramDef {"type":"String","label":"Period End","name":"period.end","description":"End of the reporting period.","uiComponent":{"type":"DATE_PICKER"},"required":false}
    *
    * @returns {Object}
    */
@@ -2827,17 +2887,17 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a goal.
-   * @route PUT /goals/:id
+   * @route POST /goals/:id
    * @operationName Update existing goal
    * @category Goals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Title","name":"title","description":"The title of the record.","required":false}
    * @paramDef {"type":"String","label":"Assignee","name":"assignee","description":"User assigned to the item.","required":false}
    * @paramDef {"type":"String","label":"Type","name":"type","description":"The type of the record.","required":false}
    * @paramDef {"type":"String","label":"Expected Outcome","name":"expected_outcome","description":"Expected outcome for the goal.","required":false}
    * @paramDef {"type":"String","label":"Duration","name":"duration","description":"The duration of the activity (HH:MM).","required":false}
-   * @paramDef {"type":"Number","label":"Interval","name":"interval","description":"Interval for statistics (day, week, month).","required":false}
+   * @paramDef {"type":"Number","label":"Interval","name":"interval","description":"Interval for statistics (day, week, month).","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -2859,11 +2919,11 @@ class PipedriveService {
 
   /**
    * @description Marks a goal as deleted.
-   * @route DELETE /goals/:id
+   * @route POST /goals/:id
    * @operationName Delete existing goal
    * @category Goals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -2879,13 +2939,13 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific goal.
-   * @route GET /goals/:id/results
+   * @route POST /goals/:id/results
    * @operationName Get result of goal
    * @category Goals
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Period Start","name":"period.start","description":"Start of the reporting period.","uiComponent":{"type":"DATE_PICKER"},"required":false}
-   * @paramDef {"type":"Number","label":"Period End","name":"period.end","description":"End of the reporting period.","uiComponent":{"type":"DATE_PICKER"},"required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Period Start","name":"period.start","description":"Start of the reporting period.","uiComponent":{"type":"DATE_PICKER"},"required":false}
+   * @paramDef {"type":"String","label":"Period End","name":"period.end","description":"End of the reporting period.","uiComponent":{"type":"DATE_PICKER"},"required":false}
    *
    * @returns {Object}
    */
@@ -2910,7 +2970,7 @@ class PipedriveService {
 
   /**
    * @description Performs search across multiple item types.
-   * @route GET /itemSearch
+   * @route POST /itemSearch
    * @operationName Search Items
    * @category ItemSearch
    *
@@ -2920,7 +2980,7 @@ class PipedriveService {
    * @paramDef {"type":"Boolean","label":"Search for Related Items","name":"search_for_related_items","description":"Search for related items.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"String","label":"Exact Match","name":"exact_match","description":"Whether to perform exact matching in search.","required":false}
    * @paramDef {"type":"Array","label":"Include Fields","name":"include_fields","description":"Array of additional fields to include.","required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -2951,7 +3011,7 @@ class PipedriveService {
 
   /**
    * @description Performs search using a specific field.
-   * @route GET /itemSearch/field
+   * @route POST /itemSearch/field
    * @operationName Search Items by Field
    * @category ItemSearch
    *
@@ -2960,7 +3020,7 @@ class PipedriveService {
    * @paramDef {"type":"String","label":"Exact Match","name":"exact_match","description":"Whether to perform exact matching in search.","required":false}
    * @paramDef {"type":"String","label":"Field Key","name":"field_key","description":"Key of the field.","required":false}
    * @paramDef {"type":"Boolean","label":"Return Item Identifiers","name":"return_item_ids","description":"Return only item IDs.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -2994,7 +3054,7 @@ class PipedriveService {
 
   /**
    * @description Returns all lead labels.
-   * @route GET /leadLabels
+   * @route POST /leadLabels
    * @operationName List Lead Labels
    * @category LeadLabels
    *
@@ -3044,7 +3104,7 @@ class PipedriveService {
    * @operationName Update Lead Label
    * @category LeadLabels
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
    * @paramDef {"type":"String","label":"Color","name":"color","description":"Color code for the activity type.","required":false}
    *
@@ -3070,11 +3130,11 @@ class PipedriveService {
 
   /**
    * @description Marks a lead label as deleted.
-   * @route DELETE /leadLabels/:id
+   * @route POST /leadLabels/:id
    * @operationName Delete Lead Label
    * @category LeadLabels
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -3093,16 +3153,16 @@ class PipedriveService {
 
   /**
    * @description Returns all leads.
-   * @route GET /leads
+   * @route POST /leads
    * @operationName List Leads
    * @category Leads
    *
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
-   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"organization_id","description":"The organization associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Organization","name":"organization_id","description":"The organization associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Sort By","name":"sort","description":"Field to sort by (e.g., \"id DESC\").","required":false}
    *
    * @returns {Object}
@@ -3137,17 +3197,17 @@ class PipedriveService {
    * @category Leads
    *
    * @paramDef {"type":"String","label":"Title","name":"title","description":"The title of the record.","required":false}
-   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false}
+   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Label Identifiers","name":"label_ids","description":"List of label IDs.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"organization_id","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Organization","name":"organization_id","description":"The organization associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Value","name":"value","description":"The monetary value of the deal.","required":false}
    * @paramDef {"type":"String","label":"Expected Close Date","name":"expected_close_date","description":"The expected close date of the deal (YYYY-MM-DD).","uiComponent":{"type":"DATE_PICKER"},"required":false}
-   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":["Owner & followers (private)","Entire company"]}},"required":false}
+   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"1","label":"Owner & followers (private)"},{"value":"3","label":"Entire company"}]}},"required":false}
    * @paramDef {"type":"Boolean","label":"Was Seen","name":"was_seen","description":"Whether the lead was seen.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"String","label":"Origin","name":"origin_id","description":"The origin identifier.","required":false}
-   * @paramDef {"type":"Number","label":"Channel","name":"channel","description":"The channel.","required":false}
-   * @paramDef {"type":"String","label":"Channel","name":"channel_id","description":"The channel identifier.","required":false}
+   * @paramDef {"type":"String","label":"Origin","name":"origin_id","description":"An optional free-form ID identifying the origin of the lead (e.g. which integration created it); not a listable resource.","freeform":true,"required":false}
+   * @paramDef {"type":"Number","label":"Channel","name":"channel","description":"The channel.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Channel","name":"channel_id","description":"An optional free-form ID that further distinguishes the marketing channel; not a listable Pipedrive resource.","freeform":true,"required":false}
    *
    * @returns {Object}
    */
@@ -3181,16 +3241,16 @@ class PipedriveService {
 
   /**
    * @description Returns all archived leads.
-   * @route GET /leads/archived
+   * @route POST /leads/archived
    * @operationName List Archived Leads
    * @category Leads
    *
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
-   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"organization_id","description":"The organization associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Organization","name":"organization_id","description":"The organization associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Sort By","name":"sort","description":"Field to sort by (e.g., \"id DESC\").","required":false}
    *
    * @returns {Object}
@@ -3220,11 +3280,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific lead.
-   * @route GET /leads/:id
+   * @route POST /leads/:id
    * @operationName Get Lead
    * @category Leads
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -3243,19 +3303,19 @@ class PipedriveService {
    * @operationName Update Lead
    * @category Leads
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Title","name":"title","description":"The title of the record.","required":false}
-   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false}
+   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Label Identifiers","name":"label_ids","description":"List of label IDs.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"organization_id","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Organization","name":"organization_id","description":"The organization associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Boolean","label":"Is Archived","name":"is_archived","description":"Whether to include archived items.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"String","label":"Value","name":"value","description":"The monetary value of the deal.","required":false}
    * @paramDef {"type":"String","label":"Expected Close Date","name":"expected_close_date","description":"The expected close date of the deal (YYYY-MM-DD).","uiComponent":{"type":"DATE_PICKER"},"required":false}
-   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":["Owner & followers (private)","Entire company"]}},"required":false}
+   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"1","label":"Owner & followers (private)"},{"value":"3","label":"Entire company"}]}},"required":false}
    * @paramDef {"type":"Boolean","label":"Was Seen","name":"was_seen","description":"Whether the lead was seen.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"Number","label":"Channel","name":"channel","description":"The channel.","required":false}
-   * @paramDef {"type":"String","label":"Channel","name":"channel_id","description":"The channel identifier.","required":false}
+   * @paramDef {"type":"Number","label":"Channel","name":"channel","description":"The channel.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Channel","name":"channel_id","description":"An optional free-form ID that further distinguishes the marketing channel; not a listable Pipedrive resource.","freeform":true,"required":false}
    *
    * @returns {Object}
    */
@@ -3289,11 +3349,11 @@ class PipedriveService {
 
   /**
    * @description Marks a lead as deleted.
-   * @route DELETE /leads/:id
+   * @route POST /leads/:id
    * @operationName Delete Lead
    * @category Leads
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -3308,11 +3368,11 @@ class PipedriveService {
 
   /**
    * @description Returns users permitted to access a lead.
-   * @route GET /leads/:id/permittedUsers
+   * @route POST /leads/:id/permittedUsers
    * @operationName List Lead Permitted Users
    * @category Leads
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -3327,17 +3387,17 @@ class PipedriveService {
 
   /**
    * @description Searches all leads.
-   * @route GET /leads/search
+   * @route POST /leads/search
    * @operationName Search Leads
    * @category Leads
    *
    * @paramDef {"type":"String","label":"Search Term","name":"term","description":"The term to search for.","required":true}
    * @paramDef {"type":"Array","label":"Fields","name":"fields","description":"Array of field names to include in response.","required":false}
    * @paramDef {"type":"String","label":"Exact Match","name":"exact_match","description":"Whether to perform exact matching in search.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"organization_id","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Organization","name":"organization_id","description":"The organization associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Array","label":"Include Fields","name":"include_fields","description":"Array of additional fields to include.","required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -3372,7 +3432,7 @@ class PipedriveService {
 
   /**
    * @description Returns all lead sources.
-   * @route GET /leadSources
+   * @route POST /leadSources
    * @operationName List Lead Sources
    * @category LeadSources
    *
@@ -3393,7 +3453,7 @@ class PipedriveService {
 
   /**
    * @description Returns all legacyteams.
-   * @route GET /legacyTeams
+   * @route POST /legacyTeams
    * @operationName List teams
    * @category LegacyTeams
    *
@@ -3424,7 +3484,7 @@ class PipedriveService {
    * @category LegacyTeams
    *
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
-   * @paramDef {"type":"Number","label":"Manager","name":"manager_id","description":"Identifier of the manager user.","required":false}
+   * @paramDef {"type":"Number","label":"Manager","name":"manager_id","description":"Identifier of the manager user.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Description","name":"description","description":"Description of the record.","uiComponent":{"type":"MULTI_LINE_TEXT"},"required":false}
    * @paramDef {"type":"Array","label":"Users","name":"users","description":"Array of user IDs.","required":false}
    *
@@ -3447,11 +3507,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific legacyteam.
-   * @route GET /legacyTeams/:id
+   * @route POST /legacyTeams/:id
    * @operationName Get single team
    * @category LegacyTeams
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Boolean","label":"Skip Users","name":"skip_users","description":"Whether to skip returning user data.","uiComponent":{"type":"TOGGLE"},"required":false}
    *
    * @returns {Object}
@@ -3473,14 +3533,14 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a legacyteam.
-   * @route PUT /legacyTeams/:id
+   * @route POST /legacyTeams/:id
    * @operationName Update team
    * @category LegacyTeams
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
    * @paramDef {"type":"String","label":"Description","name":"description","description":"Description of the record.","uiComponent":{"type":"MULTI_LINE_TEXT"},"required":false}
-   * @paramDef {"type":"Number","label":"Manager","name":"manager_id","description":"Identifier of the manager user.","required":false}
+   * @paramDef {"type":"Number","label":"Manager","name":"manager_id","description":"Identifier of the manager user.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Array","label":"Users","name":"users","description":"Array of user IDs.","required":false}
    * @paramDef {"type":"Boolean","label":"Active","name":"active_flag","description":"Whether the record is active.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"Boolean","label":"Deleted Flag","name":"deleted_flag","description":"Whether the item is deleted.","uiComponent":{"type":"TOGGLE"},"required":false}
@@ -3504,11 +3564,11 @@ class PipedriveService {
 
   /**
    * @description Returns all legacyteams.
-   * @route GET /legacyTeams/:id/users
+   * @route POST /legacyTeams/:id/users
    * @operationName List users in team
    * @category LegacyTeams
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -3528,7 +3588,7 @@ class PipedriveService {
    * @operationName Create users to team
    * @category LegacyTeams
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Array","label":"Users","name":"users","description":"Array of user IDs.","required":false}
    *
    * @returns {Object}
@@ -3550,11 +3610,11 @@ class PipedriveService {
 
   /**
    * @description Marks a legacyteam as deleted.
-   * @route DELETE /legacyTeams/:id/users
+   * @route POST /legacyTeams/:id/users
    * @operationName Delete users from team
    * @category LegacyTeams
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Array","label":"Users","name":"users","description":"Array of user IDs.","required":false}
    *
    * @returns {Object}
@@ -3576,11 +3636,11 @@ class PipedriveService {
 
   /**
    * @description Returns all legacyteams.
-   * @route GET /legacyTeams/user/:id
+   * @route POST /legacyTeams/user/:id
    * @operationName List teams of user
    * @category LegacyTeams
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Order By","name":"order_by","description":"Field name to order results by.","required":false}
    * @paramDef {"type":"Boolean","label":"Skip Users","name":"skip_users","description":"Whether to skip returning user data.","uiComponent":{"type":"TOGGLE"},"required":false}
    *
@@ -3607,11 +3667,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific mailbox.
-   * @route GET /mailbox/mailMessages/:id
+   * @route POST /mailbox/mailMessages/:id
    * @operationName Get one mail message
    * @category Mailbox
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Include Body","name":"include_body","description":"Whether to include message body in response.","required":false}
    *
    * @returns {Object}
@@ -3633,12 +3693,12 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific mailbox.
-   * @route GET /mailbox/mailThreads
+   * @route POST /mailbox/mailThreads
    * @operationName Get mail threads
    * @category Mailbox
    *
    * @paramDef {"type":"String","label":"Folder","name":"folder","description":"Folder location.","required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -3660,11 +3720,11 @@ class PipedriveService {
 
   /**
    * @description Marks a mailbox as deleted.
-   * @route DELETE /mailbox/mailThreads/:id
+   * @route POST /mailbox/mailThreads/:id
    * @operationName Delete mail thread
    * @category Mailbox
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -3680,11 +3740,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific mailbox.
-   * @route GET /mailbox/mailThreads/:id
+   * @route POST /mailbox/mailThreads/:id
    * @operationName Get one mail thread
    * @category Mailbox
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -3700,13 +3760,13 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a mailbox.
-   * @route PUT /mailbox/mailThreads/:id
+   * @route POST /mailbox/mailThreads/:id
    * @operationName Update mail thread details
    * @category Mailbox
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":true}
-   * @paramDef {"type":"Number","label":"Lead","name":"lead_id","description":"Identifier of the lead.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Lead","name":"lead_id","description":"Identifier of the lead.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Boolean","label":"Shared Flag","name":"shared_flag","description":"Whether the item is shared.","uiComponent":{"type":"TOGGLE"},"required":true}
    * @paramDef {"type":"Boolean","label":"Read Flag","name":"read_flag","description":"Whether the item has been read.","uiComponent":{"type":"TOGGLE"},"required":true}
    * @paramDef {"type":"Boolean","label":"Archived Flag","name":"archived_flag","description":"Whether the item is archived.","uiComponent":{"type":"TOGGLE"},"required":true}
@@ -3730,11 +3790,11 @@ class PipedriveService {
 
   /**
    * @description Returns all mailbox.
-   * @route GET /mailbox/mailThreads/:id/mailMessages
+   * @route POST /mailbox/mailThreads/:id/mailMessages
    * @operationName List mail messages of mail thread
    * @category Mailbox
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -3758,10 +3818,10 @@ class PipedriveService {
    * @operationName Link User Provider
    * @category Meetings
    *
-   * @paramDef {"type":"String","label":"User Provider","name":"user_provider_id","description":"Provider user identifier.","required":true}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
-   * @paramDef {"type":"Number","label":"Company","name":"company_id","description":"Identifier of the company.","required":true}
-   * @paramDef {"type":"String","label":"Marketplace Client","name":"marketplace_client_id","description":"Marketplace client identifier.","required":true}
+   * @paramDef {"type":"String","label":"User Provider","name":"user_provider_id","description":"A unique user-provider ID generated by your integration; external to Pipedrive, so there is nothing to list.","freeform":true,"required":true}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
+   * @paramDef {"type":"Number","label":"Company","name":"company_id","description":"Identifier of the company.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Marketplace Client","name":"marketplace_client_id","description":"Your app's Marketplace client ID (a configuration constant from your Pipedrive app), not a listable resource.","freeform":true,"required":true}
    *
    * @returns {Object}
    */
@@ -3784,11 +3844,11 @@ class PipedriveService {
 
   /**
    * @description Deletes the link between a user and video call integration.
-   * @route DELETE /meetings/userProviderLinks/:id
+   * @route POST /meetings/userProviderLinks/:id
    * @operationName Delete User Provider Link
    * @category Meetings
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -3807,7 +3867,7 @@ class PipedriveService {
 
   /**
    * @description Returns all note fields.
-   * @route GET /noteFields
+   * @route POST /noteFields
    * @operationName List Note Fields
    * @category NoteFields
    *
@@ -3828,21 +3888,21 @@ class PipedriveService {
 
   /**
    * @description Returns all notes.
-   * @route GET /notes
+   * @route POST /notes
    * @operationName List Notes
    * @category Notes
    *
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
-   * @paramDef {"type":"Number","label":"Lead","name":"lead_id","description":"Identifier of the lead.","required":false}
-   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Project","name":"project_id","description":"Identifier of the project.","required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"Number","label":"Lead","name":"lead_id","description":"Identifier of the lead.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Project","name":"project_id","description":"Identifier of the project.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"String","label":"Sort By","name":"sort","description":"Field to sort by (e.g., \"id DESC\").","required":false}
-   * @paramDef {"type":"Number","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
-   * @paramDef {"type":"Number","label":"End Date and Time","name":"endDateTime","description":"End date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
+   * @paramDef {"type":"String","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
+   * @paramDef {"type":"String","label":"End Date and Time","name":"endDateTime","description":"End date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
    * @paramDef {"type":"Boolean","label":"Pinned to Lead","name":"pinned_to_lead_flag","description":"Whether the item is pinned to a lead.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"Boolean","label":"Pinned to Deal","name":"pinned_to_deal_flag","description":"Whether the item is pinned to a deal.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"Boolean","label":"Pinned to Organization","name":"pinned_to_organization_flag","description":"Whether the item is pinned to an organization.","uiComponent":{"type":"TOGGLE"},"required":false}
@@ -3890,12 +3950,12 @@ class PipedriveService {
    * @category Notes
    *
    * @paramDef {"type":"String","label":"Content","name":"content","description":"The content of the record.","uiComponent":{"type":"MULTI_LINE_TEXT"},"required":true}
-   * @paramDef {"type":"Number","label":"Lead","name":"lead_id","description":"Identifier of the lead.","required":false}
-   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Project","name":"project_id","description":"Identifier of the project.","required":false}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"Number","label":"Lead","name":"lead_id","description":"Identifier of the lead.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Project","name":"project_id","description":"Identifier of the project.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
    * @paramDef {"type":"String","label":"Created At","name":"add_time","description":"The creation date and time of the record (UTC).","required":false}
    * @paramDef {"type":"Boolean","label":"Pinned to Lead","name":"pinned_to_lead_flag","description":"Whether the item is pinned to a lead.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"Boolean","label":"Pinned to Deal","name":"pinned_to_deal_flag","description":"Whether the item is pinned to a deal.","uiComponent":{"type":"TOGGLE"},"required":false}
@@ -3936,11 +3996,11 @@ class PipedriveService {
 
   /**
    * @description Marks a note as deleted.
-   * @route DELETE /notes/:id
+   * @route POST /notes/:id
    * @operationName Delete Note
    * @category Notes
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -3955,11 +4015,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific note.
-   * @route GET /notes/:id
+   * @route POST /notes/:id
    * @operationName Get Note
    * @category Notes
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -3974,18 +4034,18 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a note.
-   * @route PUT /notes/:id
+   * @route POST /notes/:id
    * @operationName Update Note
    * @category Notes
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Content","name":"content","description":"The content of the record.","uiComponent":{"type":"MULTI_LINE_TEXT"},"required":true}
-   * @paramDef {"type":"Number","label":"Lead","name":"lead_id","description":"Identifier of the lead.","required":false}
-   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Project","name":"project_id","description":"Identifier of the project.","required":false}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"Number","label":"Lead","name":"lead_id","description":"Identifier of the lead.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Deal","name":"deal_id","description":"The deal associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Project","name":"project_id","description":"Identifier of the project.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
    * @paramDef {"type":"String","label":"Created At","name":"add_time","description":"The creation date and time of the record (UTC).","required":false}
    * @paramDef {"type":"Boolean","label":"Pinned to Lead","name":"pinned_to_lead_flag","description":"Whether the item is pinned to a lead.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"Boolean","label":"Pinned to Deal","name":"pinned_to_deal_flag","description":"Whether the item is pinned to a deal.","uiComponent":{"type":"TOGGLE"},"required":false}
@@ -4026,12 +4086,12 @@ class PipedriveService {
 
   /**
    * @description Returns all comments for a note.
-   * @route GET /notes/:id/comments
+   * @route POST /notes/:id/comments
    * @operationName List Note Comments
    * @category Notes
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -4057,7 +4117,7 @@ class PipedriveService {
    * @operationName Add Note Comment
    * @category Notes
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Content","name":"content","description":"The content of the record.","uiComponent":{"type":"MULTI_LINE_TEXT"},"required":true}
    *
    * @returns {Object}
@@ -4076,12 +4136,12 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific comment.
-   * @route GET /notes/:id/comments/:commentId
+   * @route POST /notes/:id/comments/:commentId
    * @operationName Get Note Comment
    * @category Notes
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"String","label":"Comment","name":"comment_id","description":"The comment identifier.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Comment","name":"comment_id","dictionary":"getNoteCommentsDictionary","dependsOn":["id"],"description":"The comment identifier.","required":true}
    *
    * @returns {Object}
    */
@@ -4096,12 +4156,12 @@ class PipedriveService {
 
   /**
    * @description Updates a comment related to a note.
-   * @route PUT /notes/:id/comments/:commentId
+   * @route POST /notes/:id/comments/:commentId
    * @operationName Update Note Comment
    * @category Notes
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"String","label":"Comment","name":"comment_id","description":"The comment identifier.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Comment","name":"comment_id","dictionary":"getNoteCommentsDictionary","dependsOn":["id"],"description":"The comment identifier.","required":true}
    * @paramDef {"type":"String","label":"Content","name":"content","description":"The content of the record.","uiComponent":{"type":"MULTI_LINE_TEXT"},"required":true}
    *
    * @returns {Object}
@@ -4120,12 +4180,12 @@ class PipedriveService {
 
   /**
    * @description Deletes a comment related to a note.
-   * @route DELETE /notes/:id/comments/:commentId
+   * @route POST /notes/:id/comments/:commentId
    * @operationName Delete Note Comment
    * @category Notes
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"String","label":"Comment","name":"comment_id","description":"The comment identifier.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Comment","name":"comment_id","dictionary":"getNoteCommentsDictionary","dependsOn":["id"],"description":"The comment identifier.","required":true}
    *
    * @returns {Object}
    */
@@ -4144,11 +4204,11 @@ class PipedriveService {
 
   /**
    * @description Returns all organization fields.
-   * @route GET /organizationFields
+   * @route POST /organizationFields
    * @operationName List Organization Fields
    * @category OrganizationFields
    *
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -4203,7 +4263,7 @@ class PipedriveService {
 
   /**
    * @description Marks multiple organization fields as deleted.
-   * @route DELETE /organizationFields
+   * @route POST /organizationFields
    * @operationName Delete Organization Fields
    * @category OrganizationFields
    *
@@ -4225,11 +4285,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific organization field.
-   * @route GET /organizationFields/:id
+   * @route POST /organizationFields/:id
    * @operationName Get Organization Field
    * @category OrganizationFields
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -4244,11 +4304,11 @@ class PipedriveService {
 
   /**
    * @description Marks an organization field as deleted.
-   * @route DELETE /organizationFields/:id
+   * @route POST /organizationFields/:id
    * @operationName Delete Organization Field
    * @category OrganizationFields
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -4263,11 +4323,11 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of an organization field.
-   * @route PUT /organizationFields/:id
+   * @route POST /organizationFields/:id
    * @operationName Update Organization Field
    * @category OrganizationFields
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
    * @paramDef {"type":"String","label":"Options","name":"options","description":"Options for the field (JSON array).","required":false}
    * @paramDef {"type":"Boolean","label":"Add Visible Flag","name":"add_visible_flag","description":"Whether the field is visible in add dialogs.","uiComponent":{"type":"TOGGLE"},"required":false}
@@ -4299,14 +4359,14 @@ class PipedriveService {
 
   /**
    * @description Returns all organizations.
-   * @route GET /organizations
+   * @route POST /organizations
    * @operationName List Organizations
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
-   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
+   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"First Character","name":"first_char","description":"First character of the name.","required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"String","label":"Sort By","name":"sort","description":"Field to sort by (e.g., \"id DESC\").","required":false}
    *
@@ -4343,10 +4403,10 @@ class PipedriveService {
    *
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
    * @paramDef {"type":"String","label":"Created At","name":"add_time","description":"The creation date and time of the record (UTC).","required":false}
-   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false}
-   * @paramDef {"type":"Number","label":"Label","name":"label","description":"Label identifier.","required":false}
+   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Label","name":"label","description":"Label identifier.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Label Identifiers","name":"label_ids","description":"List of label IDs.","required":false}
-   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":["Owner & followers (private)","Entire company"]}},"required":false}
+   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"1","label":"Owner & followers (private)"},{"value":"3","label":"Entire company"}]}},"required":false}
    *
    * @returns {Object}
    * @sampleResult {"id":201,"name":"Example Corp","owner_id":12345,"add_time":"2024-01-15 10:30:00","update_time":"2024-01-15 10:30:00","active_flag":true,"visible_to":"3","people_count":0,"open_deals_count":0,"closed_deals_count":0,"address":null,"cc_email":"example@pipedrivemail.com"}
@@ -4375,7 +4435,7 @@ class PipedriveService {
 
   /**
    * @description Returns all organizations.
-   * @route GET /organizations/collection
+   * @route POST /organizations/collection
    * @operationName List Organizations Collection
    * @category Organizations
    *
@@ -4383,7 +4443,7 @@ class PipedriveService {
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"String","label":"Since","name":"since","description":"Timestamp to filter items modified since.","required":false}
    * @paramDef {"type":"String","label":"Until","name":"until","description":"Timestamp to filter items modified until.","required":false}
-   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false}
+   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"First Character","name":"first_char","description":"First character of the name.","required":false}
    *
    * @returns {Object}
@@ -4412,14 +4472,14 @@ class PipedriveService {
 
   /**
    * @description Searches all organizations.
-   * @route GET /organizations/search
+   * @route POST /organizations/search
    * @operationName Search Organizations
    * @category Organizations
    *
    * @paramDef {"type":"String","label":"Search Term","name":"term","description":"The term to search for.","required":true}
    * @paramDef {"type":"Array","label":"Fields","name":"fields","description":"Array of field names to include in response.","required":false}
    * @paramDef {"type":"String","label":"Exact Match","name":"exact_match","description":"Whether to perform exact matching in search.","required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -4447,7 +4507,7 @@ class PipedriveService {
 
   /**
    * @description Marks multiple organizations as deleted.
-   * @route DELETE /organizations
+   * @route POST /organizations
    * @operationName Delete Organizations
    * @category Organizations
    *
@@ -4469,11 +4529,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific organization.
-   * @route GET /organizations/:id
+   * @route POST /organizations/:id
    * @operationName Get Organization
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    * @sampleResult {"id":201,"name":"Example Corp","owner_id":12345,"add_time":"2024-01-15 10:30:00","update_time":"2024-01-20 09:00:00","active_flag":true,"visible_to":"3","people_count":4,"open_deals_count":2,"closed_deals_count":1,"address":"123 Main St, New York, NY","cc_email":"example@pipedrivemail.com"}
@@ -4489,16 +4549,16 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of an organization.
-   * @route PUT /organizations/:id
+   * @route POST /organizations/:id
    * @operationName Update Organization
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
-   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false}
-   * @paramDef {"type":"Number","label":"Label","name":"label","description":"Label identifier.","required":false}
+   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Label","name":"label","description":"Label identifier.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Label Identifiers","name":"label_ids","description":"List of label IDs.","required":false}
-   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":["Owner & followers (private)","Entire company"]}},"required":false}
+   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"1","label":"Owner & followers (private)"},{"value":"3","label":"Entire company"}]}},"required":false}
    *
    * @returns {Object}
    * @sampleResult {"id":201,"name":"Example Corp International","owner_id":12345,"add_time":"2024-01-15 10:30:00","update_time":"2024-01-25 13:20:00","active_flag":true,"visible_to":"3","people_count":4,"open_deals_count":2,"closed_deals_count":1,"address":"123 Main St, New York, NY"}
@@ -4526,11 +4586,11 @@ class PipedriveService {
 
   /**
    * @description Marks an organization as deleted.
-   * @route DELETE /organizations/:id
+   * @route POST /organizations/:id
    * @operationName Delete Organization
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -4545,12 +4605,12 @@ class PipedriveService {
 
   /**
    * @description Returns all activities associated with an organization.
-   * @route GET /organizations/:id/activities
+   * @route POST /organizations/:id/activities
    * @operationName List Organization Activities
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"Boolean","label":"Mark as Done","name":"done","description":"Whether the activity is completed.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"Array","label":"Exclude","name":"exclude","description":"Items to exclude from results.","required":false}
@@ -4579,11 +4639,11 @@ class PipedriveService {
 
   /**
    * @description Returns updates about organization field values.
-   * @route GET /organizations/:id/changelog
+   * @route POST /organizations/:id/changelog
    * @operationName List Organization Updates
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for retrieving next page of results.","required":false}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
@@ -4606,14 +4666,14 @@ class PipedriveService {
 
   /**
    * @description Returns all deals associated with an organization.
-   * @route GET /organizations/:id/deals
+   * @route POST /organizations/:id/deals
    * @operationName List Organization Deals
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
-   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter deals by status.","uiComponent":{"type":"DROPDOWN","options":{"values":["open","won","lost","deleted","all_not_deleted"]}},"required":false}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter deals by status.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open"},{"value":"won","label":"Won"},{"value":"lost","label":"Lost"},{"value":"deleted","label":"Deleted"},{"value":"all_not_deleted","label":"All Not Deleted"}]}},"required":false}
    * @paramDef {"type":"String","label":"Sort By","name":"sort","description":"Field to sort by (e.g., \"id DESC\").","required":false}
    * @paramDef {"type":"Boolean","label":"Only Primary Association","name":"only_primary_association","description":"Show only primary association.","uiComponent":{"type":"TOGGLE"},"required":false}
    *
@@ -4642,12 +4702,12 @@ class PipedriveService {
 
   /**
    * @description Returns all files attached to an organization.
-   * @route GET /organizations/:id/files
+   * @route POST /organizations/:id/files
    * @operationName List Organization Files
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"String","label":"Sort By","name":"sort","description":"Field to sort by (e.g., \"id DESC\").","required":false}
    *
@@ -4670,14 +4730,14 @@ class PipedriveService {
 
   /**
    * @description Returns updates about an organization.
-   * @route GET /organizations/:id/flow
+   * @route POST /organizations/:id/flow
    * @operationName List Organization Flow
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
-   * @paramDef {"type":"Number","label":"All Changes","name":"all_changes","description":"Include all changes since specified date.","uiComponent":{"type":"DATE_PICKER"},"required":false}
+   * @paramDef {"type":"String","label":"All Changes","name":"all_changes","description":"Include all changes since specified date.","uiComponent":{"type":"DATE_PICKER"},"required":false}
    * @paramDef {"type":"Array","label":"Items","name":"items","description":"Array of items.","required":false}
    *
    * @returns {Object}
@@ -4704,11 +4764,11 @@ class PipedriveService {
 
   /**
    * @description Returns all followers of an organization.
-   * @route GET /organizations/:id/followers
+   * @route POST /organizations/:id/followers
    * @operationName List Organization Followers
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -4727,8 +4787,8 @@ class PipedriveService {
    * @operationName Add Organization Follower
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
    *
    * @returns {Object}
    */
@@ -4746,12 +4806,12 @@ class PipedriveService {
 
   /**
    * @description Removes a follower from an organization.
-   * @route DELETE /organizations/:id/followers/:follower_id
+   * @route POST /organizations/:id/followers/:follower_id
    * @operationName Delete Organization Follower
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Follower","name":"follower_id","description":"Identifier of the follower user.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Follower","name":"follower_id","description":"Identifier of the follower user.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -4766,12 +4826,12 @@ class PipedriveService {
 
   /**
    * @description Returns all mail messages associated with an organization.
-   * @route GET /organizations/:id/mailMessages
+   * @route POST /organizations/:id/mailMessages
    * @operationName List Organization Mail Messages
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -4793,12 +4853,12 @@ class PipedriveService {
 
   /**
    * @description Merges an organization with another organization.
-   * @route PUT /organizations/:id/merge
+   * @route POST /organizations/:id/merge
    * @operationName Merge Organizations
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Merge With","name":"merge_with_id","description":"Identifier of the organization to merge with.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Merge With","name":"merge_with_id","description":"Identifier of the organization to merge with.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -4816,11 +4876,11 @@ class PipedriveService {
 
   /**
    * @description Returns users permitted to access an organization.
-   * @route GET /organizations/:id/permittedUsers
+   * @route POST /organizations/:id/permittedUsers
    * @operationName List Organization Permitted Users
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -4835,12 +4895,12 @@ class PipedriveService {
 
   /**
    * @description Returns all persons associated with an organization.
-   * @route GET /organizations/:id/persons
+   * @route POST /organizations/:id/persons
    * @operationName List Organization Persons
    * @category Organizations
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -4866,7 +4926,7 @@ class PipedriveService {
 
   /**
    * @description Returns all permission sets.
-   * @route GET /permissionSets
+   * @route POST /permissionSets
    * @operationName List Permission Sets
    * @category PermissionSets
    *
@@ -4891,11 +4951,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific permission set.
-   * @route GET /permissionSets/:id
+   * @route POST /permissionSets/:id
    * @operationName Get Permission Set
    * @category PermissionSets
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -4910,12 +4970,12 @@ class PipedriveService {
 
   /**
    * @description Returns all assignments for a permission set.
-   * @route GET /permissionSets/:id/assignments
+   * @route POST /permissionSets/:id/assignments
    * @operationName List Permission Set Assignments
    * @category PermissionSets
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -4941,11 +5001,11 @@ class PipedriveService {
 
   /**
    * @description Returns all person fields.
-   * @route GET /personFields
+   * @route POST /personFields
    * @operationName List Person Fields
    * @category PersonFields
    *
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -5000,7 +5060,7 @@ class PipedriveService {
 
   /**
    * @description Marks multiple person fields as deleted.
-   * @route DELETE /personFields
+   * @route POST /personFields
    * @operationName Delete Person Fields
    * @category PersonFields
    *
@@ -5022,11 +5082,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific person field.
-   * @route GET /personFields/:id
+   * @route POST /personFields/:id
    * @operationName Get Person Field
    * @category PersonFields
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -5041,11 +5101,11 @@ class PipedriveService {
 
   /**
    * @description Marks a person field as deleted.
-   * @route DELETE /personFields/:id
+   * @route POST /personFields/:id
    * @operationName Delete Person Field
    * @category PersonFields
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -5060,11 +5120,11 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a person field.
-   * @route PUT /personFields/:id
+   * @route POST /personFields/:id
    * @operationName Update Person Field
    * @category PersonFields
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
    * @paramDef {"type":"String","label":"Options","name":"options","description":"Options for the field (JSON array).","required":false}
    * @paramDef {"type":"Boolean","label":"Add Visible Flag","name":"add_visible_flag","description":"Whether the field is visible in add dialogs.","uiComponent":{"type":"TOGGLE"},"required":false}
@@ -5096,14 +5156,14 @@ class PipedriveService {
 
   /**
    * @description Returns all persons.
-   * @route GET /persons
+   * @route POST /persons
    * @operationName List Persons
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
-   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
+   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"First Character","name":"first_char","description":"First character of the name.","required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"String","label":"Sort By","name":"sort","description":"Field to sort by (e.g., \"id DESC\").","required":false}
    *
@@ -5139,13 +5199,13 @@ class PipedriveService {
    * @category Persons
    *
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
    * @paramDef {"type":"String","label":"Email","name":"email","description":"Email address.","required":false}
    * @paramDef {"type":"String","label":"Phone","name":"phone","description":"Phone number.","required":false}
-   * @paramDef {"type":"Number","label":"Label","name":"label","description":"Label identifier.","required":false}
+   * @paramDef {"type":"Number","label":"Label","name":"label","description":"Label identifier.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Label Identifiers","name":"label_ids","description":"List of label IDs.","required":false}
-   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":["Owner & followers (private)","Entire company"]}},"required":false}
+   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"1","label":"Owner & followers (private)"},{"value":"3","label":"Entire company"}]}},"required":false}
    * @paramDef {"type":"String","label":"Marketing Status","name":"marketing_status","description":"Marketing status of the person.","required":false}
    * @paramDef {"type":"String","label":"Created At","name":"add_time","description":"The creation date and time of the record (UTC).","required":false}
    *
@@ -5180,7 +5240,7 @@ class PipedriveService {
 
   /**
    * @description Returns all persons.
-   * @route GET /persons/collection
+   * @route POST /persons/collection
    * @operationName List Persons Collection
    * @category Persons
    *
@@ -5188,7 +5248,7 @@ class PipedriveService {
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"String","label":"Since","name":"since","description":"Timestamp to filter items modified since.","required":false}
    * @paramDef {"type":"String","label":"Until","name":"until","description":"Timestamp to filter items modified until.","required":false}
-   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false}
+   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"First Character","name":"first_char","description":"First character of the name.","required":false}
    *
    * @returns {Object}
@@ -5217,16 +5277,16 @@ class PipedriveService {
 
   /**
    * @description Searches all persons.
-   * @route GET /persons/search
+   * @route POST /persons/search
    * @operationName Search Persons
    * @category Persons
    *
    * @paramDef {"type":"String","label":"Search Term","name":"term","description":"The term to search for.","required":true}
    * @paramDef {"type":"Array","label":"Fields","name":"fields","description":"Array of field names to include in response.","required":false}
    * @paramDef {"type":"String","label":"Exact Match","name":"exact_match","description":"Whether to perform exact matching in search.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"organization_id","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Organization","name":"organization_id","description":"The organization associated with this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Array","label":"Include Fields","name":"include_fields","description":"Array of additional fields to include.","required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -5256,7 +5316,7 @@ class PipedriveService {
 
   /**
    * @description Marks multiple persons as deleted.
-   * @route DELETE /persons
+   * @route POST /persons
    * @operationName Delete Persons
    * @category Persons
    *
@@ -5278,11 +5338,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific person.
-   * @route GET /persons/:id
+   * @route POST /persons/:id
    * @operationName Get Person
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    * @sampleResult {"id":101,"name":"Jane Smith","first_name":"Jane","last_name":"Smith","owner_id":12345,"org_id":201,"email":[{"value":"jane.smith@example.com","primary":true,"label":"work"}],"phone":[{"value":"+1234567890","primary":true,"label":"work"}],"add_time":"2024-01-15 10:30:00","update_time":"2024-01-20 09:00:00","active_flag":true,"visible_to":"3","open_deals_count":2,"closed_deals_count":1,"activities_count":5}
@@ -5298,19 +5358,19 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a person.
-   * @route PUT /persons/:id
+   * @route POST /persons/:id
    * @operationName Update Person
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
-   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
    * @paramDef {"type":"String","label":"Email","name":"email","description":"Email address.","required":false}
    * @paramDef {"type":"String","label":"Phone","name":"phone","description":"Phone number.","required":false}
-   * @paramDef {"type":"Number","label":"Label","name":"label","description":"Label identifier.","required":false}
+   * @paramDef {"type":"Number","label":"Label","name":"label","description":"Label identifier.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Label Identifiers","name":"label_ids","description":"List of label IDs.","required":false}
-   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":["Owner & followers (private)","Entire company"]}},"required":false}
+   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"1","label":"Owner & followers (private)"},{"value":"3","label":"Entire company"}]}},"required":false}
    * @paramDef {"type":"String","label":"Marketing Status","name":"marketing_status","description":"Marketing status of the person.","required":false}
    * @paramDef {"type":"String","label":"Created At","name":"add_time","description":"The creation date and time of the record (UTC).","required":false}
    *
@@ -5345,11 +5405,11 @@ class PipedriveService {
 
   /**
    * @description Marks a person as deleted.
-   * @route DELETE /persons/:id
+   * @route POST /persons/:id
    * @operationName Delete Person
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -5364,12 +5424,12 @@ class PipedriveService {
 
   /**
    * @description Returns all activities associated with a person.
-   * @route GET /persons/:id/activities
+   * @route POST /persons/:id/activities
    * @operationName List Person Activities
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"Boolean","label":"Mark as Done","name":"done","description":"Whether the activity is completed.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"Array","label":"Exclude","name":"exclude","description":"Items to exclude from results.","required":false}
@@ -5398,11 +5458,11 @@ class PipedriveService {
 
   /**
    * @description Returns updates about person field values.
-   * @route GET /persons/:id/changelog
+   * @route POST /persons/:id/changelog
    * @operationName List Person Updates
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for retrieving next page of results.","required":false}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
@@ -5425,14 +5485,14 @@ class PipedriveService {
 
   /**
    * @description Returns all deals associated with a person.
-   * @route GET /persons/:id/deals
+   * @route POST /persons/:id/deals
    * @operationName List Person Deals
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
-   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter deals by status.","uiComponent":{"type":"DROPDOWN","options":{"values":["open","won","lost","deleted","all_not_deleted"]}},"required":false}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter deals by status.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open"},{"value":"won","label":"Won"},{"value":"lost","label":"Lost"},{"value":"deleted","label":"Deleted"},{"value":"all_not_deleted","label":"All Not Deleted"}]}},"required":false}
    * @paramDef {"type":"String","label":"Sort By","name":"sort","description":"Field to sort by (e.g., \"id DESC\").","required":false}
    *
    * @returns {Object}
@@ -5459,12 +5519,12 @@ class PipedriveService {
 
   /**
    * @description Returns all files attached to a person.
-   * @route GET /persons/:id/files
+   * @route POST /persons/:id/files
    * @operationName List Person Files
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"String","label":"Sort By","name":"sort","description":"Field to sort by (e.g., \"id DESC\").","required":false}
    *
@@ -5487,14 +5547,14 @@ class PipedriveService {
 
   /**
    * @description Returns updates about a person.
-   * @route GET /persons/:id/flow
+   * @route POST /persons/:id/flow
    * @operationName List Person Flow
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
-   * @paramDef {"type":"Number","label":"All Changes","name":"all_changes","description":"Include all changes since specified date.","uiComponent":{"type":"DATE_PICKER"},"required":false}
+   * @paramDef {"type":"String","label":"All Changes","name":"all_changes","description":"Include all changes since specified date.","uiComponent":{"type":"DATE_PICKER"},"required":false}
    * @paramDef {"type":"Array","label":"Items","name":"items","description":"Array of items.","required":false}
    *
    * @returns {Object}
@@ -5521,11 +5581,11 @@ class PipedriveService {
 
   /**
    * @description Returns all followers of a person.
-   * @route GET /persons/:id/followers
+   * @route POST /persons/:id/followers
    * @operationName List Person Followers
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -5544,8 +5604,8 @@ class PipedriveService {
    * @operationName Add Person Follower
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
    *
    * @returns {Object}
    */
@@ -5563,12 +5623,12 @@ class PipedriveService {
 
   /**
    * @description Removes a follower from a person.
-   * @route DELETE /persons/:id/followers/:follower_id
+   * @route POST /persons/:id/followers/:follower_id
    * @operationName Delete Person Follower
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Follower","name":"follower_id","description":"Identifier of the follower user.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Follower","name":"follower_id","description":"Identifier of the follower user.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -5583,12 +5643,12 @@ class PipedriveService {
 
   /**
    * @description Returns all mail messages associated with a person.
-   * @route GET /persons/:id/mailMessages
+   * @route POST /persons/:id/mailMessages
    * @operationName List Person Mail Messages
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -5610,12 +5670,12 @@ class PipedriveService {
 
   /**
    * @description Merges a person with another person.
-   * @route PUT /persons/:id/merge
+   * @route POST /persons/:id/merge
    * @operationName Merge Persons
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Merge With","name":"merge_with_id","description":"Identifier of the organization to merge with.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Merge With","name":"merge_with_id","description":"Identifier of the organization to merge with.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -5633,11 +5693,11 @@ class PipedriveService {
 
   /**
    * @description Returns users permitted to access a person.
-   * @route GET /persons/:id/permittedUsers
+   * @route POST /persons/:id/permittedUsers
    * @operationName List Person Permitted Users
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -5652,11 +5712,11 @@ class PipedriveService {
 
   /**
    * @description Deletes a person's picture.
-   * @route DELETE /persons/:id/picture
+   * @route POST /persons/:id/picture
    * @operationName Delete Person Picture
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -5675,12 +5735,12 @@ class PipedriveService {
    * @operationName Upload Person Picture
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"File","name":"file","description":"The file to upload.","required":true}
-   * @paramDef {"type":"Number","label":"Crop X","name":"crop_x","description":"X coordinate of the crop.","required":false}
-   * @paramDef {"type":"Number","label":"Crop Y","name":"crop_y","description":"Y coordinate of the crop.","required":false}
-   * @paramDef {"type":"Number","label":"Crop Width","name":"crop_width","description":"Width of the crop.","required":false}
-   * @paramDef {"type":"Number","label":"Crop Height","name":"crop_height","description":"Height of the crop.","required":false}
+   * @paramDef {"type":"Number","label":"Crop X","name":"crop_x","description":"X coordinate of the crop.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Crop Y","name":"crop_y","description":"Y coordinate of the crop.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Crop Width","name":"crop_width","description":"Width of the crop.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Crop Height","name":"crop_height","description":"Height of the crop.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -5707,12 +5767,12 @@ class PipedriveService {
 
   /**
    * @description Returns all products associated with a person.
-   * @route GET /persons/:id/products
+   * @route POST /persons/:id/products
    * @operationName List Person Products
    * @category Persons
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -5738,7 +5798,7 @@ class PipedriveService {
 
   /**
    * @description Returns all pipelines.
-   * @route GET /pipelines
+   * @route POST /pipelines
    * @operationName List Pipelines
    * @category Pipelines
    *
@@ -5761,7 +5821,7 @@ class PipedriveService {
    *
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
    * @paramDef {"type":"Boolean","label":"Deal Probability","name":"deal_probability","description":"Deal probability.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"Number","label":"Order Number","name":"order_nr","description":"Order number.","required":false}
+   * @paramDef {"type":"Number","label":"Order Number","name":"order_nr","description":"Order number.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Boolean","label":"Active","name":"active","description":"Whether the pipeline is active.","uiComponent":{"type":"TOGGLE"},"required":false}
    *
    * @returns {Object}
@@ -5788,11 +5848,11 @@ class PipedriveService {
 
   /**
    * @description Marks a pipeline as deleted.
-   * @route DELETE /pipelines/:id
+   * @route POST /pipelines/:id
    * @operationName Delete Pipeline
    * @category Pipelines
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -5807,11 +5867,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific pipeline.
-   * @route GET /pipelines/:id
+   * @route POST /pipelines/:id
    * @operationName Get Pipeline
    * @category Pipelines
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -5826,14 +5886,14 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a pipeline.
-   * @route PUT /pipelines/:id
+   * @route POST /pipelines/:id
    * @operationName Update Pipeline
    * @category Pipelines
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
    * @paramDef {"type":"Boolean","label":"Deal Probability","name":"deal_probability","description":"Deal probability.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"Number","label":"Order Number","name":"order_nr","description":"Order number.","required":false}
+   * @paramDef {"type":"Number","label":"Order Number","name":"order_nr","description":"Order number.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Boolean","label":"Active","name":"active","description":"Whether the pipeline is active.","uiComponent":{"type":"TOGGLE"},"required":false}
    *
    * @returns {Object}
@@ -5860,14 +5920,14 @@ class PipedriveService {
 
   /**
    * @description Returns conversion rates for a pipeline.
-   * @route GET /pipelines/:id/conversion_statistics
+   * @route POST /pipelines/:id/conversion_statistics
    * @operationName Get Pipeline Conversion Rates
    * @category Pipelines
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
-   * @paramDef {"type":"Number","label":"End Date and Time","name":"endDateTime","description":"End date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
+   * @paramDef {"type":"String","label":"End Date and Time","name":"endDateTime","description":"End date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
    *
    * @returns {Object}
    */
@@ -5892,16 +5952,16 @@ class PipedriveService {
 
   /**
    * @description Returns deals in a pipeline.
-   * @route GET /pipelines/:id/deals
+   * @route POST /pipelines/:id/deals
    * @operationName Get Pipeline Deals
    * @category Pipelines
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
    * @paramDef {"type":"Boolean","label":"Everyone","name":"everyone","description":"Show deals for everyone.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"Number","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"String","label":"Stage","name":"stage_id","dictionary":"getStagesDictionary","description":"The stage associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"Boolean","label":"Get Summary","name":"get_summary","description":"Get summary.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"String","label":"Totals Convert Currency","name":"totals_convert_currency","description":"Currency to convert totals to.","required":false}
@@ -5934,14 +5994,14 @@ class PipedriveService {
 
   /**
    * @description Returns movement statistics for a pipeline.
-   * @route GET /pipelines/:id/movement_statistics
+   * @route POST /pipelines/:id/movement_statistics
    * @operationName Get Pipeline Movement Statistics
    * @category Pipelines
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
-   * @paramDef {"type":"Number","label":"End Date and Time","name":"endDateTime","description":"End date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
+   * @paramDef {"type":"String","label":"End Date and Time","name":"endDateTime","description":"End date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
    *
    * @returns {Object}
    */
@@ -5970,11 +6030,11 @@ class PipedriveService {
 
   /**
    * @description Returns all product fields.
-   * @route GET /productFields
+   * @route POST /productFields
    * @operationName List Product Fields
    * @category ProductFields
    *
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -6027,7 +6087,7 @@ class PipedriveService {
 
   /**
    * @description Marks multiple product fields as deleted.
-   * @route DELETE /productFields
+   * @route POST /productFields
    * @operationName Delete Product Fields
    * @category ProductFields
    *
@@ -6049,11 +6109,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific product field.
-   * @route GET /productFields/:id
+   * @route POST /productFields/:id
    * @operationName Get Product Field
    * @category ProductFields
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6068,11 +6128,11 @@ class PipedriveService {
 
   /**
    * @description Marks a product field as deleted.
-   * @route DELETE /productFields/:id
+   * @route POST /productFields/:id
    * @operationName Delete Product Field
    * @category ProductFields
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6087,11 +6147,11 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a product field.
-   * @route PUT /productFields/:id
+   * @route POST /productFields/:id
    * @operationName Update Product Field
    * @category ProductFields
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
    * @paramDef {"type":"String","label":"Options","name":"options","description":"Options for the field (JSON array).","required":false}
    *
@@ -6121,16 +6181,16 @@ class PipedriveService {
 
   /**
    * @description Returns all products.
-   * @route GET /products
+   * @route POST /products
    * @operationName List Products
    * @category Products
    *
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
-   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
+   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Identifiers","name":"ids","description":"Comma-separated list of IDs.","required":false}
    * @paramDef {"type":"String","label":"First Character","name":"first_char","description":"First character of the name.","required":false}
    * @paramDef {"type":"Boolean","label":"Get Summary","name":"get_summary","description":"Get summary.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -6168,14 +6228,14 @@ class PipedriveService {
    * @paramDef {"type":"String","label":"Auth Code","name":"code","description":"OAuth authorization code.","required":false}
    * @paramDef {"type":"String","label":"Description","name":"description","description":"Description of the record.","uiComponent":{"type":"MULTI_LINE_TEXT"},"required":false}
    * @paramDef {"type":"String","label":"Unit","name":"unit","description":"Unit of the product.","required":false}
-   * @paramDef {"type":"Number","label":"Tax","name":"tax","description":"Tax percentage.","required":false}
+   * @paramDef {"type":"Number","label":"Tax","name":"tax","description":"Tax percentage.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Boolean","label":"Active","name":"active_flag","description":"Whether the record is active.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"Boolean","label":"Selectable","name":"selectable","description":"Whether the product is selectable.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":["Owner & followers (private)","Entire company"]}},"required":false}
-   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false}
+   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"1","label":"Owner & followers (private)"},{"value":"3","label":"Entire company"}]}},"required":false}
+   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Prices","name":"prices","description":"Product prices (JSON array).","required":false}
    * @paramDef {"type":"String","label":"Billing Frequency","name":"billing_frequency","description":"Billing frequency.","required":false}
-   * @paramDef {"type":"Number","label":"Billing Frequency Cycles","name":"billing_frequency_cycles","description":"Number of billing frequency cycles.","required":false}
+   * @paramDef {"type":"Number","label":"Billing Frequency Cycles","name":"billing_frequency_cycles","description":"Number of billing frequency cycles.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6209,7 +6269,7 @@ class PipedriveService {
 
   /**
    * @description Searches all products.
-   * @route GET /products/search
+   * @route POST /products/search
    * @operationName Search Products
    * @category Products
    *
@@ -6217,7 +6277,7 @@ class PipedriveService {
    * @paramDef {"type":"Array","label":"Fields","name":"fields","description":"Array of field names to include in response.","required":false}
    * @paramDef {"type":"String","label":"Exact Match","name":"exact_match","description":"Whether to perform exact matching in search.","required":false}
    * @paramDef {"type":"Array","label":"Include Fields","name":"include_fields","description":"Array of additional fields to include.","required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -6246,11 +6306,11 @@ class PipedriveService {
 
   /**
    * @description Marks a product as deleted.
-   * @route DELETE /products/:id
+   * @route POST /products/:id
    * @operationName Delete Product
    * @category Products
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6265,11 +6325,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific product.
-   * @route GET /products/:id
+   * @route POST /products/:id
    * @operationName Get Product
    * @category Products
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6284,23 +6344,23 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a product.
-   * @route PUT /products/:id
+   * @route POST /products/:id
    * @operationName Update Product
    * @category Products
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
    * @paramDef {"type":"String","label":"Auth Code","name":"code","description":"OAuth authorization code.","required":false}
    * @paramDef {"type":"String","label":"Description","name":"description","description":"Description of the record.","uiComponent":{"type":"MULTI_LINE_TEXT"},"required":false}
    * @paramDef {"type":"String","label":"Unit","name":"unit","description":"Unit of the product.","required":false}
-   * @paramDef {"type":"Number","label":"Tax","name":"tax","description":"Tax percentage.","required":false}
+   * @paramDef {"type":"Number","label":"Tax","name":"tax","description":"Tax percentage.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Boolean","label":"Active","name":"active_flag","description":"Whether the record is active.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"Boolean","label":"Selectable","name":"selectable","description":"Whether the product is selectable.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":["Owner & followers (private)","Entire company"]}},"required":false}
-   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false}
+   * @paramDef {"type":"String","label":"Visible To","name":"visible_to","description":"Visibility of the record.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"1","label":"Owner & followers (private)"},{"value":"3","label":"Entire company"}]}},"required":false}
+   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Prices","name":"prices","description":"Product prices (JSON array).","required":false}
    * @paramDef {"type":"String","label":"Billing Frequency","name":"billing_frequency","description":"Billing frequency.","required":false}
-   * @paramDef {"type":"Number","label":"Billing Frequency Cycles","name":"billing_frequency_cycles","description":"Number of billing frequency cycles.","required":false}
+   * @paramDef {"type":"Number","label":"Billing Frequency Cycles","name":"billing_frequency_cycles","description":"Number of billing frequency cycles.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6334,14 +6394,14 @@ class PipedriveService {
 
   /**
    * @description Returns all deals where product is attached.
-   * @route GET /products/:id/deals
+   * @route POST /products/:id/deals
    * @operationName List Product Deals
    * @category Products
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
-   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter deals by status.","uiComponent":{"type":"DROPDOWN","options":{"values":["open","won","lost","deleted","all_not_deleted"]}},"required":false}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter deals by status.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open"},{"value":"won","label":"Won"},{"value":"lost","label":"Lost"},{"value":"deleted","label":"Deleted"},{"value":"all_not_deleted","label":"All Not Deleted"}]}},"required":false}
    *
    * @returns {Object}
    */
@@ -6362,12 +6422,12 @@ class PipedriveService {
 
   /**
    * @description Returns all files attached to a product.
-   * @route GET /products/:id/files
+   * @route POST /products/:id/files
    * @operationName List Product Files
    * @category Products
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    * @paramDef {"type":"String","label":"Sort By","name":"sort","description":"Field to sort by (e.g., \"id DESC\").","required":false}
    *
@@ -6390,12 +6450,12 @@ class PipedriveService {
 
   /**
    * @description Returns all followers of a product.
-   * @route GET /products/:id/followers
+   * @route POST /products/:id/followers
    * @operationName List Product Followers
    * @category Products
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -6421,8 +6481,8 @@ class PipedriveService {
    * @operationName Add Product Follower
    * @category Products
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":true}
    *
    * @returns {Object}
    */
@@ -6440,12 +6500,12 @@ class PipedriveService {
 
   /**
    * @description Removes a follower from a product.
-   * @route DELETE /products/:id/followers/:follower_id
+   * @route POST /products/:id/followers/:follower_id
    * @operationName Delete Product Follower
    * @category Products
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Follower","name":"follower_id","description":"Identifier of the follower user.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Follower","name":"follower_id","description":"Identifier of the follower user.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6460,11 +6520,11 @@ class PipedriveService {
 
   /**
    * @description Returns users permitted to access a product.
-   * @route GET /products/:id/permittedUsers
+   * @route POST /products/:id/permittedUsers
    * @operationName List Product Permitted Users
    * @category Products
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6483,15 +6543,15 @@ class PipedriveService {
 
   /**
    * @description Returns all projects.
-   * @route GET /projects
+   * @route POST /projects
    * @operationName List projects
    * @category Projects
    *
    * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for retrieving next page of results.","required":false}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
-   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false}
-   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter projects by status.","uiComponent":{"type":"DROPDOWN","options":{"values":["open","completed","canceled","deleted"]}},"required":false}
-   * @paramDef {"type":"Number","label":"Phase","name":"phase_id","description":"Identifier of the project phase.","required":false}
+   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"Filter projects by status.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open"},{"value":"completed","label":"Completed"},{"value":"canceled","label":"Canceled"},{"value":"deleted","label":"Deleted"}]}},"required":false}
+   * @paramDef {"type":"Number","label":"Phase","name":"phase_id","description":"Identifier of the project phase.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Include Archived","name":"include_archived","description":"Whether to include archived items in results.","required":false}
    *
    * @returns {Object}
@@ -6518,18 +6578,18 @@ class PipedriveService {
    * @category Projects
    *
    * @paramDef {"type":"String","label":"Title","name":"title","description":"The title of the record.","required":false}
-   * @paramDef {"type":"Number","label":"Board","name":"board_id","description":"Identifier of the project board.","required":false}
-   * @paramDef {"type":"Number","label":"Phase","name":"phase_id","description":"Identifier of the project phase.","required":false}
+   * @paramDef {"type":"Number","label":"Board","name":"board_id","description":"Identifier of the project board.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Phase","name":"phase_id","description":"Identifier of the project phase.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Description","name":"description","description":"Description of the record.","uiComponent":{"type":"MULTI_LINE_TEXT"},"required":false}
-   * @paramDef {"type":"String","label":"Status","name":"status","description":"The status of the project.","uiComponent":{"type":"DROPDOWN","options":{"values":["open","completed","canceled","deleted"]}},"defaultValue":"open","required":false}
-   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false}
-   * @paramDef {"type":"Number","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
-   * @paramDef {"type":"Number","label":"End Date and Time","name":"endDateTime","description":"End date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
-   * @paramDef {"type":"Number","label":"Deal IDs","name":"deal_ids","description":"Deal IDs (comma-separated).","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"The status of the project.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open"},{"value":"completed","label":"Completed"},{"value":"canceled","label":"Canceled"},{"value":"deleted","label":"Deleted"}]}},"defaultValue":"open","required":false}
+   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
+   * @paramDef {"type":"String","label":"End Date and Time","name":"endDateTime","description":"End date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
+   * @paramDef {"type":"Number","label":"Deal IDs","name":"deal_ids","description":"Deal IDs (comma-separated).","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
    * @paramDef {"type":"String","label":"Labels","name":"labels","description":"Labels or tags for categorization.","required":false}
-   * @paramDef {"type":"Number","label":"Template","name":"template_id","description":"Identifier of the template.","required":false}
+   * @paramDef {"type":"Number","label":"Template","name":"template_id","description":"Identifier of the template.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6550,11 +6610,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific project.
-   * @route GET /projects/:id
+   * @route POST /projects/:id
    * @operationName Get details of project
    * @category Projects
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6570,22 +6630,22 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a project.
-   * @route PUT /projects/:id
+   * @route POST /projects/:id
    * @operationName Update project
    * @category Projects
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Title","name":"title","description":"The title of the record.","required":false}
-   * @paramDef {"type":"Number","label":"Board","name":"board_id","description":"Identifier of the project board.","required":false}
-   * @paramDef {"type":"Number","label":"Phase","name":"phase_id","description":"Identifier of the project phase.","required":false}
+   * @paramDef {"type":"Number","label":"Board","name":"board_id","description":"Identifier of the project board.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Phase","name":"phase_id","description":"Identifier of the project phase.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Description","name":"description","description":"Description of the record.","uiComponent":{"type":"MULTI_LINE_TEXT"},"required":false}
-   * @paramDef {"type":"String","label":"Status","name":"status","description":"The status of the project.","uiComponent":{"type":"DROPDOWN","options":{"values":["open","completed","canceled","deleted"]}},"required":false}
-   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false}
-   * @paramDef {"type":"Number","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
-   * @paramDef {"type":"Number","label":"End Date and Time","name":"endDateTime","description":"End date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
-   * @paramDef {"type":"Number","label":"Deal IDs","name":"deal_ids","description":"Deal IDs (comma-separated).","required":false}
-   * @paramDef {"type":"Number","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"The status of the project.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"open","label":"Open"},{"value":"completed","label":"Completed"},{"value":"canceled","label":"Canceled"},{"value":"deleted","label":"Deleted"}]}},"required":false}
+   * @paramDef {"type":"Number","label":"Owner","name":"owner_id","description":"The user who owns this record.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Start Date and Time","name":"startDateTime","description":"Start date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
+   * @paramDef {"type":"String","label":"End Date and Time","name":"endDateTime","description":"End date and time for filtering results. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
+   * @paramDef {"type":"Number","label":"Deal IDs","name":"deal_ids","description":"Deal IDs (comma-separated).","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"Organization","name":"org_id","dictionary":"getOrganizationsDictionary","description":"The organization associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Person","name":"person_id","dictionary":"getPersonsDictionary","description":"The person associated with this record.","required":false}
    * @paramDef {"type":"String","label":"Labels","name":"labels","description":"Labels or tags for categorization.","required":false}
    *
    * @returns {Object}
@@ -6607,11 +6667,11 @@ class PipedriveService {
 
   /**
    * @description Marks a project as deleted.
-   * @route DELETE /projects/:id
+   * @route POST /projects/:id
    * @operationName Delete project
    * @category Projects
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6631,7 +6691,7 @@ class PipedriveService {
    * @operationName Archive project
    * @category Projects
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6647,11 +6707,11 @@ class PipedriveService {
 
   /**
    * @description Returns information about items in a project plan. Items consists of tasks and activities and are li...
-   * @route GET /projects/:id/plan
+   * @route POST /projects/:id/plan
    * @operationName Returns project plan
    * @category Projects
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6667,14 +6727,14 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a project.
-   * @route PUT /projects/:id/plan/activities/:activityId
+   * @route POST /projects/:id/plan/activities/:activityId
    * @operationName Update activity in project plan
    * @category Projects
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Activity","name":"activity_id","description":"The activity associated with this record.","required":true}
-   * @paramDef {"type":"Number","label":"Phase","name":"phase_id","description":"Identifier of the project phase.","required":false}
-   * @paramDef {"type":"Number","label":"Group","name":"group_id","description":"Identifier of the group.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Activity","name":"activity_id","description":"The activity associated with this record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Phase","name":"phase_id","description":"Identifier of the project phase.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Group","name":"group_id","description":"Identifier of the group.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6695,14 +6755,14 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a project.
-   * @route PUT /projects/:id/plan/tasks/:taskId
+   * @route POST /projects/:id/plan/tasks/:taskId
    * @operationName Update task in project plan
    * @category Projects
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Task","name":"task_id","description":"Identifier of the task.","required":true}
-   * @paramDef {"type":"Number","label":"Phase","name":"phase_id","description":"Identifier of the project phase.","required":false}
-   * @paramDef {"type":"Number","label":"Group","name":"group_id","description":"Identifier of the group.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Task","name":"task_id","description":"Identifier of the task.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Phase","name":"phase_id","description":"Identifier of the project phase.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Group","name":"group_id","description":"Identifier of the group.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6723,11 +6783,11 @@ class PipedriveService {
 
   /**
    * @description Returns all active groups under a specific project.
-   * @route GET /projects/:id/groups
+   * @route POST /projects/:id/groups
    * @operationName Returns project groups
    * @category Projects
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6743,11 +6803,11 @@ class PipedriveService {
 
   /**
    * @description Returns tasks linked to a specific project.
-   * @route GET /projects/:id/tasks
+   * @route POST /projects/:id/tasks
    * @operationName Returns project tasks
    * @category Projects
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6763,11 +6823,11 @@ class PipedriveService {
 
   /**
    * @description Returns activities linked to a specific project.
-   * @route GET /projects/:id/activities
+   * @route POST /projects/:id/activities
    * @operationName Returns project activities
    * @category Projects
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6783,7 +6843,7 @@ class PipedriveService {
 
   /**
    * @description Returns all projects.
-   * @route GET /projects/boards
+   * @route POST /projects/boards
    * @operationName List project boards
    * @category Projects
    *
@@ -6801,11 +6861,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific project.
-   * @route GET /projects/phases
+   * @route POST /projects/phases
    * @operationName Get project phases
    * @category Projects
    *
-   * @paramDef {"type":"Number","label":"Board","name":"board_id","description":"Identifier of the project board.","required":false}
+   * @paramDef {"type":"Number","label":"Board","name":"board_id","description":"Identifier of the project board.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6830,7 +6890,7 @@ class PipedriveService {
 
   /**
    * @description Returns all project templates.
-   * @route GET /projectTemplates
+   * @route POST /projectTemplates
    * @operationName List Project Templates
    * @category ProjectTemplates
    *
@@ -6856,11 +6916,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific project template.
-   * @route GET /projectTemplates/:id
+   * @route POST /projectTemplates/:id
    * @operationName Get Project Template
    * @category ProjectTemplates
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6875,11 +6935,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific project board.
-   * @route GET /projects/boards/:id
+   * @route POST /projects/boards/:id
    * @operationName Get Project Board
    * @category ProjectTemplates
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6894,11 +6954,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific project phase.
-   * @route GET /projects/phases/:id
+   * @route POST /projects/phases/:id
    * @operationName Get Project Phase
    * @category ProjectTemplates
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -6917,13 +6977,13 @@ class PipedriveService {
 
   /**
    * @description Returns recently viewed items.
-   * @route GET /recents
+   * @route POST /recents
    * @operationName Get Recents
    * @category Recents
    *
    * @paramDef {"type":"String","label":"Since Timestamp","name":"since_timestamp","description":"Search for items modified since this timestamp.","required":false}
    * @paramDef {"type":"Array","label":"Items","name":"items","description":"Array of items.","required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -6954,11 +7014,11 @@ class PipedriveService {
 
   /**
    * @description Returns all roles.
-   * @route GET /roles
+   * @route POST /roles
    * @operationName List roles
    * @category Roles
    *
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -6985,7 +7045,7 @@ class PipedriveService {
    * @category Roles
    *
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
-   * @paramDef {"type":"Number","label":"Parent Role","name":"parent_role_id","description":"Identifier of the parent role.","required":false}
+   * @paramDef {"type":"Number","label":"Parent Role","name":"parent_role_id","description":"Identifier of the parent role.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7006,11 +7066,11 @@ class PipedriveService {
 
   /**
    * @description Marks a role as deleted.
-   * @route DELETE /roles/:id
+   * @route POST /roles/:id
    * @operationName Delete role
    * @category Roles
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7026,11 +7086,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific role.
-   * @route GET /roles/:id
+   * @route POST /roles/:id
    * @operationName Get one role
    * @category Roles
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7046,12 +7106,12 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a role.
-   * @route PUT /roles/:id
+   * @route POST /roles/:id
    * @operationName Update role details
    * @category Roles
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Parent Role","name":"parent_role_id","description":"Identifier of the parent role.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Parent Role","name":"parent_role_id","description":"Identifier of the parent role.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
    *
    * @returns {Object}
@@ -7073,12 +7133,12 @@ class PipedriveService {
 
   /**
    * @description Marks a role as deleted.
-   * @route DELETE /roles/:id/assignments
+   * @route POST /roles/:id/assignments
    * @operationName Delete role assignment
    * @category Roles
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
    *
    * @returns {Object}
    */
@@ -7099,12 +7159,12 @@ class PipedriveService {
 
   /**
    * @description Returns all roles.
-   * @route GET /roles/:id/assignments
+   * @route POST /roles/:id/assignments
    * @operationName List role assignments
    * @category Roles
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -7130,8 +7190,8 @@ class PipedriveService {
    * @operationName Create role assignment
    * @category Roles
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
    *
    * @returns {Object}
    */
@@ -7152,11 +7212,11 @@ class PipedriveService {
 
   /**
    * @description Returns all roles.
-   * @route GET /roles/:id/settings
+   * @route POST /roles/:id/settings
    * @operationName List role settings
    * @category Roles
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7176,7 +7236,7 @@ class PipedriveService {
    * @operationName Create or update role setting
    * @category Roles
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Setting Key","name":"setting_key","description":"Key name for the setting.","required":false}
    * @paramDef {"type":"String","label":"Value","name":"value","description":"The monetary value of the deal.","required":false}
    *
@@ -7199,12 +7259,12 @@ class PipedriveService {
 
   /**
    * @description Returns all roles.
-   * @route GET /roles/:id/pipelines
+   * @route POST /roles/:id/pipelines
    * @operationName List pipeline visibility for role
    * @category Roles
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Visible","name":"visible","description":"Visibility filter for pipelines (0-3).","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Visible","name":"visible","description":"Visibility filter for pipelines (0-3).","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7225,11 +7285,11 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a role.
-   * @route PUT /roles/:id/pipelines
+   * @route POST /roles/:id/pipelines
    * @operationName Update pipeline visibility for role
    * @category Roles
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Array","label":"Visible Pipeline IDs","name":"visible_pipeline_ids","description":"IDs of pipelines visible to the user.","required":false}
    *
    * @returns {Object}
@@ -7255,12 +7315,12 @@ class PipedriveService {
 
   /**
    * @description Returns all stages.
-   * @route GET /stages
+   * @route POST /stages
    * @operationName List Stages
    * @category Stages
    *
-   * @paramDef {"type":"Number","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"String","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -7291,10 +7351,10 @@ class PipedriveService {
    * @category Stages
    *
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
-   * @paramDef {"type":"Number","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
    * @paramDef {"type":"Boolean","label":"Deal Probability","name":"deal_probability","description":"Deal probability.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"Boolean","label":"Rotten Flag","name":"rotten_flag","description":"Whether deals in this stage can become rotten.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"Number","label":"Rotten Days","name":"rotten_days","description":"Number of days before a deal becomes rotten.","required":false}
+   * @paramDef {"type":"Number","label":"Rotten Days","name":"rotten_days","description":"Number of days before a deal becomes rotten.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7321,7 +7381,7 @@ class PipedriveService {
 
   /**
    * @description Marks multiple stages as deleted.
-   * @route DELETE /stages
+   * @route POST /stages
    * @operationName Delete Stages
    * @category Stages
    *
@@ -7343,11 +7403,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific stage.
-   * @route GET /stages/:id
+   * @route POST /stages/:id
    * @operationName Get Stage
    * @category Stages
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7362,11 +7422,11 @@ class PipedriveService {
 
   /**
    * @description Marks a stage as deleted.
-   * @route DELETE /stages/:id
+   * @route POST /stages/:id
    * @operationName Delete Stage
    * @category Stages
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7381,17 +7441,17 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a stage.
-   * @route PUT /stages/:id
+   * @route POST /stages/:id
    * @operationName Update Stage
    * @category Stages
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
-   * @paramDef {"type":"Number","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
+   * @paramDef {"type":"String","label":"Pipeline","name":"pipeline_id","dictionary":"getPipelinesDictionary","description":"The pipeline associated with this record.","required":false}
    * @paramDef {"type":"Boolean","label":"Deal Probability","name":"deal_probability","description":"Deal probability.","uiComponent":{"type":"TOGGLE"},"required":false}
    * @paramDef {"type":"Boolean","label":"Rotten Flag","name":"rotten_flag","description":"Whether deals in this stage can become rotten.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"Number","label":"Rotten Days","name":"rotten_days","description":"Number of days before a deal becomes rotten.","required":false}
-   * @paramDef {"type":"Number","label":"Order Number","name":"order_nr","description":"Order number.","required":false}
+   * @paramDef {"type":"Number","label":"Rotten Days","name":"rotten_days","description":"Number of days before a deal becomes rotten.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Order Number","name":"order_nr","description":"Order number.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7419,15 +7479,15 @@ class PipedriveService {
 
   /**
    * @description Returns deals in a stage.
-   * @route GET /stages/:id/deals
+   * @route POST /stages/:id/deals
    * @operationName List Stage Deals
    * @category Stages
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Filter","name":"filter_id","description":"Identifier of the filter to apply.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
    * @paramDef {"type":"Boolean","label":"Everyone","name":"everyone","description":"Show deals for everyone.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -7459,15 +7519,15 @@ class PipedriveService {
 
   /**
    * @description Returns all tasks.
-   * @route GET /tasks
+   * @route POST /tasks
    * @operationName List Tasks
    * @category Tasks
    *
    * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for retrieving next page of results.","required":false}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
-   * @paramDef {"type":"Number","label":"Assignee","name":"assignee_id","description":"Identifier of the user assigned to the task.","required":false}
-   * @paramDef {"type":"Number","label":"Project","name":"project_id","description":"Identifier of the project.","required":true}
-   * @paramDef {"type":"Number","label":"Parent Task","name":"parent_task_id","description":"Identifier of the parent task.","required":false}
+   * @paramDef {"type":"Number","label":"Assignee","name":"assignee_id","description":"Identifier of the user assigned to the task.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Project","name":"project_id","description":"Identifier of the project.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Parent Task","name":"parent_task_id","description":"Identifier of the parent task.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Boolean","label":"Mark as Done","name":"done","description":"Whether the activity is completed.","uiComponent":{"type":"TOGGLE"},"required":false}
    *
    * @returns {Object}
@@ -7501,12 +7561,12 @@ class PipedriveService {
    * @category Tasks
    *
    * @paramDef {"type":"String","label":"Title","name":"title","description":"The title of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Project","name":"project_id","description":"Identifier of the project.","required":true}
+   * @paramDef {"type":"Number","label":"Project","name":"project_id","description":"Identifier of the project.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Description","name":"description","description":"Description of the record.","uiComponent":{"type":"MULTI_LINE_TEXT"},"required":false}
-   * @paramDef {"type":"Number","label":"Parent Task","name":"parent_task_id","description":"Identifier of the parent task.","required":false}
-   * @paramDef {"type":"Number","label":"Assignee","name":"assignee_id","description":"Identifier of the user assigned to the task.","required":false}
+   * @paramDef {"type":"Number","label":"Parent Task","name":"parent_task_id","description":"Identifier of the parent task.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Assignee","name":"assignee_id","description":"Identifier of the user assigned to the task.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Boolean","label":"Mark as Done","name":"done","description":"Whether the activity is completed.","uiComponent":{"type":"TOGGLE"},"required":false}
-   * @paramDef {"type":"Number","label":"Due Date and Time","name":"dueDateTime","description":"The date and time when the activity is due. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
+   * @paramDef {"type":"String","label":"Due Date and Time","name":"dueDateTime","description":"The date and time when the activity is due. Will be automatically formatted for Pipedrive.","uiComponent":{"type":"DATE_TIME_PICKER"},"required":false}
    *
    * @returns {Object}
    */
@@ -7535,11 +7595,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific task.
-   * @route GET /tasks/:id
+   * @route POST /tasks/:id
    * @operationName Get Task
    * @category Tasks
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7554,11 +7614,11 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a task.
-   * @route PUT /tasks/:id
+   * @route POST /tasks/:id
    * @operationName Update Task
    * @category Tasks
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7573,11 +7633,11 @@ class PipedriveService {
 
   /**
    * @description Marks a task as deleted.
-   * @route DELETE /tasks/:id
+   * @route POST /tasks/:id
    * @operationName Delete Task
    * @category Tasks
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7596,7 +7656,7 @@ class PipedriveService {
 
   /**
    * @description Returns all user connections.
-   * @route GET /userConnections
+   * @route POST /userConnections
    * @operationName List User Connections
    * @category UserConnections
    *
@@ -7617,7 +7677,7 @@ class PipedriveService {
 
   /**
    * @description Returns all users.
-   * @route GET /users
+   * @route POST /users
    * @operationName List Users
    * @category Users
    *
@@ -7665,7 +7725,7 @@ class PipedriveService {
 
   /**
    * @description Finds users by name or email.
-   * @route GET /users/find
+   * @route POST /users/find
    * @operationName Find Users
    * @category Users
    *
@@ -7694,11 +7754,11 @@ class PipedriveService {
 
   /**
    * @description Returns details of a specific user.
-   * @route GET /users/:id
+   * @route POST /users/:id
    * @operationName Get User
    * @category Users
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7713,11 +7773,11 @@ class PipedriveService {
 
   /**
    * @description Updates the properties of a user.
-   * @route PUT /users/:id
+   * @route POST /users/:id
    * @operationName Update User
    * @category Users
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Boolean","label":"Active","name":"active_flag","description":"Whether the record is active.","uiComponent":{"type":"TOGGLE"},"required":false}
    *
    * @returns {Object}
@@ -7739,11 +7799,11 @@ class PipedriveService {
 
   /**
    * @description Returns all followers of a user.
-   * @route GET /users/:id/followers
+   * @route POST /users/:id/followers
    * @operationName List User Followers
    * @category Users
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7758,11 +7818,11 @@ class PipedriveService {
 
   /**
    * @description Returns all permissions for a user.
-   * @route GET /users/:id/permissions
+   * @route POST /users/:id/permissions
    * @operationName List User Permissions
    * @category Users
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7777,12 +7837,12 @@ class PipedriveService {
 
   /**
    * @description Returns all role assignments for a user.
-   * @route GET /users/:id/roleAssignments
+   * @route POST /users/:id/roleAssignments
    * @operationName List User Role Assignments
    * @category Users
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
-   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"start","description":"Pagination start offset.","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Number of results to return (max 500).","uiComponent":{"type":"NUMERIC_STEPPER","min":0,"max":500,"step":1},"defaultValue":100,"required":false}
    *
    * @returns {Object}
@@ -7804,11 +7864,11 @@ class PipedriveService {
 
   /**
    * @description Returns all role settings for a user.
-   * @route GET /users/:id/roleSettings
+   * @route POST /users/:id/roleSettings
    * @operationName List User Role Settings
    * @category Users
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */
@@ -7827,7 +7887,7 @@ class PipedriveService {
 
   /**
    * @description Returns all settings for the authorized user.
-   * @route GET /userSettings
+   * @route POST /userSettings
    * @operationName List User Settings
    * @category UserSettings
    *
@@ -7848,7 +7908,7 @@ class PipedriveService {
 
   /**
    * @description Returns all webhooks.
-   * @route GET /webhooks
+   * @route POST /webhooks
    * @operationName List Webhooks
    * @category Webhooks
    *
@@ -7873,7 +7933,7 @@ class PipedriveService {
    * @paramDef {"type":"String","label":"Event Action","name":"event_action","description":"Event action (e.g., added, updated, deleted).","required":true}
    * @paramDef {"type":"String","label":"Event Object","name":"event_object","description":"Event object (e.g., deal, person, organization).","required":true}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"The name of the record.","required":false}
-   * @paramDef {"type":"Number","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
+   * @paramDef {"type":"String","label":"User","name":"user_id","dictionary":"getUsersDictionary","description":"The user associated with this record. If omitted, uses the authenticated user.","required":false}
    * @paramDef {"type":"String","label":"HTTP Auth User","name":"http_auth_user","description":"HTTP basic auth username.","required":false}
    * @paramDef {"type":"String","label":"HTTP Auth Password","name":"http_auth_password","description":"HTTP basic auth password.","required":false}
    * @paramDef {"type":"String","label":"Version","name":"version","description":"Webhook version.","required":false}
@@ -7906,11 +7966,11 @@ class PipedriveService {
 
   /**
    * @description Deletes a webhook.
-   * @route DELETE /webhooks/:id
+   * @route POST /webhooks/:id
    * @operationName Delete Webhook
    * @category Webhooks
    *
-   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true}
+   * @paramDef {"type":"Number","label":"Identifier","name":"id","description":"The unique identifier of the record.","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    */

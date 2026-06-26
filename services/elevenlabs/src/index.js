@@ -88,11 +88,11 @@ class ElevenLabsService {
    * @paramDef {"type":"Number","label":"Style","name":"style","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Style exaggeration setting between 0 and 1. Higher values increase expressiveness and emotion in the voice."}
    * @paramDef {"type":"Boolean","label":"Use Speaker Boost","name":"useSpeakerBoost","uiComponent":{"type":"TOGGLE"},"description":"Enable speaker boost for improved voice clarity and quality. Recommended for most use cases."}
    * @paramDef {"type":"String","label":"Language Code","name":"languageCode","description":"ISO language code (e.g., 'en', 'es', 'fr') to optimize pronunciation for multilingual models."}
-   * @paramDef {"type":"String","label":"Output Format","name":"outputFormat","uiComponent":{"type":"DROPDOWN","options":{"values":["mp3_44100_128","mp3_44100_192","pcm_16000","pcm_22050","pcm_24000","pcm_44100","ulaw_8000"]}},"description":"Audio output format. Defaults to 'mp3_44100_128'. PCM formats provide uncompressed audio."}
+   * @paramDef {"type":"String","label":"Output Format","name":"outputFormat","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"mp3_44100_128","label":"MP3 44.1 kHz 128 kbps"},{"value":"mp3_44100_192","label":"MP3 44.1 kHz 192 kbps"},{"value":"pcm_16000","label":"PCM 16 kHz"},{"value":"pcm_22050","label":"PCM 22.05 kHz"},{"value":"pcm_24000","label":"PCM 24 kHz"},{"value":"pcm_44100","label":"PCM 44.1 kHz"},{"value":"ulaw_8000","label":"u-law 8 kHz"}]}},"description":"Audio output format. Defaults to 'mp3_44100_128'. PCM formats provide uncompressed audio."}
    * @paramDef {"type":"FilesUploadOptions","name":"fileOptions","label":"File Settings","required":false,"include":["scope"]}
    *
-   * @returns {String}
-   * @sampleResult "https://files.example.com/elevenlabs/audio_1234567890.mp3"
+   * @returns {Object}
+   * @sampleResult {"audioUrl":"https://files.example.com/elevenlabs/audio_1234567890.mp3"}
    */
   async textToSpeech(text, voiceId, modelId, stability, similarityBoost, style, useSpeakerBoost, languageCode, outputFormat, fileOptions) {
     const requestBody = {
@@ -157,7 +157,7 @@ class ElevenLabsService {
       ...(fileOptions || { scope: 'FLOW' }),
     })
 
-    return result.url
+    return { audioUrl: result.url }
   }
 
   /**
@@ -187,7 +187,7 @@ class ElevenLabsService {
    *
    * @appearanceColor #EF4444 #F87171
    *
-   * @paramDef {"type":"String","label":"Voice ID","name":"voiceId","required":true,"description":"The unique identifier of the voice to delete. Only custom voices can be deleted."}
+   * @paramDef {"type":"String","label":"Voice ID","name":"voiceId","required":true,"dictionary":"getVoicesDictionary","description":"The unique identifier of the voice to delete. Only custom voices can be deleted."}
    *
    * @returns {Object}
    * @sampleResult {"success":true,"voiceId":"21m00Tcm4TlvDq8ikWAM","message":"Voice deleted successfully"}
@@ -293,6 +293,51 @@ class ElevenLabsService {
   }
 
   /**
+   * @typedef {Object} getHistoryDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter history items by their spoken text or voice name. Filtering is performed locally on retrieved results."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination offset for retrieving the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get History Dictionary
+   * @description Provides a searchable list of past generations so a history item can be picked by its text and voice instead of pasting an ID.
+   * @route POST /get-history-dictionary
+   * @paramDef {"type":"getHistoryDictionary__payload","label":"Payload","name":"payload","description":"Contains an optional search string and pagination cursor for retrieving and filtering history items."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Rachel: Hello world","value":"VW7YKqPnjY4h39yTbx2L","note":"Rachel"}],"cursor":null}
+   */
+  async getHistoryDictionary(payload) {
+    const { search } = payload || {}
+
+    const response = await this.#apiRequest({
+      url: 'v1/history',
+      method: 'get',
+      logTag: 'getHistoryDictionary',
+    })
+
+    let history = response.history || []
+
+    if (search?.trim()) {
+      const searchLower = search.toLowerCase()
+
+      history = history.filter(item =>
+        (item.text || '').toLowerCase().includes(searchLower) ||
+        (item.voice_name || '').toLowerCase().includes(searchLower)
+      )
+    }
+
+    return {
+      items: history.map(item => ({
+        label: `${ item.voice_name || 'Unknown voice' }: ${ (item.text || '').slice(0, 60) }`,
+        value: item.history_item_id,
+        note: item.voice_name || '',
+      })),
+      cursor: null,
+    }
+  }
+
+  /**
    * @operationName Speech to Text
    * @category Audio Processing
    * @description Converts audio from a file URL to text transcription using ElevenLabs speech recognition. Supports multiple audio formats including MP3, WAV, and more.
@@ -301,16 +346,16 @@ class ElevenLabsService {
    * @appearanceColor #10B981 #34D399
    *
    * @paramDef {"type":"String","label":"Audio File URL","name":"audioFileUrl","required":true,"description":"The URL of the audio file to transcribe. Must be a publicly accessible URL pointing to an audio file."}
-   * @paramDef {"type":"String","label":"Model","name":"modelId","required":true,"description":"The model to use for speech-to-text transcription.","uiComponent":{"type": "DROPDOWN","options":{"values":["scribe_v1"]}}}
+   * @paramDef {"type":"String","label":"Model","name":"model","required":true,"description":"The model to use for speech-to-text transcription.","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"scribe_v1","label":"Scribe v1"}]}}}
    * @paramDef {"type":"String","label":"Language","name":"language","description":"Language code for the audio (e.g., 'en', 'es', 'fr'). Auto-detected if not specified."}
    *
    * @returns {Object}
    * @sampleResult {"text":"Hello, this is a sample transcription of the audio file.","audio_duration":5.2}
    */
-  async speechToText(audioFileUrl, modelId, language) {
+  async speechToText(audioFileUrl, model, language) {
     const formData = new Flowrunner.Request.FormData()
 
-    formData.append('model_id', modelId || 'scribe_v1')
+    formData.append('model_id', model || 'scribe_v1')
     formData.append('cloud_storage_url', audioFileUrl)
 
     if (language !== undefined && language !== null) {
@@ -341,8 +386,8 @@ class ElevenLabsService {
    * @paramDef {"type":"Number","label":"Prompt Influence","name":"promptInfluence","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"How closely to follow the text prompt, between 0 and 1. Higher values stick closer to the description."}
    * @paramDef {"type":"FilesUploadOptions","name":"fileOptions","label":"File Settings","required":false,"include":["scope"]}
    *
-   * @returns {String}
-   * @sampleResult "https://files.example.com/elevenlabs/sfx_1234567890.mp3"
+   * @returns {Object}
+   * @sampleResult {"audioUrl":"https://files.example.com/elevenlabs/sfx_1234567890.mp3"}
    */
   async textToSoundEffects(text, durationSeconds, promptInfluence, fileOptions) {
     const requestBody = { text }
@@ -365,7 +410,7 @@ class ElevenLabsService {
       ...(fileOptions || { scope: 'FLOW' }),
     })
 
-    return result.url
+    return { audioUrl: result.url }
   }
 
   /**
@@ -400,7 +445,7 @@ class ElevenLabsService {
    * @paramDef {"type":"String","label":"Voice ID","name":"voiceId","required":true,"dictionary":"getVoicesDictionary","description":"The unique identifier of the voice to edit. Only custom voices can be edited."}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"New name for the voice. If not provided, the current name is retained."}
    * @paramDef {"type":"String","label":"Description","name":"description","description":"New description for the voice. If not provided, the current description is retained."}
-   * @paramDef {"type":"Object","label":"Labels","name":"labels","description":"Voice labels as key-value pairs (e.g., {\"accent\":\"american\",\"age\":\"young\"}). If not provided, current labels are retained."}
+   * @paramDef {"type":"Object","label":"Labels","name":"labels","freeform":true,"description":"Voice labels as free-form key-value pairs (e.g., {\"accent\":\"american\",\"age\":\"young\"}); ElevenLabs accepts arbitrary label keys, so there is no fixed sub-form. If not provided, current labels are retained."}
    * @paramDef {"type":"Boolean","label":"Remove Background Noise","name":"removeBackgroundNoise","uiComponent":{"type":"TOGGLE"},"description":"Enable background noise removal for this voice."}
    *
    * @returns {Object}
@@ -445,7 +490,7 @@ class ElevenLabsService {
    * @paramDef {"type":"String","label":"Name","name":"name","required":true,"description":"Name for the new voice clone. This will be used to identify the voice in your account."}
    * @paramDef {"type":"String","label":"Audio File URL","name":"audioFileUrl","required":true,"description":"URL of an audio file containing the voice sample. Must be a publicly accessible URL."}
    * @paramDef {"type":"String","label":"Description","name":"description","description":"Optional description for the voice clone to help identify its characteristics."}
-   * @paramDef {"type":"Object","label":"Labels","name":"labels","description":"Voice labels as key-value pairs (e.g., {\"accent\":\"american\",\"age\":\"young\",\"gender\":\"male\"})."}
+   * @paramDef {"type":"Object","label":"Labels","name":"labels","freeform":true,"description":"Voice labels as free-form key-value pairs (e.g., {\"accent\":\"american\",\"age\":\"young\",\"gender\":\"male\"}); ElevenLabs accepts arbitrary label keys, so there is no fixed sub-form."}
    * @paramDef {"type":"Boolean","label":"Remove Background Noise","name":"removeBackgroundNoise","uiComponent":{"type":"TOGGLE"},"description":"Enable background noise removal from the audio sample for cleaner voice cloning."}
    *
    * @returns {Object}
@@ -491,7 +536,7 @@ class ElevenLabsService {
    * @paramDef {"type":"String","label":"Name","name":"name","required":true,"description":"Name for the new professional voice clone."}
    * @paramDef {"type":"String","label":"Language","name":"language","required":true,"description":"Language code for the voice (e.g., 'en', 'es', 'fr', 'de'). This optimizes the voice for the specified language."}
    * @paramDef {"type":"String","label":"Description","name":"description","description":"Optional description for the voice clone to help identify its characteristics."}
-   * @paramDef {"type":"Object","label":"Labels","name":"labels","description":"Voice labels as key-value pairs (e.g., {\"accent\":\"american\",\"age\":\"middle-aged\",\"gender\":\"female\"})."}
+   * @paramDef {"type":"Object","label":"Labels","name":"labels","freeform":true,"description":"Voice labels as free-form key-value pairs (e.g., {\"accent\":\"american\",\"age\":\"middle-aged\",\"gender\":\"female\"}); ElevenLabs accepts arbitrary label keys, so there is no fixed sub-form."}
    *
    * @returns {Object}
    * @sampleResult {"voice_id":"abc123xyz456"}
@@ -563,17 +608,17 @@ class ElevenLabsService {
    *
    * @paramDef {"type":"String","label":"Voice Description","name":"voiceDescription","required":true,"uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Describe the voice characteristics you want (e.g., 'A deep, authoritative male voice with a British accent', 'A cheerful young female voice')."}
    * @paramDef {"type":"String","label":"Sample Text","name":"text","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Text to use for preview generation. If not provided, text will be auto-generated based on the description."}
-   * @paramDef {"type":"String","label":"Model","name":"modelId","uiComponent":{"type":"DROPDOWN","options":{"values":["eleven_multilingual_ttv_v2","eleven_ttv_v3"]}},"description":"The model to use for voice generation. Defaults to 'eleven_multilingual_ttv_v2'."}
-   * @paramDef {"type":"String","label":"Output Format","name":"outputFormat","uiComponent":{"type":"DROPDOWN","options":{"values":["mp3_44100_128","mp3_44100_192","pcm_16000","pcm_22050","pcm_24000","pcm_44100"]}},"description":"Audio output format for previews."}
+   * @paramDef {"type":"String","label":"Model","name":"model","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"eleven_multilingual_ttv_v2","label":"Eleven Multilingual TTV v2"},{"value":"eleven_ttv_v3","label":"Eleven TTV v3"}]}},"description":"The model to use for voice generation. Defaults to 'eleven_multilingual_ttv_v2'."}
+   * @paramDef {"type":"String","label":"Output Format","name":"outputFormat","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"mp3_44100_128","label":"MP3 44.1 kHz 128 kbps"},{"value":"mp3_44100_192","label":"MP3 44.1 kHz 192 kbps"},{"value":"pcm_16000","label":"PCM 16 kHz"},{"value":"pcm_22050","label":"PCM 22.05 kHz"},{"value":"pcm_24000","label":"PCM 24 kHz"},{"value":"pcm_44100","label":"PCM 44.1 kHz"}]}},"description":"Audio output format for previews."}
    * @paramDef {"type":"FilesUploadOptions","name":"fileOptions","label":"File Settings","required":false,"include":["scope"]}
    *
    * @returns {Object}
    * @sampleResult {"previews":[{"generated_voice_id":"abc123","audio_url":"https://files.example.com/elevenlabs/voice_preview_abc123.mp3","media_type":"audio/mpeg"}],"is_already_pro":false}
    */
-  async designVoice(voiceDescription, text, modelId, outputFormat, fileOptions) {
+  async designVoice(voiceDescription, text, model, outputFormat, fileOptions) {
     const requestBody = {
       voice_description: voiceDescription,
-      model_id: modelId || 'eleven_multilingual_ttv_v2',
+      model_id: model || 'eleven_multilingual_ttv_v2',
     }
 
     if (text !== undefined && text !== null) {
@@ -628,17 +673,17 @@ class ElevenLabsService {
    *
    * @paramDef {"type":"String","label":"Voice Name","name":"voiceName","required":true,"description":"Name for the new voice. This will be used to identify the voice in your account."}
    * @paramDef {"type":"String","label":"Voice Description","name":"voiceDescription","required":true,"description":"Description of the voice characteristics (same as used in Design Voice)."}
-   * @paramDef {"type":"String","label":"Generated Voice ID","name":"generatedVoiceId","required":true,"description":"The generated_voice_id from the preview you want to save (from Design Voice response)."}
-   * @paramDef {"type":"Object","label":"Labels","name":"labels","description":"Voice labels as key-value pairs (e.g., {\"accent\":\"american\",\"age\":\"young\",\"gender\":\"male\"})."}
+   * @paramDef {"type":"String","label":"Generated Voice ID","name":"generatedVoice","required":true,"description":"The generated_voice_id from the preview you want to save (from the Design Voice response). This value comes from the previous step, not a stored list, so it has no picker."}
+   * @paramDef {"type":"Object","label":"Labels","name":"labels","freeform":true,"description":"Voice labels as free-form key-value pairs (e.g., {\"accent\":\"american\",\"age\":\"young\",\"gender\":\"male\"}); ElevenLabs accepts arbitrary label keys, so there is no fixed sub-form."}
    *
    * @returns {Object}
    * @sampleResult {"voice_id":"xyz789","name":"My Generated Voice","category":"generated"}
    */
-  async createVoiceFromGeneration(voiceName, voiceDescription, generatedVoiceId, labels) {
+  async createVoiceFromGeneration(voiceName, voiceDescription, generatedVoice, labels) {
     const requestBody = {
       voice_name: voiceName,
       voice_description: voiceDescription,
-      generated_voice_id: generatedVoiceId,
+      generated_voice_id: generatedVoice,
     }
 
     if (labels !== undefined && labels !== null) {
@@ -700,7 +745,7 @@ class ElevenLabsService {
    * @appearanceColor #8B5CF6 #A78BFA
    *
    * @paramDef {"type":"Number","label":"Page Size","name":"pageSize","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of history items to return per page. Defaults to 100."}
-   * @paramDef {"type":"String","label":"Start After History Item ID","name":"startAfterHistoryItemId","description":"History item ID to start pagination after."}
+   * @paramDef {"type":"String","label":"Start After History Item ID","name":"startAfterHistoryItemId","dictionary":"getHistoryDictionary","description":"History item ID to start pagination after."}
    * @paramDef {"type":"String","label":"Voice ID","name":"voiceId","dictionary":"getVoicesDictionary","description":"Filter history by specific voice."}
    *
    * @returns {Object}
@@ -729,11 +774,11 @@ class ElevenLabsService {
    *
    * @appearanceColor #8B5CF6 #A78BFA
    *
-   * @paramDef {"type":"String","label":"History Item ID","name":"historyItemId","required":true,"description":"The unique identifier of the history item to download audio for."}
+   * @paramDef {"type":"String","label":"History Item ID","name":"historyItemId","required":true,"dictionary":"getHistoryDictionary","description":"The unique identifier of the history item to download audio for."}
    * @paramDef {"type":"FilesUploadOptions","name":"fileOptions","label":"File Settings","required":false,"include":["scope"]}
    *
-   * @returns {String}
-   * @sampleResult "https://files.example.com/elevenlabs/history_VW7YKqPnjY4h39yTbx2L.mp3"
+   * @returns {Object}
+   * @sampleResult {"audioUrl":"https://files.example.com/elevenlabs/history_VW7YKqPnjY4h39yTbx2L.mp3"}
    */
   async getHistoryItemAudio(historyItemId, fileOptions) {
     const audioBuffer = await this.#apiRequest({
@@ -750,7 +795,7 @@ class ElevenLabsService {
       ...(fileOptions || { scope: 'FLOW' }),
     })
 
-    return result.url
+    return { audioUrl: result.url }
   }
 
   /**
@@ -761,7 +806,7 @@ class ElevenLabsService {
    *
    * @appearanceColor #EF4444 #F87171
    *
-   * @paramDef {"type":"String","label":"History Item ID","name":"historyItemId","required":true,"description":"The unique identifier of the history item to delete."}
+   * @paramDef {"type":"String","label":"History Item ID","name":"historyItemId","required":true,"dictionary":"getHistoryDictionary","description":"The unique identifier of the history item to delete."}
    *
    * @returns {Object}
    * @sampleResult {"success":true,"historyItemId":"VW7YKqPnjY4h39yTbx2L"}

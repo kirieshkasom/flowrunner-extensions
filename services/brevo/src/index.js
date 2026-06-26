@@ -88,6 +88,35 @@ class Brevo {
    * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination offset for retrieving the next page of results."}
    */
 
+  /**
+   * @typedef {Object} getDealsDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter deals by name."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination offset for retrieving the next page of results."}
+   */
+
+  /**
+   * @typedef {Object} getCompaniesDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter companies by name."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination offset for retrieving the next page of results."}
+   */
+
+  /**
+   * @typedef {Object} getTaskTypesDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter task types by name."}
+   */
+
+  /**
+   * @typedef {Object} getTasksDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter tasks by name."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination offset for retrieving the next page of results."}
+   */
+
+  /**
+   * @typedef {Object} getNotesDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter notes by text."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination offset for retrieving the next page of results."}
+   */
+
   // ─── Dictionary Methods ────────────────────────────────────────────────
 
   /**
@@ -351,6 +380,225 @@ class Brevo {
     }
   }
 
+  /**
+   * @operationName Get Deals Dictionary
+   * @description Retrieves CRM deals for dynamic selection fields with search and pagination support.
+   * @route POST /get-deals-dictionary
+   *
+   * @registerAs DICTIONARY
+   *
+   * @paramDef {"type":"getDealsDictionary__payload","label":"Payload","name":"payload","description":"Contains optional search string and pagination cursor for filtering deals."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Enterprise License","value":"64a5f3c2e1b9d8a7b6c5d4e3"}],"cursor":null}
+   */
+  async getDealsDictionary(payload) {
+    const { search, cursor } = payload || {}
+    const offset = cursor ? parseInt(cursor, 10) : 0
+
+    try {
+      const response = await this.#apiRequest({
+        url: `${ API_BASE_URL }/crm/deals`,
+        query: { limit: 50, offset },
+        logTag: 'getDealsDictionary',
+      })
+
+      const deals = response.items || []
+
+      let items = deals.map(deal => ({
+        label: deal.attributes?.deal_name || deal.id,
+        value: deal.id,
+      }))
+
+      if (search) {
+        const term = search.toLowerCase()
+        items = items.filter(item => item.label.toLowerCase().includes(term))
+      }
+
+      const nextCursor = deals.length === 50 ? String(offset + 50) : null
+
+      return { items, cursor: nextCursor }
+    } catch (error) {
+      logger.error('[getDealsDictionary] Error:', error.message)
+
+      return { items: [] }
+    }
+  }
+
+  /**
+   * @operationName Get Companies Dictionary
+   * @description Retrieves CRM companies for dynamic selection fields with search and pagination support.
+   * @route POST /get-companies-dictionary
+   *
+   * @registerAs DICTIONARY
+   *
+   * @paramDef {"type":"getCompaniesDictionary__payload","label":"Payload","name":"payload","description":"Contains optional search string and pagination cursor for filtering companies."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Acme Corp","value":"64a5f3c2e1b9d8a7b6c5d4e3"}],"cursor":null}
+   */
+  async getCompaniesDictionary(payload) {
+    const { search, cursor } = payload || {}
+    const offset = cursor ? parseInt(cursor, 10) : 0
+
+    try {
+      const response = await this.#apiRequest({
+        url: `${ API_BASE_URL }/companies`,
+        query: { limit: 50, offset },
+        logTag: 'getCompaniesDictionary',
+      })
+
+      const companies = response.items || []
+
+      let items = companies.map(company => ({
+        label: company.attributes?.name || company.id,
+        value: company.id,
+      }))
+
+      if (search) {
+        const term = search.toLowerCase()
+        items = items.filter(item => item.label.toLowerCase().includes(term))
+      }
+
+      const nextCursor = companies.length === 50 ? String(offset + 50) : null
+
+      return { items, cursor: nextCursor }
+    } catch (error) {
+      logger.error('[getCompaniesDictionary] Error:', error.message)
+
+      return { items: [] }
+    }
+  }
+
+  /**
+   * @operationName Get Task Types Dictionary
+   * @description Retrieves available CRM task types for use when creating tasks.
+   * @route POST /get-task-types-dictionary
+   *
+   * @registerAs DICTIONARY
+   *
+   * @paramDef {"type":"getTaskTypesDictionary__payload","label":"Payload","name":"payload","description":"Contains an optional search string for filtering task types."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Call","value":"61a5ce58c5d4795761045990"}]}
+   */
+  async getTaskTypesDictionary(payload) {
+    const { search } = payload || {}
+
+    try {
+      const response = await this.#apiRequest({
+        url: `${ API_BASE_URL }/crm/tasktypes`,
+        logTag: 'getTaskTypesDictionary',
+      })
+
+      const taskTypes = Array.isArray(response) ? response : []
+
+      let items = taskTypes.map(taskType => ({
+        label: taskType.title || taskType.id,
+        value: taskType.id,
+      }))
+
+      if (search) {
+        const term = search.toLowerCase()
+        items = items.filter(item => item.label.toLowerCase().includes(term))
+      }
+
+      return { items }
+    } catch (error) {
+      logger.error('[getTaskTypesDictionary] Error:', error.message)
+
+      return { items: [] }
+    }
+  }
+
+  /**
+   * @operationName Get Tasks Dictionary
+   * @description Retrieves CRM tasks for dynamic selection fields with search and pagination support.
+   * @route POST /get-tasks-dictionary
+   *
+   * @registerAs DICTIONARY
+   *
+   * @paramDef {"type":"getTasksDictionary__payload","label":"Payload","name":"payload","description":"Contains optional search string and pagination cursor for filtering tasks."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Follow up with client","value":"64a5f3c2e1b9d8a7b6c5d4e3"}],"cursor":null}
+   */
+  async getTasksDictionary(payload) {
+    const { search, cursor } = payload || {}
+    const offset = cursor ? parseInt(cursor, 10) : 0
+
+    try {
+      const response = await this.#apiRequest({
+        url: `${ API_BASE_URL }/crm/tasks`,
+        query: { limit: 50, offset },
+        logTag: 'getTasksDictionary',
+      })
+
+      const tasks = response.items || []
+
+      let items = tasks.map(task => ({
+        label: task.name || task.id,
+        value: task.id,
+      }))
+
+      if (search) {
+        const term = search.toLowerCase()
+        items = items.filter(item => item.label.toLowerCase().includes(term))
+      }
+
+      const nextCursor = tasks.length === 50 ? String(offset + 50) : null
+
+      return { items, cursor: nextCursor }
+    } catch (error) {
+      logger.error('[getTasksDictionary] Error:', error.message)
+
+      return { items: [] }
+    }
+  }
+
+  /**
+   * @operationName Get Notes Dictionary
+   * @description Retrieves CRM notes for dynamic selection fields with search and pagination support.
+   * @route POST /get-notes-dictionary
+   *
+   * @registerAs DICTIONARY
+   *
+   * @paramDef {"type":"getNotesDictionary__payload","label":"Payload","name":"payload","description":"Contains optional search string and pagination cursor for filtering notes."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Client requested a demo session next week.","value":"64a5f3c2e1b9d8a7b6c5d4e3"}],"cursor":null}
+   */
+  async getNotesDictionary(payload) {
+    const { search, cursor } = payload || {}
+    const offset = cursor ? parseInt(cursor, 10) : 0
+
+    try {
+      const response = await this.#apiRequest({
+        url: `${ API_BASE_URL }/crm/notes`,
+        query: { limit: 50, offset },
+        logTag: 'getNotesDictionary',
+      })
+
+      const notes = Array.isArray(response) ? response : response.items || []
+
+      let items = notes.map(note => {
+        const text = note.text || ''
+        const label =
+          text.length > 60 ? `${ text.slice(0, 57) }...` : text || note.id
+
+        return { label, value: note.id }
+      })
+
+      if (search) {
+        const term = search.toLowerCase()
+        items = items.filter(item => item.label.toLowerCase().includes(term))
+      }
+
+      const nextCursor = notes.length === 50 ? String(offset + 50) : null
+
+      return { items, cursor: nextCursor }
+    } catch (error) {
+      logger.error('[getNotesDictionary] Error:', error.message)
+
+      return { items: [] }
+    }
+  }
+
   // ─── Email Sending ─────────────────────────────────────────────────────
 
   /**
@@ -458,7 +706,7 @@ class Brevo {
    * @category Email Sending
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"Number","label":"Template ID","name":"templateId","required":true,"dictionary":"getTemplatesDictionary","description":"The ID of the Brevo email template to use."}
+   * @paramDef {"type":"String","label":"Template ID","name":"templateId","required":true,"dictionary":"getTemplatesDictionary","description":"The ID of the Brevo email template to use."}
    * @paramDef {"type":"String","label":"To Email","name":"toEmail","required":true,"description":"Email address of the recipient."}
    * @paramDef {"type":"String","label":"To Name","name":"toName","description":"Display name of the recipient."}
    * @paramDef {"type":"String","label":"Sender Email","name":"senderEmail","description":"Override the template's default sender email address. Must be a verified sender."}
@@ -539,8 +787,8 @@ class Brevo {
    * @category Email Sending
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of templates to return per page (1-1000). Default: 50."}
-   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first template to return for pagination. Default: 0."}
+   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of templates to return per page (1-1000). Default: 50.","uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first template to return for pagination. Default: 0.","uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    * @sampleResult {"count":2,"templates":[{"id":1,"name":"Welcome Email","subject":"Welcome!","isActive":true,"createdAt":"2025-01-10T08:00:00.000Z","modifiedAt":"2025-01-12T10:30:00.000Z"}]}
@@ -571,9 +819,9 @@ class Brevo {
    * @appearanceColor #0B996E #0FD191
    *
    * @paramDef {"type":"String","label":"Email","name":"email","description":"Filter results by recipient email address."}
-   * @paramDef {"type":"String","label":"Event","name":"event","uiComponent":{"type":"DROPDOWN","options":{"values":["sent","delivered","opened","clicked","bounced","blocked"]}},"description":"Filter results by email event type."}
-   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of records to return per page (1-500). Default: 50."}
-   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first record to return for pagination. Default: 0."}
+   * @paramDef {"type":"String","label":"Event","name":"event","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"sent","label":"Sent"},{"value":"delivered","label":"Delivered"},{"value":"opened","label":"Opened"},{"value":"clicked","label":"Clicked"},{"value":"bounced","label":"Bounced"},{"value":"blocked","label":"Blocked"}]}},"description":"Filter results by email event type."}
+   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of records to return per page (1-500). Default: 50.","uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first record to return for pagination. Default: 0.","uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Start Date","name":"startDate","description":"Start date for filtering results in YYYY-MM-DD format."}
    * @paramDef {"type":"String","label":"End Date","name":"endDate","description":"End date for filtering results in YYYY-MM-DD format."}
    *
@@ -624,7 +872,7 @@ class Brevo {
    *
    * @paramDef {"type":"String","label":"Start Date","name":"startDate","description":"Start date for the statistics period in YYYY-MM-DD format."}
    * @paramDef {"type":"String","label":"End Date","name":"endDate","description":"End date for the statistics period in YYYY-MM-DD format."}
-   * @paramDef {"type":"Number","label":"Days","name":"days","description":"Number of days to retrieve statistics for (overrides start/end date if provided)."}
+   * @paramDef {"type":"Number","label":"Days","name":"days","description":"Number of days to retrieve statistics for (overrides start/end date if provided).","uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Tag","name":"tag","description":"Filter statistics by a specific email tag."}
    *
    * @returns {Object}
@@ -919,8 +1167,8 @@ class Brevo {
    * @category Contacts
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of contacts to return per page (1-1000). Default: 50."}
-   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first contact to return for pagination. Default: 0."}
+   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of contacts to return per page (1-1000). Default: 50.","uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first contact to return for pagination. Default: 0.","uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    * @sampleResult {"contacts":[{"id":123,"email":"john@example.com","emailBlacklisted":false,"smsBlacklisted":false,"attributes":{"FIRSTNAME":"John","LASTNAME":"Doe"},"listIds":[1,5]}],"count":150}
@@ -953,7 +1201,7 @@ class Brevo {
    * @appearanceColor #0B996E #0FD191
    *
    * @paramDef {"type":"String","label":"Name","name":"name","required":true,"description":"Name of the new contact list."}
-   * @paramDef {"type":"Number","label":"Folder ID","name":"folderId","description":"ID of the folder where the list will be created. Default: 1 (root folder)."}
+   * @paramDef {"type":"Number","label":"Folder ID","name":"folderId","description":"ID of the folder where the list will be created. Default: 1 (root folder).","uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    * @sampleResult {"id":123}
@@ -984,8 +1232,8 @@ class Brevo {
    * @category Contact Lists
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of lists to return per page (1-50). Default: 50."}
-   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first list to return for pagination. Default: 0."}
+   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of lists to return per page (1-50). Default: 50.","uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first list to return for pagination. Default: 0.","uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    * @sampleResult {"lists":[{"id":1,"name":"Newsletter Subscribers","totalSubscribers":250,"totalBlacklisted":3,"folderId":1,"createdAt":"2025-01-10T08:00:00.000Z"}],"count":5}
@@ -1015,9 +1263,9 @@ class Brevo {
    * @category Contact Lists
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"Number","label":"List ID","name":"listId","required":true,"dictionary":"getListsDictionary","description":"The ID of the contact list to retrieve contacts from."}
-   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of contacts to return per page (1-500). Default: 50."}
-   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first contact to return for pagination. Default: 0."}
+   * @paramDef {"type":"String","label":"List ID","name":"listId","required":true,"dictionary":"getListsDictionary","description":"The ID of the contact list to retrieve contacts from."}
+   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of contacts to return per page (1-500). Default: 50.","uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first contact to return for pagination. Default: 0.","uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    * @sampleResult {"contacts":[{"id":123,"email":"john@example.com","emailBlacklisted":false,"smsBlacklisted":false,"attributes":{"FIRSTNAME":"John","LASTNAME":"Doe"}}],"count":250}
@@ -1047,7 +1295,7 @@ class Brevo {
    * @category Contact Lists
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"Number","label":"List ID","name":"listId","required":true,"dictionary":"getListsDictionary","description":"The ID of the contact list to add contacts to."}
+   * @paramDef {"type":"String","label":"List ID","name":"listId","required":true,"dictionary":"getListsDictionary","description":"The ID of the contact list to add contacts to."}
    * @paramDef {"type":"String","label":"Emails","name":"emails","required":true,"description":"Comma-separated email addresses to add to the list (e.g. 'john@example.com,jane@example.com')."}
    *
    * @returns {Object}
@@ -1081,7 +1329,7 @@ class Brevo {
    * @category Contact Lists
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"Number","label":"List ID","name":"listId","required":true,"dictionary":"getListsDictionary","description":"The ID of the contact list to remove contacts from."}
+   * @paramDef {"type":"String","label":"List ID","name":"listId","required":true,"dictionary":"getListsDictionary","description":"The ID of the contact list to remove contacts from."}
    * @paramDef {"type":"String","label":"Emails","name":"emails","required":true,"description":"Comma-separated email addresses to remove from the list (e.g. 'john@example.com,jane@example.com')."}
    *
    * @returns {Object}
@@ -1120,7 +1368,7 @@ class Brevo {
    * @paramDef {"type":"String","label":"Sender","name":"sender","required":true,"description":"Name or phone number of the SMS sender. Alphanumeric sender names are limited to 11 characters (e.g. 'MyCompany')."}
    * @paramDef {"type":"String","label":"Recipient","name":"recipient","required":true,"description":"Phone number of the recipient in international format with country code (e.g. '+14155552671')."}
    * @paramDef {"type":"String","label":"Content","name":"content","required":true,"uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"The text content of the SMS message."}
-   * @paramDef {"type":"String","label":"Type","name":"type","uiComponent":{"type":"DROPDOWN","options":{"values":["transactional","marketing"]}},"description":"Type of SMS message. Default: transactional."}
+   * @paramDef {"type":"String","label":"Type","name":"type","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"transactional","label":"Transactional"},{"value":"marketing","label":"Marketing"}]}},"description":"Type of SMS message. Default: transactional."}
    * @paramDef {"type":"String","label":"Tag","name":"tag","description":"Tag to categorize and track the SMS message."}
    *
    * @returns {Object}
@@ -1165,7 +1413,7 @@ class Brevo {
    *
    * @paramDef {"type":"String","label":"Start Date","name":"startDate","description":"Start date for the statistics period in YYYY-MM-DD format."}
    * @paramDef {"type":"String","label":"End Date","name":"endDate","description":"End date for the statistics period in YYYY-MM-DD format."}
-   * @paramDef {"type":"Number","label":"Days","name":"days","description":"Number of days to retrieve statistics for (overrides start/end date if provided)."}
+   * @paramDef {"type":"Number","label":"Days","name":"days","description":"Number of days to retrieve statistics for (overrides start/end date if provided).","uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Tag","name":"tag","description":"Filter statistics by a specific SMS tag."}
    *
    * @returns {Object}
@@ -1248,7 +1496,7 @@ class Brevo {
    * @category CRM - Deals
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"String","label":"Deal ID","name":"dealId","required":true,"description":"The unique identifier of the deal to retrieve."}
+   * @paramDef {"type":"String","label":"Deal ID","name":"dealId","required":true,"dictionary":"getDealsDictionary","description":"The unique identifier of the deal to retrieve."}
    *
    * @returns {Object}
    * @sampleResult {"id":"64a5f3c2e1b9d8a7b6c5d4e3","attributes":{"deal_name":"Enterprise License","deal_stage":"Qualification","pipeline":"Sales","amount":15000,"deal_owner":"sales@example.com"},"linkedContactsIds":[123,456],"linkedCompaniesIds":["comp_1"]}
@@ -1277,7 +1525,7 @@ class Brevo {
    * @category CRM - Deals
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"String","label":"Deal ID","name":"dealId","required":true,"description":"The unique identifier of the deal to update."}
+   * @paramDef {"type":"String","label":"Deal ID","name":"dealId","required":true,"dictionary":"getDealsDictionary","description":"The unique identifier of the deal to update."}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"Updated name of the deal."}
    * @paramDef {"type":"String","label":"Attributes","name":"attributes","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"JSON object with deal attributes to update (e.g. '{\"deal_stage\":\"Won\",\"amount\":20000}')."}
    *
@@ -1325,7 +1573,7 @@ class Brevo {
    * @category CRM - Deals
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"String","label":"Deal ID","name":"dealId","required":true,"description":"The unique identifier of the deal to delete."}
+   * @paramDef {"type":"String","label":"Deal ID","name":"dealId","required":true,"dictionary":"getDealsDictionary","description":"The unique identifier of the deal to delete."}
    *
    * @returns {Object}
    * @sampleResult {"success":true}
@@ -1355,8 +1603,8 @@ class Brevo {
    * @category CRM - Deals
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of deals to return per page (1-100). Default: 50."}
-   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first deal to return for pagination. Default: 0."}
+   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of deals to return per page (1-100). Default: 50.","uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first deal to return for pagination. Default: 0.","uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    * @sampleResult {"items":[{"id":"64a5f3c2e1b9d8a7b6c5d4e3","attributes":{"deal_name":"Enterprise License","deal_stage":"Qualification","amount":15000}}],"count":25}
@@ -1432,7 +1680,7 @@ class Brevo {
    * @category CRM - Companies
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"String","label":"Company ID","name":"companyId","required":true,"description":"The unique identifier of the company to retrieve."}
+   * @paramDef {"type":"String","label":"Company ID","name":"companyId","required":true,"dictionary":"getCompaniesDictionary","description":"The unique identifier of the company to retrieve."}
    *
    * @returns {Object}
    * @sampleResult {"id":"64a5f3c2e1b9d8a7b6c5d4e3","attributes":{"name":"Acme Corp","industry":"Technology","number_of_employees":500,"website":"https://acme.com"},"linkedContactsIds":[123,456],"linkedDealsIds":["deal_1"]}
@@ -1461,7 +1709,7 @@ class Brevo {
    * @category CRM - Companies
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"String","label":"Company ID","name":"companyId","required":true,"description":"The unique identifier of the company to update."}
+   * @paramDef {"type":"String","label":"Company ID","name":"companyId","required":true,"dictionary":"getCompaniesDictionary","description":"The unique identifier of the company to update."}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"Updated name of the company."}
    * @paramDef {"type":"String","label":"Attributes","name":"attributes","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"JSON object with company attributes to update (e.g. '{\"industry\":\"Finance\",\"number_of_employees\":1000}')."}
    *
@@ -1509,7 +1757,7 @@ class Brevo {
    * @category CRM - Companies
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"String","label":"Company ID","name":"companyId","required":true,"description":"The unique identifier of the company to delete."}
+   * @paramDef {"type":"String","label":"Company ID","name":"companyId","required":true,"dictionary":"getCompaniesDictionary","description":"The unique identifier of the company to delete."}
    *
    * @returns {Object}
    * @sampleResult {"success":true}
@@ -1539,8 +1787,8 @@ class Brevo {
    * @category CRM - Companies
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of companies to return per page (1-100). Default: 50."}
-   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first company to return for pagination. Default: 0."}
+   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of companies to return per page (1-100). Default: 50.","uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first company to return for pagination. Default: 0.","uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    * @sampleResult {"items":[{"id":"64a5f3c2e1b9d8a7b6c5d4e3","attributes":{"name":"Acme Corp","industry":"Technology","number_of_employees":500}}],"count":15}
@@ -1573,9 +1821,9 @@ class Brevo {
    * @appearanceColor #0B996E #0FD191
    *
    * @paramDef {"type":"String","label":"Name","name":"name","required":true,"description":"Name of the task."}
-   * @paramDef {"type":"String","label":"Task Type ID","name":"taskTypeId","description":"The ID of the task type."}
+   * @paramDef {"type":"String","label":"Task Type ID","name":"taskTypeId","dictionary":"getTaskTypesDictionary","description":"The ID of the task type."}
    * @paramDef {"type":"String","label":"Date","name":"date","description":"Due date of the task in ISO 8601 format (e.g. '2025-01-15T10:00:00Z')."}
-   * @paramDef {"type":"Number","label":"Duration","name":"duration","description":"Duration of the task in milliseconds."}
+   * @paramDef {"type":"Number","label":"Duration","name":"duration","description":"Duration of the task in milliseconds.","uiComponent":{"type":"NUMERIC_STEPPER"}}
    * @paramDef {"type":"String","label":"Notes","name":"notes","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Additional notes or description for the task."}
    * @paramDef {"type":"Boolean","label":"Done","name":"done","uiComponent":{"type":"TOGGLE"},"description":"Set to true to mark the task as completed. Default: false."}
    * @paramDef {"type":"String","label":"Contact IDs","name":"contactsIds","description":"Comma-separated IDs of contacts to associate with the task (e.g. '123,456')."}
@@ -1645,7 +1893,7 @@ class Brevo {
    * @category CRM - Tasks
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"String","label":"Task ID","name":"taskId","required":true,"description":"The unique identifier of the task to retrieve."}
+   * @paramDef {"type":"String","label":"Task ID","name":"taskId","required":true,"dictionary":"getTasksDictionary","description":"The unique identifier of the task to retrieve."}
    *
    * @returns {Object}
    * @sampleResult {"id":"64a5f3c2e1b9d8a7b6c5d4e3","name":"Follow up with client","taskTypeId":"task_call","date":"2025-01-15T10:00:00.000Z","duration":1800000,"notes":"Discuss contract renewal","done":false,"contactsIds":[123],"dealsIds":["deal_1"],"companiesIds":["comp_1"],"createdAt":"2025-01-10T08:00:00.000Z"}
@@ -1674,12 +1922,12 @@ class Brevo {
    * @category CRM - Tasks
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"String","label":"Task ID","name":"taskId","required":true,"description":"The unique identifier of the task to update."}
+   * @paramDef {"type":"String","label":"Task ID","name":"taskId","required":true,"dictionary":"getTasksDictionary","description":"The unique identifier of the task to update."}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"Updated name of the task."}
    * @paramDef {"type":"Boolean","label":"Done","name":"done","uiComponent":{"type":"TOGGLE"},"description":"Set to true to mark the task as completed."}
    * @paramDef {"type":"String","label":"Date","name":"date","description":"Updated due date of the task in ISO 8601 format."}
    * @paramDef {"type":"String","label":"Notes","name":"notes","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Updated notes or description for the task."}
-   * @paramDef {"type":"Number","label":"Duration","name":"duration","description":"Updated duration of the task in milliseconds."}
+   * @paramDef {"type":"Number","label":"Duration","name":"duration","description":"Updated duration of the task in milliseconds.","uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    * @sampleResult {"success":true}
@@ -1718,7 +1966,7 @@ class Brevo {
    * @category CRM - Tasks
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"String","label":"Task ID","name":"taskId","required":true,"description":"The unique identifier of the task to delete."}
+   * @paramDef {"type":"String","label":"Task ID","name":"taskId","required":true,"dictionary":"getTasksDictionary","description":"The unique identifier of the task to delete."}
    *
    * @returns {Object}
    * @sampleResult {"success":true}
@@ -1748,8 +1996,8 @@ class Brevo {
    * @category CRM - Tasks
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of tasks to return per page (1-100). Default: 50."}
-   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first task to return for pagination. Default: 0."}
+   * @paramDef {"type":"Number","label":"Limit","name":"limit","description":"Maximum number of tasks to return per page (1-100). Default: 50.","uiComponent":{"type":"NUMERIC_STEPPER"}}
+   * @paramDef {"type":"Number","label":"Offset","name":"offset","description":"Index of the first task to return for pagination. Default: 0.","uiComponent":{"type":"NUMERIC_STEPPER"}}
    *
    * @returns {Object}
    * @sampleResult {"items":[{"id":"64a5f3c2e1b9d8a7b6c5d4e3","name":"Follow up with client","done":false,"date":"2025-01-15T10:00:00.000Z","duration":1800000}],"count":12}
@@ -1831,7 +2079,7 @@ class Brevo {
    * @category CRM - Notes
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"String","label":"Note ID","name":"noteId","required":true,"description":"The unique identifier of the note to retrieve."}
+   * @paramDef {"type":"String","label":"Note ID","name":"noteId","required":true,"dictionary":"getNotesDictionary","description":"The unique identifier of the note to retrieve."}
    *
    * @returns {Object}
    * @sampleResult {"id":"64a5f3c2e1b9d8a7b6c5d4e3","text":"Client requested a demo session next week.","contactIds":[123],"dealIds":["deal_1"],"companyIds":["comp_1"],"createdAt":"2025-01-10T08:00:00.000Z"}
@@ -1860,7 +2108,7 @@ class Brevo {
    * @category CRM - Notes
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"String","label":"Note ID","name":"noteId","required":true,"description":"The unique identifier of the note to update."}
+   * @paramDef {"type":"String","label":"Note ID","name":"noteId","required":true,"dictionary":"getNotesDictionary","description":"The unique identifier of the note to update."}
    * @paramDef {"type":"String","label":"Text","name":"text","required":true,"uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Updated text content of the note."}
    * @paramDef {"type":"String","label":"Contact IDs","name":"contactIds","description":"Comma-separated IDs of contacts to associate with the note (e.g. '123,456')."}
    * @paramDef {"type":"String","label":"Deal IDs","name":"dealIds","description":"Comma-separated IDs of deals to associate with the note (e.g. 'deal_1,deal_2')."}
@@ -1911,7 +2159,7 @@ class Brevo {
    * @category CRM - Notes
    * @appearanceColor #0B996E #0FD191
    *
-   * @paramDef {"type":"String","label":"Note ID","name":"noteId","required":true,"description":"The unique identifier of the note to delete."}
+   * @paramDef {"type":"String","label":"Note ID","name":"noteId","required":true,"dictionary":"getNotesDictionary","description":"The unique identifier of the note to delete."}
    *
    * @returns {Object}
    * @sampleResult {"success":true}
