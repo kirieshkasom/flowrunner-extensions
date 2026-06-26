@@ -75,6 +75,8 @@ return await request
 - ✅ **`@integrationIcon` must match the actual file in `public/`** - Confirm the real file name and extension
 - ✅ Valid values: `/icon.png`, `/icon.svg`, `/icon.webp`, `/icon.jpeg` (whichever file actually exists)
 - ❌ Do NOT change an existing `@integrationIcon` reference without verifying the file exists
+- ❌ **Never inline the icon as a `data:` URI / base64 string** (e.g. `@integrationIcon data:image/svg+xml;base64,...`). The icon MUST be a real file in `public/` referenced by path. If you find a base64/`data:` icon, decode it and write it to `public/icon.<ext>` (extension matching the MIME type — `svg` for `image/svg+xml`, `png` for `image/png`, etc.), then point `@integrationIcon` at that file.
+- ❗ Every service must have an icon file. If a service has no `@integrationIcon` and no `public/` icon at all, add one (a `public/icon.svg` placeholder is acceptable) and reference it.
 - Example: If the service has `public/icon.svg`, use `@integrationIcon /icon.svg` - do not assume `/icon.png`
 
 ### Appearance Color Annotation
