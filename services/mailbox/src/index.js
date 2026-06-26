@@ -154,7 +154,7 @@ class MailboxService {
    * @paramDef {"type":"String","label":"CC (Carbon Copy)","name":"cc","description":"Email address(es) for CC (carbon copy)."}
    * @paramDef {"type":"String","label":"BCC (Blind Carbon Copy)","name":"bcc","description":"Email address(es) for BCC (blind carbon copy)."}
    * @paramDef {"type":"String","label":"Reply To","name":"replyTo","description":"Email address to reply to."}
-   * @paramDef {"type":"String","label":"Priority","name":"priority","uiComponent":{"type":"DROPDOWN","values":["high","normal","low"]},"description":"Priority of the email ('high', 'normal', 'low'). Defaults to 'normal'"}
+   * @paramDef {"type":"String","label":"Priority","name":"priority","uiComponent":{"type":"DROPDOWN","options":{"values":["high","normal","low"]}},"description":"Priority of the email ('high', 'normal', 'low'). Defaults to 'normal'"}
    *
    * @returns {Promise<Object>} A promise that resolves with the `info` object when the email is sent successfully.
    * @sampleResult {"messageId":"<abc123@domain.com>","response":"250 Message accepted","accepted":["recipient@example.com"],"rejected":[],"envelope":{"from":"sender@example.com","to":["recipient@example.com"]}}

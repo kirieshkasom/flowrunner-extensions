@@ -360,7 +360,7 @@ class RampService {
    * @paramDef {"type":"String","label":"Card","name":"cardId","dictionary":"getCardsDictionary","description":"Optional card to filter transactions to."}
    * @paramDef {"type":"String","label":"User","name":"userId","dictionary":"getUsersDictionary","description":"Optional user whose transactions you want."}
    * @paramDef {"type":"String","label":"Department","name":"departmentId","dictionary":"getDepartmentsDictionary","description":"Optional department to filter by."}
-   * @paramDef {"type":"String","label":"State","name":"state","uiComponent":{"type":"DROPDOWN","values":["CLEARED","PENDING","DECLINED","ALL"]},"description":"Optional transaction state filter. ALL returns transactions regardless of state."}
+   * @paramDef {"type":"String","label":"State","name":"state","uiComponent":{"type":"DROPDOWN","options":{"values":["CLEARED","PENDING","DECLINED","ALL"]}},"description":"Optional transaction state filter. ALL returns transactions regardless of state."}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of transactions per page. Defaults to 25, typically up to 100."}
    * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor from a prior response. Leave empty for the first page."}
    *
@@ -422,7 +422,7 @@ class RampService {
    *
    * @paramDef {"type":"String","label":"User","name":"userId","dictionary":"getUsersDictionary","description":"Optional cardholder filter."}
    * @paramDef {"type":"String","label":"Department","name":"departmentId","dictionary":"getDepartmentsDictionary","description":"Optional department filter."}
-   * @paramDef {"type":"String","label":"State","name":"state","uiComponent":{"type":"DROPDOWN","values":["ACTIVE","FROZEN","TERMINATED","SUSPENDED","UNACTIVATED","ALL"]},"description":"Optional card state filter. ALL returns cards regardless of state."}
+   * @paramDef {"type":"String","label":"State","name":"state","uiComponent":{"type":"DROPDOWN","options":{"values":["ACTIVE","FROZEN","TERMINATED","SUSPENDED","UNACTIVATED","ALL"]}},"description":"Optional card state filter. ALL returns cards regardless of state."}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of cards per page. Defaults to 25."}
    * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor from a prior response."}
    *
@@ -613,7 +613,7 @@ class RampService {
    *
    * @paramDef {"type":"String","label":"Department","name":"departmentId","dictionary":"getDepartmentsDictionary","description":"Optional department to filter users by."}
    * @paramDef {"type":"String","label":"Location","name":"locationId","dictionary":"getLocationsDictionary","description":"Optional location to filter users by."}
-   * @paramDef {"type":"String","label":"Role","name":"role","uiComponent":{"type":"DROPDOWN","values":["BUSINESS_USER","BUSINESS_ADMIN","BUSINESS_OWNER","IT_ADMIN","BUSINESS_BOOKKEEPER","DEVELOPER_ADMIN","ALL"]},"description":"Optional Ramp role filter. ALL returns users regardless of role."}
+   * @paramDef {"type":"String","label":"Role","name":"role","uiComponent":{"type":"DROPDOWN","options":{"values":["BUSINESS_USER","BUSINESS_ADMIN","BUSINESS_OWNER","IT_ADMIN","BUSINESS_BOOKKEEPER","DEVELOPER_ADMIN","ALL"]}},"description":"Optional Ramp role filter. ALL returns users regardless of role."}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of users per page. Defaults to 25."}
    * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor from a prior response."}
    *
@@ -671,7 +671,7 @@ class RampService {
    * @paramDef {"type":"String","label":"First Name","name":"firstName","required":true,"description":"The new user's first name."}
    * @paramDef {"type":"String","label":"Last Name","name":"lastName","required":true,"description":"The new user's last name."}
    * @paramDef {"type":"String","label":"Email","name":"email","required":true,"description":"The new user's email address; the invitation is sent here."}
-   * @paramDef {"type":"String","label":"Role","name":"role","required":true,"uiComponent":{"type":"DROPDOWN","values":["BUSINESS_USER","BUSINESS_ADMIN","BUSINESS_OWNER","IT_ADMIN","BUSINESS_BOOKKEEPER"]},"description":"The Ramp role to grant the new user."}
+   * @paramDef {"type":"String","label":"Role","name":"role","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["BUSINESS_USER","BUSINESS_ADMIN","BUSINESS_OWNER","IT_ADMIN","BUSINESS_BOOKKEEPER"]}},"description":"The Ramp role to grant the new user."}
    * @paramDef {"type":"String","label":"Department","name":"departmentId","dictionary":"getDepartmentsDictionary","description":"Optional department to assign the new user to."}
    * @paramDef {"type":"String","label":"Location","name":"locationId","dictionary":"getLocationsDictionary","description":"Optional location to assign the new user to."}
    *
@@ -829,7 +829,7 @@ class RampService {
    * @appearanceColor #FF6B6B #FF9999
    *
    * @paramDef {"type":"String","label":"Name","name":"name","required":true,"description":"The legal or business name of the vendor."}
-   * @paramDef {"type":"String","label":"Payment Method","name":"paymentMethod","required":true,"uiComponent":{"type":"DROPDOWN","values":["ACH","CHECK","WIRE","INTERNATIONAL_WIRE"]},"description":"How payments to this vendor will be made."}
+   * @paramDef {"type":"String","label":"Payment Method","name":"paymentMethod","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["ACH","CHECK","WIRE","INTERNATIONAL_WIRE"]}},"description":"How payments to this vendor will be made."}
    * @paramDef {"type":"String","label":"Account Number","name":"accountNumber","description":"Vendor bank account number. Required for ACH and WIRE payment methods."}
    * @paramDef {"type":"String","label":"Routing Number","name":"routingNumber","description":"Vendor bank routing number. Required for ACH payments."}
    * @paramDef {"type":"String","label":"Contact Name","name":"contactName","description":"Optional name of the vendor contact."}
@@ -876,7 +876,7 @@ class RampService {
    * @appearanceColor #6E4AFF #9B85FF
    *
    * @paramDef {"type":"String","label":"Vendor","name":"vendorId","dictionary":"getVendorsDictionary","description":"Optional vendor to filter bills by."}
-   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","values":["OPEN","PAID","PENDING_APPROVAL","SCHEDULED","FAILED","CANCELED","ALL"]},"description":"Optional bill status filter. ALL returns bills regardless of status."}
+   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":["OPEN","PAID","PENDING_APPROVAL","SCHEDULED","FAILED","CANCELED","ALL"]}},"description":"Optional bill status filter. ALL returns bills regardless of status."}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of bills per page. Defaults to 25."}
    * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor from a prior response."}
    *
@@ -933,7 +933,7 @@ class RampService {
    * @appearanceColor #1ABC9C #5CD1B8
    *
    * @paramDef {"type":"String","label":"User","name":"userId","dictionary":"getUsersDictionary","description":"Optional user whose reimbursements you want."}
-   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","values":["PENDING","APPROVED","PAID","DENIED","ALL"]},"description":"Optional reimbursement status filter. ALL returns all states."}
+   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":["PENDING","APPROVED","PAID","DENIED","ALL"]}},"description":"Optional reimbursement status filter. ALL returns all states."}
    * @paramDef {"type":"String","label":"From Date","name":"fromDate","uiComponent":{"type":"DATE_TIME_PICKER"},"description":"Optional earliest creation date (ISO-8601)."}
    * @paramDef {"type":"String","label":"To Date","name":"toDate","uiComponent":{"type":"DATE_TIME_PICKER"},"description":"Optional latest creation date (ISO-8601)."}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of reimbursements per page. Defaults to 25."}

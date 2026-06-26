@@ -188,8 +188,10 @@ Each `@paramDef` is a single-line JSON object. Conventions verified against the 
   string verbatim, so the displayed options MUST be friendly, human-readable labels (never raw API
   tokens), and the method code maps each label to the API value.
   - Options use the nested object form with **plain strings**, never a top-level `[{label,value}]`
-    array and never objects inside `values`:
-    `"uiComponent":{"type":"DROPDOWN","options":{"values":["Read","Write","Admin"]}}`
+    array and never objects inside `values`. The `values` array MUST sit inside `options` — never
+    directly under `uiComponent`:
+    - ✅ `"uiComponent":{"type":"DROPDOWN","options":{"values":["Read","Write","Admin"]}}`
+    - ❌ `"uiComponent":{"type":"DROPDOWN","values":["Read","Write","Admin"]}`  ← missing `options` wrapper
   - In the method body/query, map the label → API value with a private helper:
     ```js
     #resolveChoice(value, mapping) {
@@ -402,8 +404,12 @@ Examine **both** the JSDoc annotations AND the implementation. Fix bugs and inco
   expectations.
 - Fix `@returns {Promise.<T>}` → `@returns {T}`; `Array.<T>` → `Array<T>`.
 - Ensure numeric params are `"type":"Number"`; DROPDOWN options use friendly plain-string labels in
-  `{"values":[...]}` with code mapping the label→API value (convert any legacy
-  `[{label,value}]` / object-in-`values` dropdowns).
+  the nested `"uiComponent":{"type":"DROPDOWN","options":{"values":[...]}}` form (values inside
+  `options`, never directly under `uiComponent`) with code mapping the label→API value (convert any
+  legacy `[{label,value}]` / object-in-`values` dropdowns).
+- **No flat DROPDOWNs.** Run `grep -nE '"DROPDOWN","values"' services/<name>/src/index.js` — it MUST
+  return nothing. Any hit has the `values` array misplaced directly under `uiComponent`; wrap it in
+  `options`: `...,"options":{"values":[...]}}`.
 - **No empty DROPDOWNs.** Run `grep -nE '"values":\[\]' services/<name>/src/index.js` — it MUST
   return nothing. For each hit, populate the enum from the API docs for that specific endpoint (per
   the §4 rule), convert to a `dictionary`, or remove the `uiComponent`.
@@ -425,9 +431,11 @@ Examine **both** the JSDoc annotations AND the implementation. Fix bugs and inco
       `@sampleResult`.
 - [ ] `@route` verbs REST-appropriate; SYSTEM OAuth routes are GET/POST/PUT as in §5.
 - [ ] `@returns {Type}` (no Promise); arrays are `Array<Type>` (no dot).
-- [ ] Numeric params `"type":"Number"`; DROPDOWN options are friendly plain-string labels in
-      `{"values":[...]}` mapped to API values in code (no `[{label,value}]` / object-in-`values`);
-      `@paramDef` description-last.
+- [ ] Numeric params `"type":"Number"`; DROPDOWN options are friendly plain-string labels nested as
+      `"options":{"values":[...]}` (never directly under `uiComponent`) mapped to API values in code
+      (no `[{label,value}]` / object-in-`values`); `@paramDef` description-last.
+- [ ] No flat DROPDOWNs — `grep -nE '"DROPDOWN","values"' src/index.js` returns nothing (values must
+      be wrapped in `options`).
 - [ ] No empty DROPDOWNs — `grep -nE '"values":\[\]' src/index.js` returns nothing; every enum is
       populated from the API docs for its specific endpoint (or converted to a dictionary / plain String).
 - [ ] Array params have a `uiComponent` ONLY when their values are an enum.

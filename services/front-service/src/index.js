@@ -378,7 +378,7 @@ class FrontService {
    * @appearanceColor #A777E3 #C39FE9
    *
    * @paramDef {"type":"String","label":"Query","name":"query","description":"Optional Front Query Language string (e.g., 'subject:invoice' or 'is:unread from:acme.com'). See Front docs for syntax."}
-   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","values":["open","archived","deleted","spam","assigned","unassigned","ALL"]},"description":"Optional status filter. ALL returns conversations regardless of status."}
+   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":["open","archived","deleted","spam","assigned","unassigned","ALL"]}},"description":"Optional status filter. ALL returns conversations regardless of status."}
    * @paramDef {"type":"String","label":"Inbox","name":"inboxId","dictionary":"getInboxesDictionary","description":"Optional inbox to filter conversations to."}
    * @paramDef {"type":"String","label":"Tag","name":"tagId","dictionary":"getTagsDictionary","description":"Optional tag to filter conversations to."}
    * @paramDef {"type":"String","label":"Assignee","name":"assigneeId","dictionary":"getTeammatesDictionary","description":"Optional assignee teammate to filter conversations to."}
@@ -469,7 +469,7 @@ class FrontService {
    * @appearanceColor #A777E3 #C39FE9
    *
    * @paramDef {"type":"String","label":"Conversation ID","name":"conversationId","required":true,"description":"The conversation to update."}
-   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","values":["open","archived","deleted","spam"]},"description":"Optional new status."}
+   * @paramDef {"type":"String","label":"Status","name":"status", "uiComponent":{"type":"DROPDOWN","options":{"values":["open","archived","deleted","spam"]}},"description":"Optional new status."}
    * @paramDef {"type":"String","label":"Assignee","name":"assigneeId","dictionary":"getTeammatesDictionary","description":"Optional new assignee teammate ID. Pass an empty string to unassign."}
    * @paramDef {"type":"String","label":"Tag IDs","name":"tagIds","description":"Optional comma-separated tag IDs. Replaces current tags. Leave empty to keep current tags."}
    * @paramDef {"type":"String","label":"Inbox","name":"inboxId","dictionary":"getInboxesDictionary","description":"Optional inbox to move the conversation to."}
