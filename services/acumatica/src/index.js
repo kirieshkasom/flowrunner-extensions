@@ -789,13 +789,16 @@ class AcumaticaService {
     // Sanitize the provided filename: strip any directory prefix (the Acumatica
     // filename embeds a Windows-style path, e.g. "Folder\\Invoice.pdf"), splitting
     // on both forward and back slashes and taking the last segment, then replace
-    // characters the FlowRunner Files API disallows (spaces, parentheses, etc.)
-    // with underscores while preserving the extension dot.
+    // characters the FlowRunner Files API disallows (spaces, '#', parentheses,
+    // etc.) with underscores while preserving the extension dot. Runs of dots are
+    // collapsed to a single dot — the Files API rejects '..' (path-traversal guard),
+    // so embedded sequences like "Invoice...Shoprite.pdf" would otherwise fail.
     const sanitizeName = value => String(value || '')
       .split(/[/\\]/).pop()
       .trim()
       .replace(/[^a-zA-Z0-9._-]+/g, '_')
-      .replace(/^_+|_+$/g, '')
+      .replace(/\.{2,}/g, '.')
+      .replace(/^[._]+|[._]+$/g, '')
 
     let resolvedName = sanitizeName(fileName)
 
