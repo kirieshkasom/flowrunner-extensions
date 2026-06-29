@@ -73,7 +73,7 @@ Services can define config items during registration with properties:
 - `hint` - Help text
 - `options` - For `CHOICE` type (array of strings)
 
-There is no `order` property.
+There is no `order` property. The display order of config items is dictated by their position in the array passed to `addService()`, so an explicit `order` is unnecessary — never add one, and strip it from any legacy/migrated config items.
 
 ### Key Development Areas
 

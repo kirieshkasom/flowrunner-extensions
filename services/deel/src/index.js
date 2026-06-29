@@ -292,6 +292,14 @@ class DeelService {
     return JSON.stringify(body)
   }
 
+  // Maps a friendly DROPDOWN label back to the API value. Pass-through when the value is already an
+  // API token (or unknown), so it is safe for already-mapped input and free-form values.
+  #resolveChoice(value, mapping) {
+    if (value === undefined || value === null) return undefined
+
+    return Object.prototype.hasOwnProperty.call(mapping, value) ? mapping[value] : value
+  }
+
   // =================== 4. OAuth2 system methods ===================
 
   /**
@@ -1455,7 +1463,7 @@ class DeelService {
    * @category People
    * @description Returns the list of people (workers, employees, contractors) in your Deel organization. Filter by status, country, or type, or search by name/email.
    * @route POST /listPeople
-   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Active","label":"Active"},{"value":"Inactive","label":"Inactive"},{"value":"Pending","label":"Pending"},{"value":"Onboarding","label":"Onboarding"},{"value":"Terminated","label":"Terminated"}]}},"description":"Filter by employment status. Leave blank to list everyone."}
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Active","Inactive","Pending","Onboarding","Terminated"]}},"description":"Filter by employment status. Leave blank to list everyone."}
    * @paramDef {"type":"String","label":"Country","name":"country","required":false,"dictionary":"getCountriesDictionary","description":"Filter by the country where the worker is based. Leave blank for all countries."}
    * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Search by name, email, or ID. Examples: 'Jane Doe', 'jane@acme.com'. Leave blank to list everyone."}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of people to return per page. Default 50."}
@@ -1725,7 +1733,7 @@ class DeelService {
    * @category HRIS
    * @description Returns the custom fields defined on a person, contract, or organization. Use this to discover what data is being tracked.
    * @route POST /getCustomFields
-   * @paramDef {"type":"String","label":"Scope","name":"scope","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Person","label":"Person"},{"value":"Contract","label":"Contract"},{"value":"Organization","label":"Organization"}]}},"description":"Which kind of record's custom fields you want to see."}
+   * @paramDef {"type":"String","label":"Scope","name":"scope","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Person","Contract","Organization"]}},"description":"Which kind of record's custom fields you want to see."}
    * @paramDef {"type":"String","label":"Resource","name":"resourceId","required":false,"dictionary":"getCustomFieldResourcesDictionary","dependsOn":["scope"],"description":"The record: pick a person (Person) or contract (Contract). For Organization, paste the org structure node ID. For Person/Contract, leave blank to list all field definitions."}
    * @returns {Object}
    * @sampleResult {"data":[{"key":"slack_handle","value":"@jane"}]}
@@ -1761,7 +1769,7 @@ class DeelService {
    * @category HRIS
    * @description Sets the value of a custom field on a person or contract. Creates the value if it doesn't exist, updates it if it does.
    * @route POST /setCustomField
-   * @paramDef {"type":"String","label":"Scope","name":"scope","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Person","label":"Person"},{"value":"Contract","label":"Contract"}]}},"description":"Which kind of record to update."}
+   * @paramDef {"type":"String","label":"Scope","name":"scope","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Person","Contract"]}},"description":"Which kind of record to update."}
    * @paramDef {"type":"String","label":"Resource","name":"resourceId","required":true,"dictionary":"getCustomFieldResourcesDictionary","dependsOn":["scope"],"description":"Pick the person or contract."}
    * @paramDef {"type":"String","label":"Field Key","name":"key","required":true,"description":"The custom field's key. Examples: 'slack_handle', 't_shirt_size'."}
    * @paramDef {"type":"String","label":"Value","name":"value","required":true,"description":"The new value to store."}
@@ -1782,7 +1790,7 @@ class DeelService {
    * @category HRIS
    * @description Clears a custom field's value on a person or contract.
    * @route POST /deleteCustomField
-   * @paramDef {"type":"String","label":"Scope","name":"scope","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Person","label":"Person"},{"value":"Contract","label":"Contract"}]}},"description":"Which kind of record to update."}
+   * @paramDef {"type":"String","label":"Scope","name":"scope","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Person","Contract"]}},"description":"Which kind of record to update."}
    * @paramDef {"type":"String","label":"Resource","name":"resourceId","required":true,"dictionary":"getCustomFieldResourcesDictionary","dependsOn":["scope"],"description":"Pick the person or contract."}
    * @paramDef {"type":"String","label":"Field Key","name":"key","required":true,"description":"The custom field's key to clear."}
    * @returns {Object}
@@ -1827,7 +1835,7 @@ class DeelService {
    * @route POST /listContracts
    * @paramDef {"type":"String","label":"Status","name":"status","required":false,"dictionary":"getContractStatusesDictionary","description":"Filter by contract status. Leave blank to see all."}
    * @paramDef {"type":"String","label":"Country","name":"country","required":false,"dictionary":"getCountriesDictionary","description":"Filter by worker country. Leave blank for all."}
-   * @paramDef {"type":"String","label":"Type","name":"type","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Contractor (IC)","label":"Contractor (IC)"},{"value":"Pay As You Go","label":"Pay As You Go"},{"value":"Milestone","label":"Milestone"},{"value":"Task","label":"Task"},{"value":"Employee (EOR)","label":"Employee (EOR)"},{"value":"Global Payroll","label":"Global Payroll"},{"value":"PEO","label":"PEO"},{"value":"Direct Employee","label":"Direct Employee"}]}},"description":"Filter by contract type. Leave blank for all types."}
+   * @paramDef {"type":"String","label":"Type","name":"type","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Contractor (IC)","Pay As You Go","Milestone","Task","Employee (EOR)","Global Payroll","PEO","Direct Employee"]}},"description":"Filter by contract type. Leave blank for all types."}
    * @paramDef {"type":"String","label":"External ID","name":"externalRef","required":false,"description":"Look up one contract by an ID from your own system. Examples: 'CON-2026-001'. Leave blank to list multiple."}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of contracts to return. Default 50."}
    * @returns {Object}
@@ -1885,7 +1893,7 @@ class DeelService {
    * @paramDef {"type":"String","label":"Team","name":"teamId","required":true,"dictionary":"getGroupsDictionary","description":"Team the contractor belongs to."}
    * @paramDef {"type":"String","label":"Worker First Name","name":"workerFirstName","required":true,"description":"Contractor's first name. Examples: 'Jane'."}
    * @paramDef {"type":"String","label":"Worker Email","name":"workerEmail","required":true,"description":"Worker's email so Deel can send the invite. Examples: 'jane@acme.com'."}
-   * @paramDef {"type":"String","label":"Rate Type","name":"rateType","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Hourly","label":"Hourly"},{"value":"Daily","label":"Daily"},{"value":"Weekly","label":"Weekly"},{"value":"Monthly","label":"Monthly"},{"value":"Yearly","label":"Yearly"},{"value":"Task-based","label":"Task-based"},{"value":"Milestone-based","label":"Milestone-based"}]}},"description":"How the contractor is paid."}
+   * @paramDef {"type":"String","label":"Rate Type","name":"rateType","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Hourly","Daily","Weekly","Monthly","Yearly","Task-based","Milestone-based"]}},"description":"How the contractor is paid."}
    * @paramDef {"type":"Number","label":"Rate Amount","name":"rateAmount","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Pay rate amount. Examples: 50, 8000."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","required":true,"dictionary":"getCurrenciesDictionary","description":"Pay currency. Examples: USD, EUR."}
    * @paramDef {"type":"Date","label":"Start Date","name":"startDate","required":true,"uiComponent":{"type":"DATE_PICKER"},"description":"First day of the engagement."}
@@ -2154,7 +2162,7 @@ class DeelService {
    * @route POST /reviewTask
    * @paramDef {"type":"String","label":"Contract","name":"contractId","required":true,"dictionary":"getContractsDictionary","description":"Pick the contract."}
    * @paramDef {"type":"String","label":"Task","name":"taskId","required":true,"dictionary":"getTasksDictionary","dependsOn":["contractId"],"description":"Pick the task on the chosen contract."}
-   * @paramDef {"type":"String","label":"Decision","name":"decision","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Approve","label":"Approve"},{"value":"Reject","label":"Reject"}]}},"description":"Approve to pay, Reject to send back to contractor."}
+   * @paramDef {"type":"String","label":"Decision","name":"decision","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Approve","Reject"]}},"description":"Approve to pay, Reject to send back to contractor."}
    * @paramDef {"type":"String","label":"Reason","name":"reason","required":false,"uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Required when rejecting. Tell the contractor what to fix."}
    * @returns {Object}
    * @sampleResult {"data":{"id":"tsk_abc","status":"approved"}}
@@ -2244,7 +2252,7 @@ class DeelService {
    * @route POST /reviewTimesheet
    * @paramDef {"type":"String","label":"Contract","name":"contractId","required":false,"dictionary":"getContractsDictionary","description":"Pick the contract to load its timesheet entries in the next field."}
    * @paramDef {"type":"String","label":"Timesheet","name":"timesheetId","required":true,"dictionary":"getTimesheetsDictionary","dependsOn":["contractId"],"description":"Pick the timesheet entry to review."}
-   * @paramDef {"type":"String","label":"Decision","name":"decision","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Approve","label":"Approve"},{"value":"Reject","label":"Reject"}]}},"description":"Approve to pay, Reject to send back."}
+   * @paramDef {"type":"String","label":"Decision","name":"decision","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Approve","Reject"]}},"description":"Approve to pay, Reject to send back."}
    * @paramDef {"type":"String","label":"Reason","name":"reason","required":false,"uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Required when rejecting."}
    * @returns {Object}
    * @sampleResult {"data":{"id":"ts_abc","status":"approved"}}
@@ -2277,7 +2285,7 @@ class DeelService {
    * @description Adds a bonus, deduction, or reimbursement to a contractor's upcoming invoice.
    * @route POST /createInvoiceAdjustment
    * @paramDef {"type":"String","label":"Contract","name":"contractId","required":true,"dictionary":"getContractsDictionary","description":"Pick the contract."}
-   * @paramDef {"type":"String","label":"Type","name":"type","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Bonus","label":"Bonus"},{"value":"Commission","label":"Commission"},{"value":"Deduction","label":"Deduction"},{"value":"Expense Reimbursement","label":"Expense Reimbursement"},{"value":"Other","label":"Other"}]}},"description":"Kind of adjustment."}
+   * @paramDef {"type":"String","label":"Type","name":"type","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Bonus","Commission","Deduction","Expense Reimbursement","Other"]}},"description":"Kind of adjustment."}
    * @paramDef {"type":"Number","label":"Amount","name":"amount","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"How much. Use a positive number; deductions are subtracted automatically."}
    * @paramDef {"type":"String","label":"Description","name":"description","required":true,"description":"Why this adjustment exists. Examples: 'Q2 performance bonus'."}
    * @paramDef {"type":"Date","label":"Date","name":"dateSubmitted","required":true,"uiComponent":{"type":"DATE_PICKER"},"description":"The date the adjustment is submitted for. Examples: '2026-05-20'."}
@@ -2324,7 +2332,7 @@ class DeelService {
    * @route POST /reviewInvoiceAdjustment
    * @paramDef {"type":"String","label":"Contract","name":"contractId","required":false,"dictionary":"getContractsDictionary","description":"Pick the contract to load its invoice adjustments in the next field."}
    * @paramDef {"type":"String","label":"Adjustment","name":"adjustmentId","required":true,"dictionary":"getInvoiceAdjustmentsDictionary","dependsOn":["contractId"],"description":"Pick the invoice adjustment to review."}
-   * @paramDef {"type":"String","label":"Decision","name":"decision","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Approve","label":"Approve"},{"value":"Reject","label":"Reject"}]}},"description":"Approve to include on next invoice, Reject to drop."}
+   * @paramDef {"type":"String","label":"Decision","name":"decision","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Approve","Reject"]}},"description":"Approve to include on next invoice, Reject to drop."}
    * @paramDef {"type":"String","label":"Reason","name":"reason","required":false,"uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Required when rejecting."}
    * @returns {Object}
    * @sampleResult {"data":{"id":"adj_abc","status":"approved"}}
@@ -2568,13 +2576,19 @@ class DeelService {
    * @description Cancels an EOR contract that hasn't started yet (e.g., before the employee starts).
    * @route POST /cancelEORContract
    * @paramDef {"type":"String","label":"Contract","name":"contractId","required":true,"dictionary":"getContractsDictionary","description":"Pick the EOR contract to cancel."}
-   * @paramDef {"type":"String","label":"Reason","name":"reason","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"INTERNAL_DECISION","label":"Internal Decision"},{"value":"UNSATISFACTORY_EXPERIENCE","label":"Unsatisfactory Experience"},{"value":"EXPLORING_ALTERNATIVE","label":"Exploring Alternative"},{"value":"OFFER_CHANGES","label":"Offer Changes"}]}},"description":"Why you're cancelling."}
+   * @paramDef {"type":"String","label":"Reason","name":"reason","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Internal Decision","Unsatisfactory Experience","Exploring Alternative","Offer Changes"]}},"description":"Why you're cancelling."}
    * @paramDef {"type":"String","label":"Message","name":"message","required":false,"uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Optional details about the cancellation."}
    * @returns {Object}
    * @sampleResult {"data":{"id":"eor_abc","status":"cancelled"}}
    */
   async cancelEORContract(contractId, reason, message) {
-    const body = cleanupObject({ cancellation_reason: reason, cancellation_message: message })
+    const cancellationReason = this.#resolveChoice(reason, {
+      'Internal Decision': 'INTERNAL_DECISION',
+      'Unsatisfactory Experience': 'UNSATISFACTORY_EXPERIENCE',
+      'Exploring Alternative': 'EXPLORING_ALTERNATIVE',
+      'Offer Changes': 'OFFER_CHANGES',
+    })
+    const body = cleanupObject({ cancellation_reason: cancellationReason, cancellation_message: message })
 
     return this.#deelRequest({ method: 'post', path: `/eor/contract/${ encodeURIComponent(contractId) }/cancel`, body, logTag: 'cancelEORContract' })
   }
@@ -2616,7 +2630,7 @@ class DeelService {
    * @route POST /requestEORTermination
    * @paramDef {"type":"String","label":"Contract","name":"contractId","required":true,"dictionary":"getContractsDictionary","description":"Pick the EOR contract."}
    * @paramDef {"type":"Date","label":"Termination Date","name":"terminationDate","required":true,"uiComponent":{"type":"DATE_PICKER"},"description":"Employee's last (desired) day of work."}
-   * @paramDef {"type":"String","label":"Reason","name":"reason","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"PERFORMANCE","label":"Performance"},{"value":"PERFORMANCE_ISSUES","label":"Performance Issues"},{"value":"ATTENDANCE_ISSUES","label":"Attendance Issues"},{"value":"MISCONDUCT","label":"Misconduct"},{"value":"POSITION_ELIMINATION","label":"Position Elimination"},{"value":"FORCE_REDUCTION","label":"Force Reduction"},{"value":"ROLE_BECAME_REDUNDANT_OR_ROLE_CHANGED","label":"Role Redundant or Changed"},{"value":"NON_RENEWAL","label":"Non-Renewal"},{"value":"RELOCATION","label":"Relocation"},{"value":"RETIREMENT","label":"Retirement"},{"value":"MEDICAL","label":"Medical"},{"value":"OTHER","label":"Other"}]}},"description":"Reason for termination (Deel's allowed values)."}
+   * @paramDef {"type":"String","label":"Reason","name":"reason","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Performance","Performance Issues","Attendance Issues","Misconduct","Position Elimination","Force Reduction","Role Redundant or Changed","Non-Renewal","Relocation","Retirement","Medical","Other"]}},"description":"Reason for termination (Deel's allowed values)."}
    * @paramDef {"type":"String","label":"Reason Detail","name":"reasonDetail","required":true,"uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Explanation of the termination rationale. Deel requires at least 100 characters."}
    * @returns {Object}
    * @sampleResult {"data":{"id":"term_new","status":"requested"}}
@@ -2625,7 +2639,20 @@ class DeelService {
     // Deel wants used_time_off in camelCase here (isDeelPtoConfirmed / timeOffs) and requires
     // is_employee_notified; reason must be an allowed enum and reason_detail at least 100 characters.
     const body = cleanupObject({
-      reason,
+      reason: this.#resolveChoice(reason, {
+        'Performance': 'PERFORMANCE',
+        'Performance Issues': 'PERFORMANCE_ISSUES',
+        'Attendance Issues': 'ATTENDANCE_ISSUES',
+        'Misconduct': 'MISCONDUCT',
+        'Position Elimination': 'POSITION_ELIMINATION',
+        'Force Reduction': 'FORCE_REDUCTION',
+        'Role Redundant or Changed': 'ROLE_BECAME_REDUNDANT_OR_ROLE_CHANGED',
+        'Non-Renewal': 'NON_RENEWAL',
+        'Relocation': 'RELOCATION',
+        'Retirement': 'RETIREMENT',
+        'Medical': 'MEDICAL',
+        'Other': 'OTHER',
+      }),
       reason_detail: reasonDetail,
       desired_end_date: terminationDate,
       is_employee_notified: true,
@@ -2700,7 +2727,7 @@ class DeelService {
    * @description Returns time-off requests across your org. Filter by person, status, or date range.
    * @route POST /listTimeOffRequests
    * @paramDef {"type":"String","label":"Person","name":"personId","required":false,"dictionary":"getPeopleDictionary","description":"Filter to one person. Leave blank for all."}
-   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Pending","label":"Pending"},{"value":"Approved","label":"Approved"},{"value":"Rejected","label":"Rejected"},{"value":"Cancelled","label":"Cancelled"}]}},"description":"Filter by status. Leave blank for all."}
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Pending","Approved","Rejected","Cancelled"]}},"description":"Filter by status. Leave blank for all."}
    * @paramDef {"type":"Date","label":"From Date","name":"fromDate","required":false,"uiComponent":{"type":"DATE_PICKER"},"description":"Earliest time-off start date."}
    * @paramDef {"type":"Date","label":"To Date","name":"toDate","required":false,"uiComponent":{"type":"DATE_PICKER"},"description":"Latest time-off end date."}
    * @returns {Object}
@@ -2782,7 +2809,7 @@ class DeelService {
    * @description Approves or rejects a pending time-off request.
    * @route POST /reviewTimeOffRequest
    * @paramDef {"type":"String","label":"Request","name":"requestId","required":true,"dictionary":"getTimeOffRequestsDictionary","description":"Pick the time-off request to review."}
-   * @paramDef {"type":"String","label":"Decision","name":"decision","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Approve","label":"Approve"},{"value":"Reject","label":"Reject"}]}},"description":"Approve to grant time off, Reject to deny."}
+   * @paramDef {"type":"String","label":"Decision","name":"decision","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Approve","Reject"]}},"description":"Approve to grant time off, Reject to deny."}
    * @paramDef {"type":"String","label":"Note","name":"note","required":false,"uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Optional note for the requester."}
    * @returns {Object}
    * @sampleResult {"data":{"id":"to_abc","status":"approved"}}
@@ -3023,7 +3050,7 @@ class DeelService {
    * @route POST /updateGPCompensation
    * @paramDef {"type":"String","label":"Worker","name":"workerId","required":true,"dictionary":"getPeopleDictionary","description":"Pick the GP worker."}
    * @paramDef {"type":"Number","label":"Salary","name":"salary","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"New gross salary for the period set by Pay Scale below."}
-   * @paramDef {"type":"String","label":"Pay Scale","name":"scale","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"YEAR","label":"Year"},{"value":"MONTH","label":"Month"},{"value":"HOUR","label":"Hour"}]}},"description":"Period the salary covers. The currency stays the worker's existing payroll currency."}
+   * @paramDef {"type":"String","label":"Pay Scale","name":"scale","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Year","Month","Hour"]}},"description":"Period the salary covers. The currency stays the worker's existing payroll currency."}
    * @paramDef {"type":"Date","label":"Effective Date","name":"effectiveDate","required":true,"uiComponent":{"type":"DATE_PICKER"},"description":"When the new compensation takes effect."}
    * @returns {Object}
    * @sampleResult {"data":{"id":"gp_abc","salary":85000,"scale":"YEAR"}}
@@ -3031,7 +3058,7 @@ class DeelService {
   async updateGPCompensation(workerId, salary, scale, effectiveDate) {
     const body = cleanupObject({
       salary,
-      scale: scale || 'YEAR',
+      scale: this.#resolveChoice(scale, { Year: 'YEAR', Month: 'MONTH', Hour: 'HOUR' }) || 'YEAR',
       effective_date: effectiveDate,
     })
 
@@ -3176,7 +3203,7 @@ class DeelService {
    * @category ATS
    * @description Returns the jobs (open positions) in your Deel Applicant Tracking System.
    * @route POST /listJobs
-   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Open","label":"Open"},{"value":"Closed","label":"Closed"},{"value":"Draft","label":"Draft"},{"value":"On Hold","label":"On Hold"}]}},"description":"Filter by job status."}
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Open","Closed","Draft","On Hold"]}},"description":"Filter by job status."}
    * @paramDef {"type":"String","label":"Department","name":"department","required":false,"dictionary":"getDepartmentsDictionary","description":"Filter by department."}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum to return."}
    * @returns {Object}
@@ -3400,7 +3427,7 @@ class DeelService {
    * @paramDef {"type":"String","label":"Destination Country","name":"destinationCountry","required":true,"dictionary":"getCountriesDictionary","description":"Country they want to enter."}
    * @paramDef {"type":"Date","label":"Trip Start","name":"tripStartDate","required":true,"uiComponent":{"type":"DATE_PICKER"},"description":"Planned arrival date."}
    * @paramDef {"type":"Date","label":"Trip End","name":"tripEndDate","required":true,"uiComponent":{"type":"DATE_PICKER"},"description":"Planned departure date."}
-   * @paramDef {"type":"String","label":"Trip Reason","name":"tripReason","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Internal business (with client work)","label":"Internal business (with client work)"},{"value":"Internal business (no client work)","label":"Internal business (no client work)"},{"value":"Meetings with or for a client","label":"Meetings with or for a client"}]}},"description":"Purpose of the visit."}
+   * @paramDef {"type":"String","label":"Trip Reason","name":"tripReason","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Internal business (with client work)","Internal business (no client work)","Meetings with or for a client"]}},"description":"Purpose of the visit."}
    * @returns {Object}
    * @sampleResult {"data":{"requires_visa":true,"available_visa_types":["Business Visa"]}}
    */
@@ -3564,7 +3591,7 @@ class DeelService {
    * @category Invoices
    * @description Returns the invoices (paid and unpaid) for your Deel account.
    * @route POST /listInvoices
-   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"Pending","label":"Pending"},{"value":"Paid","label":"Paid"},{"value":"Overdue","label":"Overdue"},{"value":"Cancelled","label":"Cancelled"}]}},"description":"Filter by invoice status."}
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Pending","Paid","Overdue","Cancelled"]}},"description":"Filter by invoice status."}
    * @paramDef {"type":"Date","label":"From","name":"fromDate","required":false,"uiComponent":{"type":"DATE_PICKER"},"description":"Earliest invoice date."}
    * @paramDef {"type":"Date","label":"To","name":"toDate","required":false,"uiComponent":{"type":"DATE_PICKER"},"description":"Latest invoice date."}
    * @returns {Object}

@@ -273,7 +273,7 @@ hint: 'Get your API key from https://app.pdf.co/apikeys. Test key: "YOUR_API_KEY
 - hint: Must be 250 characters or less
 - Keep hints concise but informative
 - `shared`: set `true` ONLY for OAuth client credentials shared across apps (e.g. client ID / client secret); all other config items must be `false`
-- Do NOT add an `order` property to config items
+- Do NOT add an `order` property to config items — display order follows the item's position in the array passed to `addService()`, so `order` is redundant; remove it from legacy/migrated config items
 - Constructor takes a single config argument: `constructor(config)`
 
 ### Dictionary Method Correction
