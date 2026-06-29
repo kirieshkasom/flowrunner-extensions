@@ -13,6 +13,7 @@ const logger = {
 }
 
 /**
+ * @usesFileStorage
  * @integrationName Acumatica
  * @integrationIcon /icon.svg
  * @description Integrates with Acumatica ERP for vendor validation, bill management, and accounts payable automation. Supports creating bills, releasing bills from hold, and searching bills by description or vendor reference.
@@ -762,18 +763,20 @@ class AcumaticaService {
   /**
    * @operationName Download Bill File
    * @category Bills
-   * @description Downloads a file attached to a bill and returns its contents as a Base64-encoded string. Provide the file URL (or relative href) returned by "List Bill Files". The file is fetched using an authenticated Acumatica session, so attachments that are not publicly accessible can still be retrieved.
+   * @description Downloads a file attached to a bill and saves it to FlowRunner file storage, returning a native FlowRunner URL to the stored file. Provide the file URL (or relative href) returned by "List Bill Files". The file is fetched using an authenticated Acumatica session, so attachments that are not publicly accessible can still be retrieved, then uploaded to FlowRunner storage for use elsewhere in your flow.
    *
    * @route POST /download-bill-file
    * @appearanceColor #33CCFF #66DDFF
    * @executionTimeoutInSeconds 120
    *
    * @paramDef {"type":"String","label":"File URL","name":"fileUrl","required":true,"description":"The file URL or relative href returned by \"List Bill Files\" (the 'url' or 'href' field), e.g. 'https://mycompany.acumatica.com/entity/Default/24.200.001/files/{id}'."}
+   * @paramDef {"type":"String","label":"File Name","name":"fileName","required":false,"description":"The file's name from \"List Bill Files\" (the 'filename' field). Any embedded directory path is stripped automatically. If omitted, a name is derived from the URL."}
+   * @paramDef {"type":"FilesUploadOptions","name":"fileOptions","label":"File Settings","required":false,"include":["scope"]}
    *
-   * @returns {String}
-   * @sampleResult "JVBERi0xLjQKJeLjz9MK..."
+   * @returns {Object}
+   * @sampleResult {"url":"https://backendlessappcontent.com/APP-ID/REST-KEY/files/flow/Invoice_69993_from_Hayden_Beverage.pdf","filename":"Invoice_69993_from_Hayden_Beverage.pdf"}
    */
-  async downloadBillFile(fileUrl) {
+  async downloadBillFile(fileUrl, fileName, fileOptions) {
     if (!fileUrl) {
       throw new Error('"File URL" is required')
     }
@@ -782,6 +785,31 @@ class AcumaticaService {
     const url = /^https?:\/\//i.test(fileUrl)
       ? fileUrl
       : `${ this.instanceUrl }${ fileUrl.startsWith('/') ? '' : '/' }${ fileUrl }`
+
+    // Sanitize the provided filename: strip any directory prefix (the Acumatica
+    // filename embeds a Windows-style path, e.g. "Folder\\Invoice.pdf"), splitting
+    // on both forward and back slashes and taking the last segment, then replace
+    // characters the FlowRunner Files API disallows (spaces, '#', parentheses,
+    // etc.) with underscores while preserving the extension dot. Runs of dots are
+    // collapsed to a single dot — the Files API rejects '..' (path-traversal guard),
+    // so embedded sequences like "Invoice...Shoprite.pdf" would otherwise fail.
+    const sanitizeName = value => String(value || '')
+      .split(/[/\\]/).pop()
+      .trim()
+      .replace(/[^a-zA-Z0-9._-]+/g, '_')
+      .replace(/\.{2,}/g, '.')
+      .replace(/^[._]+|[._]+$/g, '')
+
+    let resolvedName = sanitizeName(fileName)
+
+    if (!resolvedName) {
+      // Derive a fallback name from the URL's last path segment.
+      resolvedName = sanitizeName(url.split('?')[0])
+    }
+
+    if (!resolvedName) {
+      resolvedName = 'acumatica-bill-file'
+    }
 
     return this.#withSession(async () => {
       try {
@@ -793,7 +821,14 @@ class AcumaticaService {
 
         const buffer = Buffer.isBuffer(fileData) ? fileData : Buffer.from(fileData)
 
-        return buffer.toString('base64')
+        const result = await this.flowrunner.Files.uploadFile(buffer, {
+          filename: resolvedName,
+          generateUrl: true,
+          overwrite: true,
+          ...(fileOptions || { scope: 'FLOW' }),
+        })
+
+        return { url: result.url, filename: resolvedName }
       } catch (error) {
         const message = error.body?.exceptionMessage || error.body?.Message || error.message || 'Unknown error'
 

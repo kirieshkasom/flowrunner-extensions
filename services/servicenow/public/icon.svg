@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Placeholder icon for the ServiceNow service. Replace with the official brand asset when available. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="ServiceNow">
+  <rect width="128" height="128" rx="24" fill="#032D42"/>
+  <circle cx="64" cy="64" r="34" fill="none" stroke="#62D84E" stroke-width="8"/>
+  <path d="M64 44a20 20 0 0 1 14.14 34.14L64 64z" fill="#62D84E"/>
+</svg>
