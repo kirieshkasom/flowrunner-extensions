@@ -67,8 +67,13 @@ Replace contents with the standard flowrunner format:
 ### 6. Delete the legacy `coderunner.js`
 FlowRunner-native services do NOT use a `coderunner.js` — it is a legacy Backendless deployment file and there is no root `../../coderunner` helper in this repo (the `require` it does is dead). If `services/<name>/coderunner.js` exists, delete it. Use `git rm services/<name>/coderunner.js` when the file is tracked, otherwise plain `rm`.
 
-### 7. Leave these files unchanged
-- `public/` directory — icons and static assets, keep as-is
+### 7. Fix the service icon (`@integrationIcon` must be a file)
+The icon MUST be a real file in `public/` referenced by path (e.g. `/icon.svg`, `/icon.png`). It must NEVER be inlined as a `data:` URI / base64 string.
+- If `@integrationIcon` is a `data:...;base64,...` value: decode the base64 and write it to `services/<name>/public/icon.<ext>` (extension from the MIME type — `svg` for `image/svg+xml`, `png` for `image/png`, `webp` for `image/webp`), then change the annotation to `@integrationIcon /icon.<ext>`.
+- If the service has no `@integrationIcon` and no `public/` icon: add a `public/icon.svg` (a simple placeholder is acceptable) and a `@integrationIcon /icon.svg` annotation, so every migrated service has a file-based icon.
+- If `@integrationIcon` already points at an existing file in `public/`, leave it and the `public/` assets unchanged.
+
+Otherwise leave the `public/` directory's existing icons/static assets as-is.
 
 ### 8. Update the README via the `readme-maintainer` agent
 After the code migration is complete and verified, you MUST dispatch the `readme-maintainer` agent for the service (via the Task/Agent tool, `subagent_type: readme-maintainer`). Migration changes the public surface (runtime rename, config `shared` flags), so the README must be regenerated to match — never hand-edit it here and never skip this step. If the service has no `README.md` yet, the agent creates it; if it exists, the agent updates it.
@@ -83,6 +88,7 @@ After migration, verify:
 - [ ] No empty DROPDOWNs — `grep -nE '"values":\[\]' src/index.js` returns nothing; every fixed-enum param is populated from the source API docs for its specific endpoint (or converted to a dictionary / plain String)
 - [ ] `package.json` matches the flowrunner format
 - [ ] `coderunner.js` has been deleted (no longer present in the service folder)
+- [ ] `@integrationIcon` is a file path (not a `data:`/base64 URI) and the referenced file exists in `public/` — `grep -n "base64" src/index.js` shows no icon data URI
 - [ ] `readme-maintainer` agent was run and `README.md` exists and reflects the migrated service
 
 ## Reference Services

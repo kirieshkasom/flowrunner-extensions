@@ -21,6 +21,7 @@ const MAX_BATCH_RETRIES = 5
 
 /**
  * @integrationName DynamoDB
+ * @integrationIcon /icon.png
  */
 class DynamoDB {
   constructor(config = {}, context = {}) {

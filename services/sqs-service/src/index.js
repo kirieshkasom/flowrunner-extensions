@@ -7,6 +7,7 @@ const { awsConfigItems } = require('./config-items')
 
 /**
  * @integrationName Amazon SQS
+ * @integrationIcon /icon.svg
  */
 class SQS {
   constructor(config = {}, context = {}) {
