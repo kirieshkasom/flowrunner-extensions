@@ -31,10 +31,11 @@ const {
 //   8. Payment drafts                      -- #PAYMENT-DRAFTS
 //   9. Foreign exchange                    -- #FX
 //  10. Payout links                        -- #PAYOUT-LINKS
-//  11. Webhooks (management)               -- #WEBHOOKS-MGMT
-//  12. Webhook realtime trigger handlers   -- #TRIGGER-HANDLERS
-//  13. Realtime trigger operations         -- #TRIGGER-OPS
-//  14. Service registration                -- #REGISTRATION
+//  11. Sandbox simulations                 -- #SANDBOX
+//  12. Webhooks (management)               -- #WEBHOOKS-MGMT
+//  13. Webhook realtime trigger handlers   -- #TRIGGER-HANDLERS
+//  14. Realtime trigger operations         -- #TRIGGER-OPS
+//  15. Service registration                -- #REGISTRATION
 
 const PRODUCTION_API_BASE = 'https://b2b.revolut.com/api/1.0'
 const PRODUCTION_API_V2_BASE = 'https://b2b.revolut.com/api/2.0'
@@ -433,6 +434,23 @@ class RevolutBusinessService {
       headers: { ...this.#authHeader(), 'Content-Type': 'application/json' },
       logTag,
     })
+  }
+
+  // The sandbox simulation endpoints live only on Revolut's Sandbox host, so a
+  // Production access token is rejected there with an opaque 401/403. When the
+  // service is connected to any environment but Sandbox, translate that raw
+  // authorization failure into a clear instruction instead of surfacing it.
+  #sandboxEnvironmentError(error) {
+    const status = Number(error && (error.status || error.statusCode))
+
+    if (this.environment !== ENVIRONMENT_SANDBOX && (status === 401 || status === 403)) {
+      return new Error(
+        'These simulations only work when the service is connected with Environment set to Sandbox. ' +
+          'Reconnect the service with Environment set to Sandbox and try again.'
+      )
+    }
+
+    return error
   }
 
   // =====================================================================================
@@ -903,7 +921,7 @@ class RevolutBusinessService {
    * @appearanceColor #0666EB #2C7BE5
    * @requiredOauth2Scopes READ
    *
-   * @returns {Array.<Object>}
+   * @returns {Array<Object>}
    * @sampleResult [{"id":"f1234567-1111-2222-3333-444455556666","name":"Main GBP","balance":4512.3,"currency":"GBP","state":"active","public":false,"created_at":"2024-03-20T11:04:12.123Z","updated_at":"2026-05-12T09:00:00.000Z"}]
    */
   async listAccounts() {
@@ -945,7 +963,7 @@ class RevolutBusinessService {
    *
    * @paramDef {"type":"String","label":"Account","name":"accountId","required":true,"dictionary":"getAccountsDictionary","description":"The account whose receiving bank details to fetch."}
    *
-   * @returns {Array.<Object>}
+   * @returns {Array<Object>}
    * @sampleResult [{"iban":"GB00REVO00000000000000","bic":"REVOGB21","bank_country":"GB","pooled":false,"unique_reference":"REVO123","schemes":["swift","sepa","faster_payments"]}]
    */
   async getAccountBankDetails(accountId) {
@@ -977,7 +995,7 @@ class RevolutBusinessService {
    * @paramDef {"type":"Number","label":"Limit","name":"limit","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of counterparties to return per page. Default 100, maximum 100."}
    * @paramDef {"type":"String","label":"Created Before","name":"createdBefore","uiComponent":{"type":"DATE_TIME_PICKER"},"description":"Only return counterparties added before this date and time. To page through older counterparties, pass the creation date of the last item from the previous page."}
    *
-   * @returns {Array.<Object>}
+   * @returns {Array<Object>}
    * @sampleResult [{"id":"01234567-89ab-cdef-0123-456789abcdef","name":"Acme Ltd","profile_type":"business","country":"GB","state":"created","created_at":"2026-04-12T08:30:00Z","accounts":[{"id":"abc","currency":"GBP","type":"revolut"}]}]
    */
   async listCounterparties(
@@ -1208,7 +1226,7 @@ class RevolutBusinessService {
    * @paramDef {"type":"Boolean","label":"Fetch All","name":"fetchAll","uiComponent":{"type":"TOGGLE"},"description":"When true, follow Revolut's pagination automatically and return every transaction in the window up to Max Total. When false (default), return only the first page."}
    * @paramDef {"type":"Number","label":"Max Total","name":"maxTotal","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Safety cap when Fetch All is true (default 5000). Stops paginating once this many transactions have been collected to protect against runaway result sets."}
    *
-   * @returns {Array.<Object>}
+   * @returns {Array<Object>}
    * @sampleResult [{"id":"abcd","type":"transfer","request_id":"req-1","state":"completed","reason_code":null,"created_at":"2026-05-15T09:30:00Z","completed_at":"2026-05-15T09:30:01Z","reference":"Invoice 1234","legs":[{"leg_id":"l1","account_id":"f12","amount":-100,"currency":"GBP","description":"Payment to Acme Ltd","counterparty":{"id":"01234567","account_id":"d1"}}]}]
    */
   async listTransactions(
@@ -1305,7 +1323,7 @@ class RevolutBusinessService {
    * @appearanceColor #0666EB #2C7BE5
    * @requiredOauth2Scopes READ
    *
-   * @paramDef {"type":"String","label":"Request ID","name":"requestId","required":true,"freeform":true,"description":"The Request ID you supplied when creating the payment (the safe-retry tag, not the Revolut transaction ID). No picker is offered — this is a value you chose yourself, so Revolut has no list to pick it from."}
+   * @paramDef {"type":"String","label":"Request ID","name":"requestId","required":true,"description":"The Request ID you supplied when creating the payment (the safe-retry tag, not the Revolut transaction ID). No picker is offered — this is a value you chose yourself, so Revolut has no list to pick it from."}
    *
    * @returns {Object}
    * @sampleResult {"id":"abcd","type":"transfer","request_id":"req-1","state":"completed","created_at":"2026-05-15T09:30:00Z","legs":[]}
@@ -1360,7 +1378,7 @@ class RevolutBusinessService {
    * @paramDef {"type":"Number","label":"Amount","name":"amount","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Amount to transfer in the account currency, in major units (e.g. 25.50 for £25.50)."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","required":true,"dictionary":"getCurrenciesDictionary","description":"Currency of the transfer (for example GBP). Must match the currency of both the source and target accounts."}
    * @paramDef {"type":"String","label":"Reference","name":"reference","description":"Free-text description shown on the transaction in both accounts (max 100 characters). Examples: 'Internal sweep', 'GBP to USD top-up'."}
-   * @paramDef {"type":"String","label":"Request ID","name":"requestId","freeform":true,"description":"Safe-retry tag. Leave blank and one is generated for you. Sending the same Request ID twice returns the original transaction instead of moving the money a second time, so you can safely retry after a network glitch. No picker is offered — this is a value you choose, not one Revolut lists."}
+   * @paramDef {"type":"String","label":"Request ID","name":"requestId","description":"Safe-retry tag. Leave blank and one is generated for you. Sending the same Request ID twice returns the original transaction instead of moving the money a second time, so you can safely retry after a network glitch. No picker is offered — this is a value you choose, not one Revolut lists."}
    *
    * @returns {Object}
    * @sampleResult {"id":"abcd","state":"completed","request_id":"req-1"}
@@ -1408,7 +1426,7 @@ class RevolutBusinessService {
    * @paramDef {"type":"String","label":"Currency","name":"currency","required":true,"dictionary":"getCurrenciesDictionary","description":"Currency of the payment (for example GBP, EUR, USD). Must match the source account's currency."}
    * @paramDef {"type":"String","label":"Reference","name":"reference","description":"Free-text description shown on the recipient's statement (max 100 characters). Examples: 'Invoice 1234', 'October consulting fee'."}
    * @paramDef {"type":"String","label":"Schedule For","name":"scheduleFor","uiComponent":{"type":"DATE_PICKER"},"description":"Optional date to send the payment on. Leave blank to send it right away. You can cancel a scheduled payment with Cancel Transaction up until the scheduled date."}
-   * @paramDef {"type":"String","label":"Request ID","name":"requestId","freeform":true,"description":"Safe-retry tag. Leave blank and one is generated for you. Sending the same Request ID twice returns the original payment instead of paying twice, so you can safely retry after a network glitch. No picker is offered — this is a value you choose, not one Revolut lists."}
+   * @paramDef {"type":"String","label":"Request ID","name":"requestId","description":"Safe-retry tag. Leave blank and one is generated for you. Sending the same Request ID twice returns the original payment instead of paying twice, so you can safely retry after a network glitch. No picker is offered — this is a value you choose, not one Revolut lists."}
    *
    * @returns {Object}
    * @sampleResult {"id":"abcd","state":"pending","request_id":"req-1"}
@@ -1513,7 +1531,7 @@ class RevolutBusinessService {
    *
    * @paramDef {"type":"String","label":"Title","name":"title","description":"Title for the draft, displayed in the Revolut Business approval screen."}
    * @paramDef {"type":"String","label":"Schedule For","name":"scheduleFor","uiComponent":{"type":"DATE_PICKER"},"description":"Optional date to send the payments on after they are approved. Leave blank to send them as soon as someone approves the draft."}
-   * @paramDef {"type":"Array.<PaymentDraftPayment>","label":"Payments","name":"payments","required":true,"description":"One or more payments to include in this draft. For each payment provide: Source Account, Counterparty, Amount, Currency, and optionally a Reference and a specific Counterparty Account."}
+   * @paramDef {"type":"Array<PaymentDraftPayment>","label":"Payments","name":"payments","required":true,"description":"One or more payments to include in this draft. For each payment provide: Source Account, Counterparty, Amount, Currency, and optionally a Reference and a specific Counterparty Account."}
    *
    * @returns {Object}
    * @sampleResult {"id":"draft-1"}
@@ -1618,7 +1636,7 @@ class RevolutBusinessService {
    * @paramDef {"type":"String","label":"Target Currency","name":"targetCurrency","required":true,"dictionary":"getCurrenciesDictionary","description":"Currency you are converting to (must match the Target Account's currency)."}
    * @paramDef {"type":"Number","label":"Target Amount","name":"targetAmount","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Amount to credit into the target account (buy). Provide either Source Amount or Target Amount, not both."}
    * @paramDef {"type":"String","label":"Reference","name":"reference","description":"Free-text description shown on the resulting transaction in both accounts (max 100 characters). Examples: 'Convert GBP to USD for invoice payment'."}
-   * @paramDef {"type":"String","label":"Request ID","name":"requestId","freeform":true,"description":"Safe-retry tag. Leave blank and one is generated for you. Sending the same Request ID twice returns the original exchange instead of converting the money twice, so you can safely retry after a network glitch. No picker is offered — this is a value you choose, not one Revolut lists."}
+   * @paramDef {"type":"String","label":"Request ID","name":"requestId","description":"Safe-retry tag. Leave blank and one is generated for you. Sending the same Request ID twice returns the original exchange instead of converting the money twice, so you can safely retry after a network glitch. No picker is offered — this is a value you choose, not one Revolut lists."}
    *
    * @returns {Object}
    * @sampleResult {"id":"abcd","state":"completed","request_id":"req-1"}
@@ -1677,7 +1695,7 @@ class RevolutBusinessService {
    * @paramDef {"type":"String","label":"Created Before","name":"createdBefore","uiComponent":{"type":"DATE_TIME_PICKER"},"description":"Only return payout links created before this date and time. Use to page through older links."}
    * @paramDef {"type":"Number","label":"Limit","name":"limit","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of links per page. Default 100, maximum 100."}
    *
-   * @returns {Array.<Object>}
+   * @returns {Array<Object>}
    * @sampleResult [{"id":"po-1","state":"active","created_at":"2026-05-15T10:00:00Z","expiry_date":"2026-05-22T10:00:00Z","payout_methods":["revolut","bank_account","card"],"counterparty_name":"John Doe","reference":"Refund 1234","amount":50,"currency":"GBP","url":"https://revolut.me/p/abc123"}]
    */
   async listPayoutLinks(state, createdBefore, limit) {
@@ -1729,9 +1747,9 @@ class RevolutBusinessService {
    * @paramDef {"type":"Number","label":"Amount","name":"amount","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Amount in the currency below, major units."}
    * @paramDef {"type":"String","label":"Currency","name":"currency","required":true,"dictionary":"getCurrenciesDictionary","description":"Currency the link is paid in (must match the Source Account's currency)."}
    * @paramDef {"type":"String","label":"Reference","name":"reference","description":"Free-text description shown on the recipient's statement and on Revolut's hosted page (max 100 characters). Examples: 'Refund order #4521', 'Q3 contractor payment'."}
-   * @paramDef {"type":"Array.<String>","label":"Payout Methods","name":"payoutMethods","uiComponent":{"type":"MULTI_SELECT_DROPDOWN","options":{"values":["revolut","bank_account","card"]}},"description":"Methods the recipient can pick when redeeming the link. Default: all three. Restrict (e.g. only 'bank_account') if you need to control how funds are received."}
+   * @paramDef {"type":"Array<String>","label":"Payout Methods","name":"payoutMethods","uiComponent":{"type":"MULTI_SELECT_DROPDOWN","options":{"values":["revolut","bank_account","card"]}},"description":"Methods the recipient can pick when redeeming the link. Default: all three. Restrict (e.g. only 'bank_account') if you need to control how funds are received."}
    * @paramDef {"type":"Number","label":"Expiry Days","name":"expiryDays","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of days the link stays redeemable (1–7, default 7). After expiry the link auto-cancels and money is returned to your account."}
-   * @paramDef {"type":"String","label":"Request ID","name":"requestId","freeform":true,"description":"Safe-retry tag. Leave blank and one is generated for you. Sending the same Request ID twice returns the original link instead of creating a duplicate, so you can safely retry after a network glitch. No picker is offered — this is a value you choose, not one Revolut lists."}
+   * @paramDef {"type":"String","label":"Request ID","name":"requestId","description":"Safe-retry tag. Leave blank and one is generated for you. Sending the same Request ID twice returns the original link instead of creating a duplicate, so you can safely retry after a network glitch. No picker is offered — this is a value you choose, not one Revolut lists."}
    *
    * @returns {Object}
    * @sampleResult {"id":"po-1","state":"active","url":"https://revolut.me/p/abc123","expiry_date":"2026-05-23T10:00:00Z"}
@@ -1794,6 +1812,87 @@ class RevolutBusinessService {
   }
 
   // =====================================================================================
+  // #SANDBOX — Sandbox-only simulations (drive balance / transfer state changes)
+  // =====================================================================================
+  //
+  // These endpoints exist only on Revolut's Sandbox host, so they always target
+  // SANDBOX_API_BASE regardless of the configured Environment. They let a flow
+  // drive the state changes the realtime triggers listen for — fund a balance, or
+  // push a transfer to completed/reverted/declined/failed — instead of waiting on a
+  // real banking event. Connect the service with Environment set to Sandbox: a
+  // Production access token is rejected by the sandbox host.
+
+  /**
+   * @operationName Simulate Top-Up
+   * @category Sandbox Simulations
+   * @description Sandbox only. Adds fake money to one of your Sandbox accounts so you can test flows that need a funded balance, or fire the On Transaction Created and On Transaction State Changed triggers on demand. Only works when the service is connected with Environment set to Sandbox; connected to any other environment it returns a clear error asking you to switch. The maximum amount is 10000 in any currency; a larger amount is rejected.
+   *
+   * @route POST /simulate-top-up
+   * @appearanceColor #0666EB #2C7BE5
+   * @requiredOauth2Scopes PAY
+   *
+   * @paramDef {"type":"String","label":"Account","name":"accountId","required":true,"dictionary":"getAccountsDictionary","description":"The Sandbox account to top up."}
+   * @paramDef {"type":"Number","label":"Amount","name":"amount","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Amount to add, in major units (for example 100 for £100). Maximum 10000 in any currency."}
+   * @paramDef {"type":"String","label":"Currency","name":"currency","required":true,"dictionary":"getCurrenciesDictionary","description":"Currency of the top-up. Must match the account's currency."}
+   * @paramDef {"type":"String","label":"Reference","name":"reference","description":"Short description shown on the resulting transaction. Defaults to 'Test Top-up' when left blank."}
+   * @paramDef {"type":"String","label":"Resulting State","name":"state","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"pending","label":"Pending"},{"value":"completed","label":"Completed"},{"value":"reverted","label":"Reverted"},{"value":"failed","label":"Failed"}]}},"description":"State the simulated top-up should land in. Defaults to 'completed'. Pick 'pending' to create a top-up you can later move with Simulate Transfer State, or 'failed'/'reverted' to test failure handling."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":"a6ea39d7-62c9-481c-8ba6-54974c8cc7ac","type":"topup","state":"completed","created_at":"2026-07-05T10:00:00Z","completed_at":"2026-07-05T10:00:01Z","reference":"Test Top-up","legs":[{"leg_id":"l1","account_id":"e042f1fe-f721-49cc-af82-db7a6c46944f","amount":100,"currency":"GBP","description":"Test Top-up"}]}
+   */
+  async simulateTopUp(accountId, amount, currency, reference, state) {
+    if (Number(amount) > 10000) {
+      throw new Error('Amount must be 10000 or less in any currency.')
+    }
+
+    const body = clean({
+      account_id: accountId,
+      amount: Number(amount),
+      currency,
+      reference,
+      state,
+    })
+
+    try {
+      return await this.#api({
+        logTag: 'simulateTopUp',
+        method: 'post',
+        url: `${ SANDBOX_API_BASE }/sandbox/topup`,
+        body,
+      })
+    } catch (error) {
+      throw this.#sandboxEnvironmentError(error)
+    }
+  }
+
+  /**
+   * @operationName Simulate Transfer State
+   * @category Sandbox Simulations
+   * @description Sandbox only. Pushes one of your Sandbox transfers into a chosen final state so you can test what happens when a payment clears, is reverted, is declined, or fails — and fire the On Transaction State Changed trigger on demand. The transfer must still be in progress (created or pending); the resulting state is final and cannot be changed again. Only works when the service is connected with Environment set to Sandbox; connected to any other environment it returns a clear error asking you to switch.
+   *
+   * @route POST /simulate-transfer-state
+   * @appearanceColor #0666EB #2C7BE5
+   * @requiredOauth2Scopes PAY
+   *
+   * @paramDef {"type":"String","label":"Transfer","name":"transactionId","required":true,"dictionary":"getTransactionsDictionary","description":"The Sandbox transfer to update. Pick a recent transfer, or paste the transaction ID returned by Make Payment or Transfer Between Own Accounts."}
+   * @paramDef {"type":"String","label":"Resulting State","name":"state","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"complete","label":"Complete"},{"value":"revert","label":"Revert"},{"value":"decline","label":"Decline"},{"value":"fail","label":"Fail"}]}},"description":"State to move the transfer into. 'Complete' marks it successfully processed; 'Revert' reverses it after completion; 'Decline' rejects it for a business reason such as insufficient balance or wrong receiver details; 'Fail' fails it during processing."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":"a6ea39d7-62c9-481c-8ba6-54974c8cc7ac","type":"transfer","request_id":"req-1","state":"completed","created_at":"2026-07-05T09:30:00Z","completed_at":"2026-07-05T09:30:05Z","reference":"Invoice 1234","legs":[{"leg_id":"l1","account_id":"f1234567-1111-2222-3333-444455556666","amount":-100,"currency":"GBP","description":"Payment to Acme Ltd","counterparty":{"id":"01234567","account_id":"d1"}}]}
+   */
+  async simulateTransferState(transactionId, state) {
+    try {
+      return await this.#api({
+        logTag: 'simulateTransferState',
+        method: 'post',
+        url: `${ SANDBOX_API_BASE }/sandbox/transactions/${ encodeURIComponent(transactionId) }/${ encodeURIComponent(state) }`,
+      })
+    } catch (error) {
+      throw this.#sandboxEnvironmentError(error)
+    }
+  }
+
+  // =====================================================================================
   // #WEBHOOKS-MGMT — Webhook subscription management (v2)
   // =====================================================================================
 
@@ -1806,7 +1905,7 @@ class RevolutBusinessService {
    * @appearanceColor #0666EB #2C7BE5
    * @requiredOauth2Scopes READ
    *
-   * @returns {Array.<Object>}
+   * @returns {Array<Object>}
    * @sampleResult [{"id":"wh-1","url":"https://example.com/hook","state":"enabled","events":["TransactionCreated","TransactionStateChanged"],"created_at":"2026-05-12T08:00:00Z","updated_at":"2026-05-12T08:00:00Z"}]
    */
   async listWebhooks() {
@@ -1847,7 +1946,7 @@ class RevolutBusinessService {
    * @requiredOauth2Scopes WRITE
    *
    * @paramDef {"type":"String","label":"URL","name":"url","required":true,"description":"HTTPS URL Revolut will POST events to. Must be publicly reachable."}
-   * @paramDef {"type":"Array.<String>","label":"Events","name":"events","uiComponent":{"type":"MULTI_SELECT_DROPDOWN","options":{"values":["TransactionCreated","TransactionStateChanged","PayoutLinkCreated","PayoutLinkStateChanged"]}},"description":"Events to subscribe to. Default: TransactionCreated and TransactionStateChanged."}
+   * @paramDef {"type":"Array<String>","label":"Events","name":"events","uiComponent":{"type":"MULTI_SELECT_DROPDOWN","options":{"values":["TransactionCreated","TransactionStateChanged","PayoutLinkCreated","PayoutLinkStateChanged"]}},"description":"Events to subscribe to. Default: TransactionCreated and TransactionStateChanged."}
    *
    * @returns {Object}
    * @sampleResult {"id":"wh-1","url":"https://example.com/hook","state":"enabled","events":["TransactionCreated","TransactionStateChanged"],"signing_secret":"wsec_abc123","created_at":"2026-05-16T10:00:00Z","updated_at":"2026-05-16T10:00:00Z"}
@@ -1877,7 +1976,7 @@ class RevolutBusinessService {
    *
    * @paramDef {"type":"String","label":"Webhook","name":"webhookId","required":true,"dictionary":"getWebhooksDictionary","description":"The webhook subscription to update."}
    * @paramDef {"type":"String","label":"URL","name":"url","description":"New HTTPS URL. Omit to keep the existing URL."}
-   * @paramDef {"type":"Array.<String>","label":"Events","name":"events","uiComponent":{"type":"MULTI_SELECT_DROPDOWN","options":{"values":["TransactionCreated","TransactionStateChanged","PayoutLinkCreated","PayoutLinkStateChanged"]}},"description":"New event list. Omit to keep the existing events."}
+   * @paramDef {"type":"Array<String>","label":"Events","name":"events","uiComponent":{"type":"MULTI_SELECT_DROPDOWN","options":{"values":["TransactionCreated","TransactionStateChanged","PayoutLinkCreated","PayoutLinkStateChanged"]}},"description":"New event list. Omit to keep the existing events."}
    *
    * @returns {Object}
    * @sampleResult {"id":"wh-1","url":"https://example.com/hook","state":"enabled","events":["TransactionCreated"],"created_at":"2026-05-12T08:00:00Z","updated_at":"2026-05-16T10:00:00Z"}
@@ -1966,7 +2065,7 @@ class RevolutBusinessService {
    * @paramDef {"type":"Number","label":"Limit","name":"limit","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of failed events to return. Default 100, maximum 100."}
    * @paramDef {"type":"String","label":"Created Before","name":"createdBefore","uiComponent":{"type":"DATE_TIME_PICKER"},"description":"Only return failed events from before this date and time. Use to page through older failures."}
    *
-   * @returns {Array.<Object>}
+   * @returns {Array<Object>}
    * @sampleResult [{"id":"evt-1","created_at":"2026-05-15T10:00:00Z","updated_at":"2026-05-15T10:05:00Z","webhook_id":"wh-1","event":"TransactionCreated","last_sent_date":"2026-05-15T10:04:30Z","payload":{"data":{"id":"abcd"}}}]
    */
   async listFailedWebhookEvents(webhookId, limit, createdBefore) {
@@ -2417,7 +2516,6 @@ function formatBalance(balance, currency) {
 
 Flowrunner.ServerCode.addService(RevolutBusinessService, [
   {
-    order: 1,
     name: 'environment',
     displayName: 'Environment',
     type: Flowrunner.ServerCode.ConfigItems.TYPES.CHOICE,
@@ -2428,7 +2526,6 @@ Flowrunner.ServerCode.addService(RevolutBusinessService, [
     hint: 'Select Sandbox for development and testing against fake balances. Select Production for live banking operations.',
   },
   {
-    order: 2,
     name: 'clientId',
     displayName: 'Client ID',
     type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
@@ -2437,7 +2534,6 @@ Flowrunner.ServerCode.addService(RevolutBusinessService, [
     hint: 'Identifier Revolut Business shows you after you upload your security certificate. Find it in the Revolut Business app under Settings → APIs.',
   },
   {
-    order: 3,
     name: 'privateKey',
     displayName: 'Private Key',
     type: Flowrunner.ServerCode.ConfigItems.TYPES.TEXT,
@@ -2446,7 +2542,6 @@ Flowrunner.ServerCode.addService(RevolutBusinessService, [
     hint: 'The private key that pairs with the security certificate you uploaded to Revolut Business. Paste the whole block, including the BEGIN and END lines. Treat it like a password and never share it.',
   },
   {
-    order: 4,
     name: 'issuer',
     displayName: 'Issuer Host',
     type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,

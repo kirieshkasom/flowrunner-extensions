@@ -3,6 +3,10 @@ const GRAPH_BASE_URL = 'https://graph.microsoft.com/v1.0'
 const ME_URL = `${ GRAPH_BASE_URL }/me`
 const PAGE_SIZE_DICTIONARY = 25
 const DEFAULT_LIST_TOP = 25
+// Byte-range size for large-file upload sessions. Graph requires every chunk but the last to be a
+// multiple of 320 KiB (327,680 bytes); 10 MiB is exactly 32 x 320 KiB and sits in Graph's
+// recommended 5-10 MiB range.
+const UPLOAD_CHUNK_SIZE = 10 * 1024 * 1024
 
 const DEFAULT_SCOPE_LIST = [
   'User.Read',
@@ -40,6 +44,7 @@ const logger = {
 }
 
 /**
+ * @usesFileStorage
  * @requireOAuth
  * @integrationName SharePoint
  * @integrationIcon /icon.png
@@ -149,6 +154,23 @@ class SharePointService {
     if (value === undefined || value === null) return undefined
 
     return Object.prototype.hasOwnProperty.call(mapping, value) ? mapping[value] : value
+  }
+
+  // Normalize a downloaded file body to a Buffer. Flowrunner.Request auto-parses
+  // the response by Content-Type, so a JSON/text source comes back as a parsed
+  // object/array/string rather than bytes despite .setEncoding(null). Buffer.from
+  // on a parsed array would also misread elements as byte values, so re-serialize
+  // anything that isn't already a Buffer.
+  #toBuffer(body) {
+    if (Buffer.isBuffer(body)) {
+      return body
+    }
+
+    if (typeof body === 'string') {
+      return Buffer.from(body)
+    }
+
+    return Buffer.from(JSON.stringify(body))
   }
 
   /**
@@ -780,6 +802,28 @@ class SharePointService {
     return { message: 'List deleted successfully' }
   }
 
+  /**
+   * @operationName Get List Columns
+   * @category Lists
+   * @appearanceColor #038387 #4FC3C7
+   * @description Retrieves the column definitions of a SharePoint list - each column's internal name, display name, type, and whether it is required or read-only. Use it to discover the column names to pass to Create List Item and Update List Item.
+   * @route POST /get-list-columns
+   * @paramDef {"type":"String","label":"Site","name":"siteId","required":true,"dictionary":"getSitesDictionary","description":"The SharePoint site."}
+   * @paramDef {"type":"String","label":"List","name":"listId","required":true,"dictionary":"getListsDictionary","dependsOn":["siteId"],"description":"The list whose columns are returned."}
+   * @returns {Object}
+   * @sampleResult {"value":[{"id":"99ddcf45-e2f7-4f17-82b0-6fba34445103","name":"Title","displayName":"Title","required":false,"readOnly":false,"hidden":false,"text":{"maxLength":255}}]}
+   */
+  async getListColumns(siteId, listId) {
+    if (!siteId || !listId) {
+      throw new Error('Parameters "Site" and "List" are required')
+    }
+
+    return this.#apiRequest({
+      url: `${ GRAPH_BASE_URL }/sites/${ siteId }/lists/${ listId }/columns`,
+      logTag: 'getListColumns',
+    })
+  }
+
   // ============================================================
   // LIST ITEMS
   // ============================================================
@@ -869,7 +913,7 @@ class SharePointService {
    * @route POST /create-list-item
    * @paramDef {"type":"String","label":"Site","name":"siteId","required":true,"dictionary":"getSitesDictionary","description":"The SharePoint site."}
    * @paramDef {"type":"String","label":"List","name":"listId","required":true,"dictionary":"getListsDictionary","dependsOn":["siteId"],"description":"The list to add the item to."}
-   * @paramDef {"type":"Object","label":"Fields","name":"fields","required":true,"freeform":true,"description":"Field values for the new item, keyed by the list's internal column names, e.g. {\"Title\":\"My item\",\"Status\":\"Open\"}. Freeform because the columns differ per list. Use Get List (with columns) to discover the available column names."}
+   * @paramDef {"type":"Object","label":"Fields","name":"fields","required":true,"description":"Field values for the new item, keyed by the list's internal column names, e.g. {\"Title\":\"My item\",\"Status\":\"Open\"}. Freeform because the columns differ per list. Use Get List Columns to discover the available column names."}
    * @returns {Object}
    * @sampleResult {"id":"42","fields":{"Title":"My item","Status":"Open"}}
    */
@@ -903,7 +947,7 @@ class SharePointService {
    * @paramDef {"type":"String","label":"Site","name":"siteId","required":true,"dictionary":"getSitesDictionary","description":"The SharePoint site."}
    * @paramDef {"type":"String","label":"List","name":"listId","required":true,"dictionary":"getListsDictionary","dependsOn":["siteId"],"description":"The list containing the item."}
    * @paramDef {"type":"String","label":"Item","name":"itemId","required":true,"dictionary":"getListItemsDictionary","dependsOn":["siteId","listId"],"description":"The item to update."}
-   * @paramDef {"type":"Object","label":"Fields","name":"fields","required":true,"freeform":true,"description":"Field values to update, keyed by the list's internal column names. Only the columns you supply are modified. Freeform because the columns differ per list. Use Get List (with columns) to discover the available column names."}
+   * @paramDef {"type":"Object","label":"Fields","name":"fields","required":true,"description":"Field values to update, keyed by the list's internal column names. Only the columns you supply are modified. Freeform because the columns differ per list. Use Get List Columns to discover the available column names."}
    * @returns {Object}
    * @sampleResult {"Title":"Updated Report","Status":"Done"}
    */
@@ -1368,6 +1412,157 @@ class SharePointService {
       method: 'post',
       body: body,
     })
+  }
+
+  /**
+   * @operationName Rename Drive Item
+   * @category Drives
+   * @appearanceColor #038387 #4FC3C7
+   * @description Renames a file or folder in place, keeping it in its current folder. To move an item to a different folder, use Move Drive Item instead.
+   * @route POST /rename-drive-item
+   * @paramDef {"type":"String","label":"Site","name":"siteId","required":true,"dictionary":"getSitesDictionary","description":"The SharePoint site."}
+   * @paramDef {"type":"String","label":"Drive","name":"driveId","required":true,"dictionary":"getDrivesDictionary","dependsOn":["siteId"],"description":"The document library."}
+   * @paramDef {"type":"String","label":"Item","name":"itemId","required":true,"dictionary":"getDriveItemsDictionary","dependsOn":["siteId","driveId"],"description":"The file or folder to rename."}
+   * @paramDef {"type":"String","label":"New Name","name":"newName","required":true,"description":"The new name for the item, including the file extension for files, e.g. Q1-report.pdf."}
+   * @returns {Object}
+   * @sampleResult {"id":"01NKDM7HMOJTVYMDOSXFDK2QJDXCDI3WUK","name":"Q1-report.pdf","file":{"mimeType":"application/pdf"},"webUrl":"https://contoso.sharepoint.com/sites/marketing/Shared%20Documents/Q1-report.pdf"}
+   */
+  async renameDriveItem(siteId, driveId, itemId, newName) {
+    if (!siteId || !driveId || !itemId || !newName) {
+      throw new Error('Parameters "Site", "Drive", "Item" and "New Name" are required')
+    }
+
+    return this.#apiRequest({
+      url: `${ GRAPH_BASE_URL }/drives/${ driveId }/items/${ itemId }`,
+      logTag: 'renameDriveItem',
+      method: 'patch',
+      body: { name: newName },
+    })
+  }
+
+  /**
+   * @operationName List Drive Item Versions
+   * @category Drives
+   * @appearanceColor #038387 #4FC3C7
+   * @description Lists the version history of a file, newest first. Each version carries its ID, size, who last changed it, and when. Requires version history to be enabled on the library.
+   * @route POST /list-drive-item-versions
+   * @paramDef {"type":"String","label":"Site","name":"siteId","required":true,"dictionary":"getSitesDictionary","description":"The SharePoint site."}
+   * @paramDef {"type":"String","label":"Drive","name":"driveId","required":true,"dictionary":"getDrivesDictionary","dependsOn":["siteId"],"description":"The document library."}
+   * @paramDef {"type":"String","label":"Item","name":"itemId","required":true,"dictionary":"getDriveItemsDictionary","dependsOn":["siteId","driveId"],"description":"The file whose version history to list."}
+   * @returns {Object}
+   * @sampleResult {"value":[{"id":"3.0","lastModifiedBy":{"user":{"id":"ce251278-ef9e-4fe5-833c-1d89eeae68e0","displayName":"John Smith"}},"lastModifiedDateTime":"2026-04-01T12:34:53.912Z","size":123}]}
+   */
+  async listDriveItemVersions(siteId, driveId, itemId) {
+    if (!siteId || !driveId || !itemId) {
+      throw new Error('Parameters "Site", "Drive" and "Item" are required')
+    }
+
+    return this.#apiRequest({
+      url: `${ GRAPH_BASE_URL }/drives/${ driveId }/items/${ itemId }/versions`,
+      logTag: 'listDriveItemVersions',
+    })
+  }
+
+  /**
+   * @operationName Create Upload Session
+   * @category Drives
+   * @appearanceColor #038387 #4FC3C7
+   * @description Starts a resumable upload session for a large file (over 4 MB) and returns a pre-authenticated upload URL. Pass that URL to Upload Large File to stream the bytes. For files up to 4 MB use Upload File instead.
+   * @route POST /create-upload-session
+   * @paramDef {"type":"String","label":"Site","name":"siteId","required":true,"dictionary":"getSitesDictionary","description":"The SharePoint site."}
+   * @paramDef {"type":"String","label":"Drive","name":"driveId","required":true,"dictionary":"getDrivesDictionary","dependsOn":["siteId"],"description":"The document library to upload to."}
+   * @paramDef {"type":"String","label":"Parent Folder","name":"parentFolderId","dictionary":"getDriveItemsDictionary","dependsOn":["siteId","driveId"],"description":"Folder to upload into. Leave blank to upload at the drive root."}
+   * @paramDef {"type":"String","label":"File Name","name":"fileName","required":true,"description":"Name of the file as it should appear in SharePoint, e.g. archive.zip."}
+   * @paramDef {"type":"String","label":"On Conflict","name":"conflictBehavior","uiComponent":{"type":"DROPDOWN","options":{"values":["Fail","Rename","Replace"]}},"description":"What to do if a file with this name already exists. Defaults to replace."}
+   * @returns {Object}
+   * @sampleResult {"uploadUrl":"https://contoso.sharepoint.com/_api/v2.0/drives/b!abc/items/01ABC/uploadSession?guid=xyz&overwrite=True","expirationDateTime":"2026-04-01T09:21:55.523Z"}
+   */
+  async createUploadSession(siteId, driveId, parentFolderId, fileName, conflictBehavior) {
+    if (!siteId || !driveId || !fileName) {
+      throw new Error('Parameters "Site", "Drive" and "File Name" are required')
+    }
+
+    conflictBehavior = this.#resolveChoice(conflictBehavior, { Fail: 'fail', Rename: 'rename', Replace: 'replace' })
+
+    const encodedName = encodeURIComponent(fileName)
+
+    const basePath = parentFolderId
+      ? `/drives/${ driveId }/items/${ parentFolderId }:/${ encodedName }:/createUploadSession`
+      : `/drives/${ driveId }/root:/${ encodedName }:/createUploadSession`
+
+    return this.#apiRequest({
+      url: `${ GRAPH_BASE_URL }${ basePath }`,
+      logTag: 'createUploadSession',
+      method: 'post',
+      body: {
+        item: {
+          '@microsoft.graph.conflictBehavior': conflictBehavior || 'replace',
+          name: fileName,
+        },
+      },
+    })
+  }
+
+  /**
+   * @operationName Upload Large File
+   * @category Drives
+   * @appearanceColor #038387 #4FC3C7
+   * @description Uploads a larger file (over 4 MB) to SharePoint by sending it to an upload session in sequential chunks. First call Create Upload Session to get an upload URL, then pass that URL and the source file here. The whole file is loaded into memory before it is sent, so the practical size limit is the memory available to this function - keep files under a few hundred megabytes. For files up to 4 MB use Upload File instead.
+   * @route POST /upload-large-file
+   * @executionTimeoutInSeconds 900
+   * @paramDef {"type":"String","label":"Upload URL","name":"uploadUrl","required":true,"description":"The pre-authenticated upload URL returned by Create Upload Session."}
+   * @paramDef {"type":"String","label":"File","name":"fileUrl","required":true,"uiComponent":{"type":"FILE_SELECTOR"},"description":"The file to upload (its URL). Its bytes are fetched into memory, then sent to SharePoint in chunks."}
+   * @returns {Object}
+   * @sampleResult {"id":"01ABC","name":"archive.zip","size":104857600,"file":{"mimeType":"application/zip"},"webUrl":"https://contoso.sharepoint.com/sites/marketing/Shared%20Documents/archive.zip"}
+   */
+  async uploadLargeFile(uploadUrl, fileUrl) {
+    if (!uploadUrl) {
+      throw new Error('Parameter "Upload URL" is required - call Create Upload Session first to obtain it')
+    }
+
+    if (!fileUrl) {
+      throw new Error('Parameter "File" is required')
+    }
+
+    let buffer
+
+    try {
+      buffer = this.#toBuffer(await Flowrunner.Request.get(fileUrl).setEncoding(null))
+    } catch (error) {
+      logger.error(`uploadLargeFile - failed to fetch source file: ${ error.message }`)
+      throw new Error(`Failed to fetch the source file: ${ error.message }`)
+    }
+
+    const total = buffer.length
+
+    if (!total) {
+      throw new Error('The source file is empty.')
+    }
+
+    let last
+
+    try {
+      // Stream the file in sequential byte ranges. The upload URL is pre-authenticated, so the PUTs
+      // must NOT carry an Authorization header - a bearer token here makes Graph reject the chunk.
+      for (let start = 0; start < total; start += UPLOAD_CHUNK_SIZE) {
+        const end = Math.min(start + UPLOAD_CHUNK_SIZE, total)
+        const chunk = buffer.subarray(start, end)
+
+        logger.debug(`uploadLargeFile - PUT bytes ${ start }-${ end - 1 }/${ total }`)
+
+        last = await Flowrunner.Request.put(uploadUrl)
+          .set({
+            'Content-Type': 'application/octet-stream',
+            'Content-Range': `bytes ${ start }-${ end - 1 }/${ total }`,
+          })
+          .send(chunk)
+      }
+    } catch (error) {
+      throw this.#normalizeError(error, 'uploadLargeFile')
+    }
+
+    // The response to the final byte range is the finished driveItem; earlier ranges return status.
+    return last
   }
 
   // ============================================================

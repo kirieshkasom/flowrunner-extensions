@@ -140,7 +140,7 @@ class WordPress {
    * @paramDef {"type":"String","label":"After","name":"after","description":"Return posts published after this ISO 8601 date (e.g. '2024-01-01T00:00:00')."}
    * @paramDef {"type":"String","label":"Before","name":"before","description":"Return posts published before this ISO 8601 date (e.g. '2024-12-31T23:59:59')."}
    *
-   * @returns {Array.<Object>}
+   * @returns {Array<Object>}
    * @sampleResult [{"id":42,"date":"2024-08-01T10:30:00","slug":"hello-world","status":"publish","type":"post","link":"https://example.com/hello-world","title":{"rendered":"Hello World"},"content":{"rendered":"<p>Welcome to WordPress.</p>","protected":false},"excerpt":{"rendered":"<p>Welcome.</p>","protected":false},"author":1,"featured_media":0,"categories":[1],"tags":[]}]
    */
   async listPosts(status, search, page, perPage, orderBy, order, authorId, categoryId, tagId, after, before) {
@@ -206,8 +206,8 @@ class WordPress {
    * @paramDef {"type":"String","label":"Excerpt","name":"excerpt","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Short summary used by themes for previews."}
    * @paramDef {"type":"Number","label":"Author","name":"authorId","dictionary":"getAuthorsDictionary","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"User ID for the post author."}
    * @paramDef {"type":"Number","label":"Featured Media","name":"featuredMediaId","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Media item ID to use as the featured image."}
-   * @paramDef {"type":"Array.<Number>","label":"Categories","name":"categoryIds","description":"Array of category term IDs to assign to the post."}
-   * @paramDef {"type":"Array.<Number>","label":"Tags","name":"tagIds","description":"Array of tag term IDs to assign to the post."}
+   * @paramDef {"type":"Array<Number>","label":"Categories","name":"categoryIds","description":"Array of category term IDs to assign to the post."}
+   * @paramDef {"type":"Array<Number>","label":"Tags","name":"tagIds","description":"Array of tag term IDs to assign to the post."}
    * @paramDef {"type":"String","label":"Comment Status","name":"commentStatus","uiComponent":{"type":"DROPDOWN","options":{"values":["Open","Closed"]}},"description":"Whether comments are open or closed for the post."}
    * @paramDef {"type":"String","label":"Date","name":"date","description":"Publication date in ISO 8601 site-timezone format (e.g. '2024-12-15T09:00:00'). Use with status 'future' to schedule."}
    * @paramDef {"type":"Boolean","label":"Sticky","name":"sticky","uiComponent":{"type":"TOGGLE"},"description":"Pin this post to the top of the blog listing."}
@@ -258,8 +258,8 @@ class WordPress {
    * @paramDef {"type":"String","label":"Excerpt","name":"excerpt","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"New excerpt text used by themes for previews."}
    * @paramDef {"type":"Number","label":"Author","name":"authorId","dictionary":"getAuthorsDictionary","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"New author user ID."}
    * @paramDef {"type":"Number","label":"Featured Media","name":"featuredMediaId","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"New featured media item ID. Pass 0 to clear the existing featured image."}
-   * @paramDef {"type":"Array.<Number>","label":"Categories","name":"categoryIds","description":"Replacement array of category term IDs."}
-   * @paramDef {"type":"Array.<Number>","label":"Tags","name":"tagIds","description":"Replacement array of tag term IDs."}
+   * @paramDef {"type":"Array<Number>","label":"Categories","name":"categoryIds","description":"Replacement array of category term IDs."}
+   * @paramDef {"type":"Array<Number>","label":"Tags","name":"tagIds","description":"Replacement array of tag term IDs."}
    * @paramDef {"type":"String","label":"Comment Status","name":"commentStatus","uiComponent":{"type":"DROPDOWN","options":{"values":["Open","Closed"]}},"description":"Whether comments are open or closed for the post."}
    * @paramDef {"type":"String","label":"Date","name":"date","description":"New publication date in ISO 8601 site-timezone format."}
    * @paramDef {"type":"Boolean","label":"Sticky","name":"sticky","uiComponent":{"type":"TOGGLE"},"description":"Pin this post to the top of the blog listing."}
@@ -333,7 +333,7 @@ class WordPress {
    * @paramDef {"type":"String","label":"Order By","name":"orderBy","uiComponent":{"type":"DROPDOWN","options":{"values":["Date","ID","Include Order","Title","Slug","Last Modified","Menu Order"]}},"description":"Field used to sort the results. Defaults to 'date'."}
    * @paramDef {"type":"String","label":"Order","name":"order","uiComponent":{"type":"DROPDOWN","options":{"values":["Ascending","Descending"]}},"description":"Sort direction for the results. Defaults to 'desc'."}
    *
-   * @returns {Array.<Object>}
+   * @returns {Array<Object>}
    * @sampleResult [{"id":2,"date":"2024-07-15T09:00:00","slug":"about","status":"publish","type":"page","link":"https://example.com/about","title":{"rendered":"About"},"content":{"rendered":"<p>About us.</p>","protected":false},"parent":0,"menu_order":0}]
    */
   async listPages(status, search, parentId, page, perPage, orderBy, order) {
@@ -504,7 +504,7 @@ class WordPress {
    * @paramDef {"type":"String","label":"Order By","name":"orderBy","uiComponent":{"type":"DROPDOWN","options":{"values":["ID","Name","Slug","Include Order","Post Count","Term Group","Description"]}},"description":"Field used to sort the results. Defaults to 'name'."}
    * @paramDef {"type":"String","label":"Order","name":"order","uiComponent":{"type":"DROPDOWN","options":{"values":["Ascending","Descending"]}},"description":"Sort direction. Defaults to 'asc'."}
    *
-   * @returns {Array.<Object>}
+   * @returns {Array<Object>}
    * @sampleResult [{"id":1,"count":15,"description":"","link":"https://example.com/category/news","name":"News","slug":"news","taxonomy":"category","parent":0}]
    */
   async listCategories(search, parentId, hideEmpty, page, perPage, orderBy, order) {
@@ -650,7 +650,7 @@ class WordPress {
    * @paramDef {"type":"String","label":"Order By","name":"orderBy","uiComponent":{"type":"DROPDOWN","options":{"values":["ID","Name","Slug","Include Order","Post Count","Term Group","Description"]}},"description":"Field used to sort the results. Defaults to 'name'."}
    * @paramDef {"type":"String","label":"Order","name":"order","uiComponent":{"type":"DROPDOWN","options":{"values":["Ascending","Descending"]}},"description":"Sort direction. Defaults to 'asc'."}
    *
-   * @returns {Array.<Object>}
+   * @returns {Array<Object>}
    * @sampleResult [{"id":7,"count":3,"description":"","link":"https://example.com/tag/wordpress","name":"WordPress","slug":"wordpress","taxonomy":"post_tag"}]
    */
   async listTags(search, hideEmpty, page, perPage, orderBy, order) {
@@ -785,14 +785,14 @@ class WordPress {
    * @route POST /list-users
    *
    * @paramDef {"type":"String","label":"Search","name":"search","description":"Free-text search matched against user names and emails."}
-   * @paramDef {"type":"Array.<String>","label":"Roles","name":"roles","description":"Filter to users with any of these roles (e.g. ['administrator','editor','author'])."}
+   * @paramDef {"type":"Array<String>","label":"Roles","name":"roles","description":"Filter to users with any of these roles (e.g. ['administrator','editor','author'])."}
    * @paramDef {"type":"Boolean","label":"Has Published Posts","name":"hasPublishedPosts","uiComponent":{"type":"TOGGLE"},"description":"Limit to users who have at least one published post."}
    * @paramDef {"type":"Number","label":"Page","name":"page","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Page number of the result set. Starts at 1. Defaults to 1."}
    * @paramDef {"type":"Number","label":"Per Page","name":"perPage","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of users to return per page (1-100). Defaults to 10."}
    * @paramDef {"type":"String","label":"Order By","name":"orderBy","uiComponent":{"type":"DROPDOWN","options":{"values":["ID","Name","Include Order","Slug","Email","URL","Registration Date"]}},"description":"Field used to sort the results. Defaults to 'name'."}
    * @paramDef {"type":"String","label":"Order","name":"order","uiComponent":{"type":"DROPDOWN","options":{"values":["Ascending","Descending"]}},"description":"Sort direction. Defaults to 'asc'."}
    *
-   * @returns {Array.<Object>}
+   * @returns {Array<Object>}
    * @sampleResult [{"id":1,"name":"Admin","first_name":"Site","last_name":"Admin","email":"admin@example.com","roles":["administrator"],"registered_date":"2024-01-01T00:00:00+00:00","slug":"admin","url":"","description":"","link":"https://example.com/author/admin","avatar_urls":{"96":"https://secure.gravatar.com/avatar/abc?s=96"}}]
    */
   async listUsers(search, roles, hasPublishedPosts, page, perPage, orderBy, order) {
@@ -870,7 +870,7 @@ class WordPress {
    * @paramDef {"type":"String","label":"Name","name":"name","description":"Display name shown on the site."}
    * @paramDef {"type":"String","label":"First Name","name":"firstName","description":"Given name."}
    * @paramDef {"type":"String","label":"Last Name","name":"lastName","description":"Family name."}
-   * @paramDef {"type":"Array.<String>","label":"Roles","name":"roles","description":"Array of role slugs to assign (e.g. ['author'])."}
+   * @paramDef {"type":"Array<String>","label":"Roles","name":"roles","description":"Array of role slugs to assign (e.g. ['author'])."}
    * @paramDef {"type":"String","label":"URL","name":"url","description":"Personal website URL."}
    * @paramDef {"type":"String","label":"Description","name":"description","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Short biography for the user profile."}
    *
@@ -914,7 +914,7 @@ class WordPress {
    * @paramDef {"type":"String","label":"Name","name":"name","description":"New display name."}
    * @paramDef {"type":"String","label":"First Name","name":"firstName","description":"New given name."}
    * @paramDef {"type":"String","label":"Last Name","name":"lastName","description":"New family name."}
-   * @paramDef {"type":"Array.<String>","label":"Roles","name":"roles","description":"Replacement array of role slugs."}
+   * @paramDef {"type":"Array<String>","label":"Roles","name":"roles","description":"Replacement array of role slugs."}
    * @paramDef {"type":"String","label":"URL","name":"url","description":"New personal website URL."}
    * @paramDef {"type":"String","label":"Description","name":"description","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"New short biography."}
    *
@@ -982,7 +982,7 @@ class WordPress {
    * @paramDef {"type":"String","label":"Order By","name":"orderBy","uiComponent":{"type":"DROPDOWN","options":{"values":["Date","ID","Include Order","Title","Slug","Last Modified"]}},"description":"Field used to sort the results. Defaults to 'date'."}
    * @paramDef {"type":"String","label":"Order","name":"order","uiComponent":{"type":"DROPDOWN","options":{"values":["Ascending","Descending"]}},"description":"Sort direction. Defaults to 'desc'."}
    *
-   * @returns {Array.<Object>}
+   * @returns {Array<Object>}
    * @sampleResult [{"id":99,"date":"2024-08-01T10:30:00","slug":"sample-image","type":"attachment","link":"https://example.com/sample-image","title":{"rendered":"Sample Image"},"author":1,"media_type":"image","mime_type":"image/png","source_url":"https://example.com/wp-content/uploads/2024/08/sample.png","alt_text":"A sample image"}]
    */
   async listMedia(search, mediaType, mimeType, parentId, page, perPage, orderBy, order) {
@@ -1161,7 +1161,7 @@ class WordPress {
    * @paramDef {"type":"String","label":"Order By","name":"orderBy","uiComponent":{"type":"DROPDOWN","options":{"values":["Date","Date (GMT)","ID","Include Order","Post","Parent","Type"]}},"description":"Field used to sort the results. Defaults to 'date_gmt'."}
    * @paramDef {"type":"String","label":"Order","name":"order","uiComponent":{"type":"DROPDOWN","options":{"values":["Ascending","Descending"]}},"description":"Sort direction. Defaults to 'desc'."}
    *
-   * @returns {Array.<Object>}
+   * @returns {Array<Object>}
    * @sampleResult [{"id":31,"post":42,"parent":0,"author":0,"author_name":"Visitor","author_url":"","date":"2024-08-02T12:00:00","content":{"rendered":"<p>Great post!</p>"},"link":"https://example.com/hello-world#comment-31","status":"approved","type":"comment"}]
    */
   async listComments(postId, parentId, status, search, page, perPage, orderBy, order) {
@@ -1324,7 +1324,7 @@ class WordPress {
    * @paramDef {"type":"Number","label":"Page","name":"page","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Page number of the result set. Starts at 1. Defaults to 1."}
    * @paramDef {"type":"Number","label":"Per Page","name":"perPage","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of results to return per page (1-100). Defaults to 10."}
    *
-   * @returns {Array.<Object>}
+   * @returns {Array<Object>}
    * @sampleResult [{"id":42,"title":"Hello World","url":"https://example.com/hello-world","type":"post","subtype":"post"},{"id":2,"title":"About","url":"https://example.com/about","type":"post","subtype":"page"}]
    */
   async searchSite(query, type, subtype, page, perPage) {
@@ -1450,6 +1450,361 @@ class WordPress {
   }
 
   /**
+   * @operationName Get Post Meta
+   * @category Custom Fields
+   * @description Reads the custom fields (meta) stored on a single post or page and returns them as a key/value map. Only meta keys registered on the site with show_in_rest are exposed by the WordPress REST API; keys registered without it never appear here, so an empty result usually means no keys are REST-visible.
+   * @route POST /get-post-meta
+   *
+   * @paramDef {"type":"String","label":"Content Type","name":"postType","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"post","label":"Post"},{"value":"page","label":"Page"}]}},"description":"Whether the ID refers to a post or a page. Defaults to post."}
+   * @paramDef {"type":"Number","label":"Post ID","name":"postId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Unique numeric identifier of the post or page whose meta to read."}
+   *
+   * @returns {Object}
+   * @sampleResult {"subtitle":"A short subtitle","featured":"yes","reading_time":5}
+   */
+  async getPostMeta(postType, postId) {
+    assert(postId, 'Post ID is required.')
+
+    const restBase = postType === 'page' ? 'pages' : 'posts'
+
+    const response = await this.#apiRequest({
+      url: `${ this.baseUrl }/${ restBase }/${ postId }`,
+      method: 'get',
+      query: { context: 'edit' },
+      logTag: 'getPostMeta',
+    })
+
+    return response?.meta || {}
+  }
+
+  /**
+   * @operationName Update Post Meta
+   * @category Custom Fields
+   * @description Sets one or more custom fields (meta) on a post or page. Pass a map of meta key to value; the given keys are overwritten and all other meta is left untouched. A key is only saved if it was registered on the site with show_in_rest - WordPress silently ignores unregistered keys, so a returned value that is missing your key means the key is not REST-registered. Returns the post's meta after the update.
+   * @route POST /update-post-meta
+   *
+   * @paramDef {"type":"String","label":"Content Type","name":"postType","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"post","label":"Post"},{"value":"page","label":"Page"}]}},"description":"Whether the ID refers to a post or a page. Defaults to post."}
+   * @paramDef {"type":"Number","label":"Post ID","name":"postId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Unique numeric identifier of the post or page to update."}
+   * @paramDef {"type":"Object","label":"Meta Fields","name":"meta","required":true,"description":"Map of meta key to value to set, for example {\"subtitle\":\"A short subtitle\",\"featured\":\"yes\"}. Each key must be registered on the site with show_in_rest or WordPress ignores it."}
+   *
+   * @returns {Object}
+   * @sampleResult {"subtitle":"A short subtitle","featured":"yes","reading_time":5}
+   */
+  async updatePostMeta(postType, postId, meta) {
+    assert(postId, 'Post ID is required.')
+    assert(meta && typeof meta === 'object' && !Array.isArray(meta), 'Meta must be an object of key/value pairs.')
+    assert(Object.keys(meta).length > 0, 'Provide at least one meta key to update.')
+
+    const restBase = postType === 'page' ? 'pages' : 'posts'
+
+    const response = await this.#apiRequest({
+      url: `${ this.baseUrl }/${ restBase }/${ postId }`,
+      method: 'post',
+      body: { meta },
+      logTag: 'updatePostMeta',
+    })
+
+    return response?.meta || {}
+  }
+
+  /**
+   * @operationName List Custom Posts
+   * @category Custom Post Types
+   * @description Lists items of any registered post type by its REST base (e.g. a 'portfolio' or 'product' custom post type), with filtering by status, search, ordering, and pagination. Use List Post Types to discover the available REST bases.
+   * @route POST /list-custom-posts
+   *
+   * @paramDef {"type":"String","label":"Post Type","name":"restBase","required":true,"dictionary":"getPostTypesDictionary","description":"REST base of the post type to list (e.g. 'posts', 'pages', or a custom type's REST base)."}
+   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"publish","label":"Published"},{"value":"future","label":"Scheduled"},{"value":"draft","label":"Draft"},{"value":"pending","label":"Pending Review"},{"value":"private","label":"Private"},{"value":"trash","label":"Trash"},{"value":"any","label":"Any"}]}},"description":"Filter items by publication status. Defaults to 'publish' if omitted."}
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Free-text search query matched against item title and content."}
+   * @paramDef {"type":"Number","label":"Page","name":"page","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Page number of the result set. Starts at 1. Defaults to 1."}
+   * @paramDef {"type":"Number","label":"Per Page","name":"perPage","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of items to return per page (1-100). Defaults to 10."}
+   * @paramDef {"type":"String","label":"Order By","name":"orderBy","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"date","label":"Date"},{"value":"id","label":"ID"},{"value":"include","label":"Include Order"},{"value":"title","label":"Title"},{"value":"slug","label":"Slug"},{"value":"modified","label":"Last Modified"},{"value":"menu_order","label":"Menu Order"}]}},"description":"Field used to sort the results. Defaults to 'date'."}
+   * @paramDef {"type":"String","label":"Order","name":"order","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"asc","label":"Ascending"},{"value":"desc","label":"Descending"}]}},"description":"Sort direction. Defaults to 'desc'."}
+   *
+   * @returns {Array<Object>}
+   * @sampleResult [{"id":128,"date":"2024-08-05T09:00:00","slug":"my-item","status":"publish","type":"portfolio","link":"https://example.com/portfolio/my-item","title":{"rendered":"My Item"},"content":{"rendered":"<p>Item body.</p>","protected":false},"excerpt":{"rendered":"<p>Item body.</p>","protected":false},"author":1,"featured_media":0,"meta":{}}]
+   */
+  async listCustomPosts(restBase, status, search, page, perPage, orderBy, order) {
+    assert(restBase, 'Post Type (REST base) is required.')
+
+    const query = {
+      status,
+      search,
+      page,
+      per_page: perPage,
+      orderby: orderBy,
+      order,
+    }
+
+    return await this.#apiRequest({
+      url: `${ this.baseUrl }/${ restBase }`,
+      method: 'get',
+      query,
+      logTag: 'listCustomPosts',
+    })
+  }
+
+  /**
+   * @operationName Get Custom Post
+   * @category Custom Post Types
+   * @description Fetches a single item of any registered post type by its REST base and numeric ID, including its content, status, and meta fields. Use List Post Types to discover the available REST bases.
+   * @route POST /get-custom-post
+   *
+   * @paramDef {"type":"String","label":"Post Type","name":"restBase","required":true,"dictionary":"getPostTypesDictionary","description":"REST base of the post type (e.g. 'posts', 'pages', or a custom type's REST base)."}
+   * @paramDef {"type":"Number","label":"Post ID","name":"postId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Unique numeric identifier of the item to retrieve."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":128,"date":"2024-08-05T09:00:00","slug":"my-item","status":"publish","type":"portfolio","link":"https://example.com/portfolio/my-item","title":{"rendered":"My Item"},"content":{"rendered":"<p>Item body.</p>","protected":false},"excerpt":{"rendered":"<p>Item body.</p>","protected":false},"author":1,"featured_media":0,"meta":{}}
+   */
+  async getCustomPost(restBase, postId) {
+    assert(restBase, 'Post Type (REST base) is required.')
+    assert(postId, 'Post ID is required.')
+
+    return await this.#apiRequest({
+      url: `${ this.baseUrl }/${ restBase }/${ postId }`,
+      method: 'get',
+      logTag: 'getCustomPost',
+    })
+  }
+
+  /**
+   * @operationName Create Custom Post
+   * @category Custom Post Types
+   * @description Creates an item of any registered post type by its REST base (e.g. a 'portfolio' or 'product' custom post type). Provide the title, content, status, and any custom fields via meta. Use List Post Types to discover the available REST bases.
+   * @route POST /create-custom-post
+   *
+   * @paramDef {"type":"String","label":"Post Type","name":"restBase","required":true,"dictionary":"getPostTypesDictionary","description":"REST base of the post type to create in (e.g. 'posts', 'pages', or a custom type's REST base)."}
+   * @paramDef {"type":"String","label":"Title","name":"title","required":true,"description":"The title of the new item."}
+   * @paramDef {"type":"String","label":"Content","name":"content","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"The HTML content body of the item."}
+   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"publish","label":"Published"},{"value":"future","label":"Scheduled"},{"value":"draft","label":"Draft"},{"value":"pending","label":"Pending Review"},{"value":"private","label":"Private"}]}},"description":"Publication status for the new item. Defaults to 'draft' when omitted."}
+   * @paramDef {"type":"String","label":"Slug","name":"slug","description":"URL-friendly identifier. WordPress generates one from the title if omitted."}
+   * @paramDef {"type":"String","label":"Excerpt","name":"excerpt","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Short summary used by themes for previews."}
+   * @paramDef {"type":"Object","label":"Meta Fields","name":"meta","description":"Optional map of custom-field key to value. Each key must be registered on the site with show_in_rest or WordPress ignores it."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":128,"date":"2024-08-05T09:00:00","slug":"my-item","status":"draft","type":"portfolio","link":"https://example.com/?portfolio=my-item","title":{"rendered":"My Item"},"content":{"rendered":"<p>Item body.</p>","protected":false},"author":1,"featured_media":0,"meta":{}}
+   */
+  async createCustomPost(restBase, title, content, status, slug, excerpt, meta) {
+    assert(restBase, 'Post Type (REST base) is required.')
+    assert(title, 'Title is required.')
+
+    const body = clean({
+      title,
+      content,
+      status,
+      slug,
+      excerpt,
+      meta,
+    })
+
+    return await this.#apiRequest({
+      url: `${ this.baseUrl }/${ restBase }`,
+      method: 'post',
+      body,
+      logTag: 'createCustomPost',
+    })
+  }
+
+  /**
+   * @operationName Update Custom Post
+   * @category Custom Post Types
+   * @description Updates an item of any registered post type by its REST base and numeric ID. Only the provided fields are changed; omitted fields are left untouched. Use List Post Types to discover the available REST bases.
+   * @route POST /update-custom-post
+   *
+   * @paramDef {"type":"String","label":"Post Type","name":"restBase","required":true,"dictionary":"getPostTypesDictionary","description":"REST base of the post type (e.g. 'posts', 'pages', or a custom type's REST base)."}
+   * @paramDef {"type":"Number","label":"Post ID","name":"postId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Unique numeric identifier of the item to update."}
+   * @paramDef {"type":"String","label":"Title","name":"title","description":"New title for the item."}
+   * @paramDef {"type":"String","label":"Content","name":"content","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"New HTML content body for the item."}
+   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"publish","label":"Published"},{"value":"future","label":"Scheduled"},{"value":"draft","label":"Draft"},{"value":"pending","label":"Pending Review"},{"value":"private","label":"Private"}]}},"description":"New publication status for the item."}
+   * @paramDef {"type":"String","label":"Slug","name":"slug","description":"New URL-friendly identifier."}
+   * @paramDef {"type":"String","label":"Excerpt","name":"excerpt","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"New excerpt text used by themes for previews."}
+   * @paramDef {"type":"Object","label":"Meta Fields","name":"meta","description":"Optional map of custom-field key to value to overwrite. Each key must be registered on the site with show_in_rest or WordPress ignores it."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":128,"date":"2024-08-05T09:00:00","slug":"my-item-updated","status":"publish","type":"portfolio","link":"https://example.com/portfolio/my-item-updated","title":{"rendered":"My Item Updated"},"content":{"rendered":"<p>Updated body.</p>","protected":false},"author":1,"featured_media":0,"meta":{}}
+   */
+  async updateCustomPost(restBase, postId, title, content, status, slug, excerpt, meta) {
+    assert(restBase, 'Post Type (REST base) is required.')
+    assert(postId, 'Post ID is required.')
+
+    const body = clean({
+      title,
+      content,
+      status,
+      slug,
+      excerpt,
+      meta,
+    })
+
+    return await this.#apiRequest({
+      url: `${ this.baseUrl }/${ restBase }/${ postId }`,
+      method: 'post',
+      body,
+      logTag: 'updateCustomPost',
+    })
+  }
+
+  /**
+   * @operationName Delete Custom Post
+   * @category Custom Post Types
+   * @description Deletes an item of any registered post type by its REST base and numeric ID. By default the item is moved to trash; pass force=true to permanently delete and bypass trash. Some post types do not support trash and require force=true.
+   * @route POST /delete-custom-post
+   *
+   * @paramDef {"type":"String","label":"Post Type","name":"restBase","required":true,"dictionary":"getPostTypesDictionary","description":"REST base of the post type (e.g. 'posts', 'pages', or a custom type's REST base)."}
+   * @paramDef {"type":"Number","label":"Post ID","name":"postId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Unique numeric identifier of the item to delete."}
+   * @paramDef {"type":"Boolean","label":"Force","name":"force","uiComponent":{"type":"TOGGLE"},"description":"Permanently delete the item instead of moving it to trash."}
+   *
+   * @returns {Object}
+   * @sampleResult {"deleted":true,"previous":{"id":128,"slug":"my-item","status":"trash","type":"portfolio","title":{"rendered":"My Item"}}}
+   */
+  async deleteCustomPost(restBase, postId, force) {
+    assert(restBase, 'Post Type (REST base) is required.')
+    assert(postId, 'Post ID is required.')
+
+    return await this.#apiRequest({
+      url: `${ this.baseUrl }/${ restBase }/${ postId }`,
+      method: 'delete',
+      query: { force: force ? true : undefined },
+      logTag: 'deleteCustomPost',
+    })
+  }
+
+  /**
+   * @operationName List Taxonomy Terms
+   * @category Custom Taxonomies
+   * @description Lists terms of any registered taxonomy by its REST base (e.g. a 'genre' or 'brand' custom taxonomy), with search, ordering, and filtering by parent for hierarchical taxonomies. Use List Taxonomies to discover the available REST bases.
+   * @route POST /list-taxonomy-terms
+   *
+   * @paramDef {"type":"String","label":"Taxonomy","name":"taxonomy","required":true,"dictionary":"getTaxonomiesDictionary","description":"REST base of the taxonomy to list terms from (e.g. 'categories', 'tags', or a custom taxonomy's REST base)."}
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Free-text search query matched against term names."}
+   * @paramDef {"type":"Number","label":"Parent","name":"parentId","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Limit to direct children of the given parent term ID. Only applies to hierarchical taxonomies. Use 0 for top-level terms."}
+   * @paramDef {"type":"Boolean","label":"Hide Empty","name":"hideEmpty","uiComponent":{"type":"TOGGLE"},"description":"Exclude terms that have no assigned content."}
+   * @paramDef {"type":"Number","label":"Page","name":"page","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Page number of the result set. Starts at 1. Defaults to 1."}
+   * @paramDef {"type":"Number","label":"Per Page","name":"perPage","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of terms to return per page (1-100). Defaults to 10."}
+   * @paramDef {"type":"String","label":"Order By","name":"orderBy","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"id","label":"ID"},{"value":"name","label":"Name"},{"value":"slug","label":"Slug"},{"value":"include","label":"Include Order"},{"value":"count","label":"Content Count"},{"value":"term_group","label":"Term Group"},{"value":"description","label":"Description"}]}},"description":"Field used to sort the results. Defaults to 'name'."}
+   * @paramDef {"type":"String","label":"Order","name":"order","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"asc","label":"Ascending"},{"value":"desc","label":"Descending"}]}},"description":"Sort direction. Defaults to 'asc'."}
+   *
+   * @returns {Array<Object>}
+   * @sampleResult [{"id":45,"count":8,"description":"","link":"https://example.com/genre/sci-fi","name":"Sci-Fi","slug":"sci-fi","taxonomy":"genre","parent":0}]
+   */
+  async listTaxonomyTerms(taxonomy, search, parentId, hideEmpty, page, perPage, orderBy, order) {
+    assert(taxonomy, 'Taxonomy (REST base) is required.')
+
+    const query = {
+      search,
+      parent: parentId,
+      hide_empty: hideEmpty,
+      page,
+      per_page: perPage,
+      orderby: orderBy,
+      order,
+    }
+
+    return await this.#apiRequest({
+      url: `${ this.baseUrl }/${ taxonomy }`,
+      method: 'get',
+      query,
+      logTag: 'listTaxonomyTerms',
+    })
+  }
+
+  /**
+   * @operationName Create Taxonomy Term
+   * @category Custom Taxonomies
+   * @description Creates a term in any registered taxonomy by its REST base (e.g. a 'genre' or 'brand' custom taxonomy). The parent field only applies to hierarchical taxonomies. Use List Taxonomies to discover the available REST bases.
+   * @route POST /create-taxonomy-term
+   *
+   * @paramDef {"type":"String","label":"Taxonomy","name":"taxonomy","required":true,"dictionary":"getTaxonomiesDictionary","description":"REST base of the taxonomy to create the term in (e.g. 'categories', 'tags', or a custom taxonomy's REST base)."}
+   * @paramDef {"type":"String","label":"Name","name":"name","required":true,"description":"Display name of the new term."}
+   * @paramDef {"type":"String","label":"Slug","name":"slug","description":"URL-friendly identifier. WordPress generates one from the name if omitted."}
+   * @paramDef {"type":"String","label":"Description","name":"description","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"Plain-text description for the term."}
+   * @paramDef {"type":"Number","label":"Parent","name":"parentId","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Parent term ID for nested terms. Only applies to hierarchical taxonomies; leave empty otherwise."}
+   * @paramDef {"type":"Object","label":"Meta Fields","name":"meta","description":"Optional map of custom-field key to value. Each key must be registered on the site with show_in_rest or WordPress ignores it."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":45,"count":0,"description":"","link":"https://example.com/genre/sci-fi","name":"Sci-Fi","slug":"sci-fi","taxonomy":"genre","parent":0}
+   */
+  async createTaxonomyTerm(taxonomy, name, slug, description, parentId, meta) {
+    assert(taxonomy, 'Taxonomy (REST base) is required.')
+    assert(name, 'Name is required.')
+
+    const body = clean({
+      name,
+      slug,
+      description,
+      parent: parentId,
+      meta,
+    })
+
+    return await this.#apiRequest({
+      url: `${ this.baseUrl }/${ taxonomy }`,
+      method: 'post',
+      body,
+      logTag: 'createTaxonomyTerm',
+    })
+  }
+
+  /**
+   * @operationName Update Taxonomy Term
+   * @category Custom Taxonomies
+   * @description Updates a term in any registered taxonomy by its REST base and numeric term ID. Only the provided fields are changed. Use List Taxonomies to discover the available REST bases.
+   * @route POST /update-taxonomy-term
+   *
+   * @paramDef {"type":"String","label":"Taxonomy","name":"taxonomy","required":true,"dictionary":"getTaxonomiesDictionary","description":"REST base of the taxonomy (e.g. 'categories', 'tags', or a custom taxonomy's REST base)."}
+   * @paramDef {"type":"Number","label":"Term ID","name":"termId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Unique numeric identifier of the term to update."}
+   * @paramDef {"type":"String","label":"Name","name":"name","description":"New display name."}
+   * @paramDef {"type":"String","label":"Slug","name":"slug","description":"New URL-friendly identifier."}
+   * @paramDef {"type":"String","label":"Description","name":"description","uiComponent":{"type":"MULTI_LINE_TEXT"},"description":"New description."}
+   * @paramDef {"type":"Number","label":"Parent","name":"parentId","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"New parent term ID. Only applies to hierarchical taxonomies."}
+   * @paramDef {"type":"Object","label":"Meta Fields","name":"meta","description":"Optional map of custom-field key to value to overwrite. Each key must be registered on the site with show_in_rest or WordPress ignores it."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":45,"count":8,"description":"Science fiction titles.","link":"https://example.com/genre/sci-fi","name":"Sci-Fi","slug":"sci-fi","taxonomy":"genre","parent":0}
+   */
+  async updateTaxonomyTerm(taxonomy, termId, name, slug, description, parentId, meta) {
+    assert(taxonomy, 'Taxonomy (REST base) is required.')
+    assert(termId, 'Term ID is required.')
+
+    const body = clean({
+      name,
+      slug,
+      description,
+      parent: parentId,
+      meta,
+    })
+
+    return await this.#apiRequest({
+      url: `${ this.baseUrl }/${ taxonomy }/${ termId }`,
+      method: 'post',
+      body,
+      logTag: 'updateTaxonomyTerm',
+    })
+  }
+
+  /**
+   * @operationName Delete Taxonomy Term
+   * @category Custom Taxonomies
+   * @description Permanently deletes a term from any registered taxonomy by its REST base and numeric term ID. WordPress requires force=true for term deletion since terms do not support trashing, so this always deletes permanently. Content assigned only to this term loses the assignment.
+   * @route POST /delete-taxonomy-term
+   *
+   * @paramDef {"type":"String","label":"Taxonomy","name":"taxonomy","required":true,"dictionary":"getTaxonomiesDictionary","description":"REST base of the taxonomy (e.g. 'categories', 'tags', or a custom taxonomy's REST base)."}
+   * @paramDef {"type":"Number","label":"Term ID","name":"termId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Unique numeric identifier of the term to delete."}
+   *
+   * @returns {Object}
+   * @sampleResult {"deleted":true,"previous":{"id":45,"name":"Sci-Fi","slug":"sci-fi","taxonomy":"genre"}}
+   */
+  async deleteTaxonomyTerm(taxonomy, termId) {
+    assert(taxonomy, 'Taxonomy (REST base) is required.')
+    assert(termId, 'Term ID is required.')
+
+    return await this.#apiRequest({
+      url: `${ this.baseUrl }/${ taxonomy }/${ termId }`,
+      method: 'delete',
+      query: { force: true },
+      logTag: 'deleteTaxonomyTerm',
+    })
+  }
+
+  /**
    * @registerAs DICTIONARY
    * @operationName Get Categories Dictionary
    * @description Provides a searchable list of WordPress post categories for dynamic parameter selection in dropdowns.
@@ -1559,6 +1914,70 @@ class WordPress {
   }
 
   /**
+   * @registerAs DICTIONARY
+   * @operationName Get Post Types Dictionary
+   * @description Provides a searchable list of registered post types (by REST base) for dynamic parameter selection in dropdowns.
+   * @route POST /get-post-types-dictionary
+   * @paramDef {"type":"getPostTypesDictionary__payload","label":"Payload","name":"payload","description":"Contains an optional search string for filtering post types by name."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Posts","value":"posts","note":"Slug: post"}],"cursor":null}
+   */
+  async getPostTypesDictionary(payload) {
+    const { search } = payload || {}
+
+    const types = await this.#apiRequest({
+      url: `${ this.baseUrl }/types`,
+      method: 'get',
+      logTag: 'getPostTypesDictionary',
+    })
+
+    const term = search ? String(search).toLowerCase() : null
+
+    const items = Object.values(types || {})
+      .filter(type => type && type.rest_base)
+      .filter(type => !term || String(type.name || '').toLowerCase().includes(term) || String(type.slug || '').toLowerCase().includes(term))
+      .map(type => ({
+        label: type.name || type.slug,
+        value: type.rest_base,
+        note: `Slug: ${ type.slug }`,
+      }))
+
+    return { items, cursor: null }
+  }
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Taxonomies Dictionary
+   * @description Provides a searchable list of registered taxonomies (by REST base) for dynamic parameter selection in dropdowns.
+   * @route POST /get-taxonomies-dictionary
+   * @paramDef {"type":"getTaxonomiesDictionary__payload","label":"Payload","name":"payload","description":"Contains an optional search string for filtering taxonomies by name."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Categories","value":"categories","note":"Slug: category"}],"cursor":null}
+   */
+  async getTaxonomiesDictionary(payload) {
+    const { search } = payload || {}
+
+    const taxonomies = await this.#apiRequest({
+      url: `${ this.baseUrl }/taxonomies`,
+      method: 'get',
+      logTag: 'getTaxonomiesDictionary',
+    })
+
+    const term = search ? String(search).toLowerCase() : null
+
+    const items = Object.values(taxonomies || {})
+      .filter(taxonomy => taxonomy && taxonomy.rest_base)
+      .filter(taxonomy => !term || String(taxonomy.name || '').toLowerCase().includes(term) || String(taxonomy.slug || '').toLowerCase().includes(term))
+      .map(taxonomy => ({
+        label: taxonomy.name || taxonomy.slug,
+        value: taxonomy.rest_base,
+        note: `Slug: ${ taxonomy.slug }`,
+      }))
+
+    return { items, cursor: null }
+  }
+
+  /**
    * @registerAs SYSTEM
    * @paramDef {"type":"Object","label":"invocation","name":"invocation"}
    * @returns {Object}
@@ -1650,6 +2069,89 @@ class WordPress {
       state: { lastSeenId: Math.max(lastSeenId, newestId) },
     }
   }
+
+  /**
+   * @operationName On New Comment
+   * @category Triggers
+   * @description Triggers when a new comment is posted on the WordPress site. Optionally filter by a specific post or by moderation status (approved comments by default). Polling interval can be customized (minimum 30 seconds). New comments are tracked by ID: a comment left pending in moderation and approved only after a newer comment was already approved keeps its lower ID and may not trigger.
+   * @registerAs POLLING_TRIGGER
+   * @route POST /on-new-comment
+   * @executionTimeoutInSeconds 120
+   *
+   * @paramDef {"type":"Number","label":"Post","name":"postId","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Limit triggers to comments on the given post or page ID. Leave empty to trigger on comments across the whole site."}
+   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"approve","label":"Approved"},{"value":"hold","label":"Pending"},{"value":"spam","label":"Spam"},{"value":"trash","label":"Trash"}]}},"description":"Limit triggers to comments in this moderation status. Defaults to approved comments."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":31,"post":42,"parent":0,"author":0,"author_name":"Visitor","author_url":"","date":"2024-08-02T12:00:00","content":{"rendered":"<p>Great post!</p>"},"link":"https://example.com/hello-world#comment-31","status":"approved","type":"comment"}
+   */
+  async onNewComment(invocation) {
+    const { postId, status } = invocation.triggerData || {}
+    const lastSeenId = invocation.state?.lastSeenId
+
+    const perPage = 100
+
+    const fetchPage = page => this.#apiRequest({
+      url: `${ this.baseUrl }/comments`,
+      method: 'get',
+      query: {
+        post: postId || undefined,
+        status: status || undefined,
+        per_page: perPage,
+        page,
+        orderby: 'id',
+        order: 'desc',
+      },
+      logTag: 'onNewComment',
+    })
+
+    // Sorting by id descending means page 1 always leads with the highest comment id on the site.
+    const firstPage = await fetchPage(1)
+    const newestId = firstPage && firstPage.length ? firstPage[0].id : 0
+
+    // Learning mode: surface the single newest comment as a sample event.
+    if (invocation.learningMode) {
+      const sample = firstPage && firstPage.length ? firstPage[0] : null
+
+      return {
+        events: sample ? [sample] : [],
+        state: { lastSeenId: sample ? sample.id : 0 },
+      }
+    }
+
+    // First real cycle: seed the watermark to the newest id and emit nothing (no backlog replay).
+    if (lastSeenId == null) {
+      return {
+        events: [],
+        state: { lastSeenId: newestId },
+      }
+    }
+
+    // Walk pages newest-first, collecting every comment above the watermark. Stop as soon as a page
+    // holds an already-seen id (fewer fresh than fetched) or is a short/last page - so a burst of
+    // comments (>1 page/interval) is never dropped, however many pages it spans.
+    const collected = []
+    let pageComments = firstPage
+
+    for (let page = 1; pageComments && pageComments.length; page++) {
+      const fresh = pageComments.filter(comment => comment.id > lastSeenId)
+
+      collected.push(...fresh)
+
+      if (fresh.length < pageComments.length || pageComments.length < perPage) {
+        break
+      }
+
+      pageComments = await fetchPage(page + 1)
+    }
+
+    // Emit ascending (oldest new comment first) and advance the watermark to the highest id seen.
+    collected.sort((a, b) => a.id - b.id)
+
+    return {
+      events: collected,
+      state: { lastSeenId: Math.max(lastSeenId, newestId) },
+    }
+  }
 }
 
 /**
@@ -1670,9 +2172,18 @@ class WordPress {
  * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for retrieving the next page of results."}
  */
 
+/**
+ * @typedef {Object} getPostTypesDictionary__payload
+ * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter post types by name."}
+ */
+
+/**
+ * @typedef {Object} getTaxonomiesDictionary__payload
+ * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter taxonomies by name."}
+ */
+
 Flowrunner.ServerCode.addService(WordPress, [
   {
-    order: 0,
     displayName: 'Site URL',
     name: 'siteUrl',
     type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
@@ -1682,7 +2193,6 @@ Flowrunner.ServerCode.addService(WordPress, [
     hint: 'Your WordPress site URL including protocol. Example: https://yoursite.com. Find it in WordPress Admin > Settings > General > Site Address (URL).',
   },
   {
-    order: 1,
     displayName: 'Username',
     name: 'username',
     type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
@@ -1692,7 +2202,6 @@ Flowrunner.ServerCode.addService(WordPress, [
     hint: 'WordPress login (username or email) of the user whose Application Password will be used. The user must have permission for the operations you intend to perform.',
   },
   {
-    order: 2,
     displayName: 'Application Password',
     name: 'appPassword',
     type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,

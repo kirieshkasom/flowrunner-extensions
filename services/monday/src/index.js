@@ -7,6 +7,10 @@ const READ_ONLY_COLUMN_TYPES = new Set([
   'subtasks', 'mirror', 'button', 'dependency', 'file', 'board_relation', 'doc',
 ])
 
+// Keys whose String value is a GraphQL enum token (emitted unquoted when a filter/mapping
+// object is serialised into an inline GraphQL literal): items_page rule/order operators.
+const GRAPHQL_ENUM_KEYS = new Set(['operator', 'direction'])
+
 const COLUMN_TYPE_UI_MAP = {
   'text': { type: 'String', uiComponent: { type: 'SINGLE_LINE_TEXT' }, hint: 'Plain text value.' },
   'long_text': { type: 'String', uiComponent: { type: 'MULTI_LINE_TEXT' }, hint: 'Long text or rich text content.' },
@@ -40,6 +44,7 @@ const logger = {
 }
 
 /**
+ * @usesFileStorage
  * @integrationName Monday.com
  * @integrationIcon /icon.png
  * @requireOAuth
@@ -612,6 +617,56 @@ class MondayDotCom {
   }
 
   /**
+   * @description List and search items on a Monday.com board. Optionally filter by column values, and page through large boards with a cursor. Use this to find items matching criteria (e.g. every item whose Status is "Done") rather than fetching one item you already know the ID of.
+   * @route POST /list-items
+   *
+   * @operationName List Items
+   * @category Items
+   * @appearanceColor #6161FF #9C9CFF
+   * @executionTimeoutInSeconds 120
+   *
+   * @paramDef {"type":"String","label":"Board ID","name":"boardId","required":true,"dictionary":"getBoardsDictionary","description":"The board to list items from."}
+   * @paramDef {"type":"Object","label":"Filter","name":"queryParams","description":"Optional column filter. A JSON object with a \"rules\" array and a top-level \"operator\" (\"and\" or \"or\"). Each rule has \"column_id\", \"compare_value\" (an array), and an \"operator\" (any_of, not_any_of, contains_text, not_contains_text, greater_than, lower_than, between). Example: {\"operator\":\"and\",\"rules\":[{\"column_id\":\"status\",\"compare_value\":[\"Done\"],\"operator\":\"any_of\"}]}. Leave blank to return all items."}
+   * @paramDef {"type":"Number","label":"Limit","name":"limit","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of items to return per page (1-500). Defaults to 25."}
+   * @paramDef {"type":"String","label":"Next Page Cursor","name":"cursor","description":"The cursor returned by a previous List Items call. Provide it to fetch the next page; leave blank for the first page. When set, the original board and filter are reused."}
+   *
+   * @returns {Object}
+   * @sampleResult {"cursor":"MS4xMjM0NTY","items":[{"id":"1234567890","name":"Task 1","column_values":[{"id":"status","column":{"title":"Status"},"text":"Done","type":"status","value":"{\"index\":1}"}]}]}
+   */
+  async listItems(boardId, queryParams, limit, cursor) {
+    const logTag = 'listItems'
+
+    try {
+      const pageSize = limit || 25
+      let data
+
+      // items_page accepts only limit/query_params. Continuation goes through the root
+      // next_items_page(limit, cursor) query, not a cursor arg on items_page.
+      if (cursor) {
+        data = await this.#graphqlRequest({
+          query: `{ next_items_page(limit: ${ pageSize }, cursor: "${ cursor }") { cursor items { id name column_values { id column { title } text type value } } } }`,
+          logTag,
+        })
+      } else {
+        const filter = this.#asObject(queryParams)
+        const queryParamsClause = filter ? `, query_params: ${ this.#toGraphQLLiteral(filter) }` : ''
+
+        data = await this.#graphqlRequest({
+          query: `{ boards(ids: [${ boardId }]) { items_page(limit: ${ pageSize }${ queryParamsClause }) { cursor items { id name column_values { id column { title } text type value } } } } }`,
+          logTag,
+        })
+      }
+
+      const itemsPage = (cursor ? data.next_items_page : data.boards?.[0]?.items_page) || {}
+
+      return { items: itemsPage.items || [], cursor: itemsPage.cursor || null }
+    } catch (error) {
+      logger.error(`[${ logTag }] Error:`, error.message)
+      throw new Error(`Failed to list items: ${ error.message }`)
+    }
+  }
+
+  /**
    * @description Update the name of a specific item on a Monday.com board.
    * @route POST /update-item-name
    *
@@ -715,6 +770,59 @@ class MondayDotCom {
   }
 
   /**
+   * @description Upload a file from Flowrunner file storage into a Files column on a Monday.com item. Use this to attach a generated document, export, or image to an item.
+   * @route POST /add-file-to-column
+   *
+   * @operationName Add File to Column
+   * @category Items
+   * @appearanceColor #6161FF #9C9CFF
+   * @executionTimeoutInSeconds 300
+   *
+   * @paramDef {"type":"String","label":"Board ID","name":"boardId","dictionary":"getBoardsDictionary","description":"The board that contains the item. Pick it to choose the item and column from a list; leave blank if you already have the IDs."}
+   * @paramDef {"type":"String","label":"Item ID","name":"itemId","required":true,"dictionary":"getItemsDictionary","dependsOn":["boardId"],"description":"The item to attach the file to."}
+   * @paramDef {"type":"String","label":"Files Column ID","name":"columnId","required":true,"dictionary":"getColumnsDictionary","dependsOn":["boardId"],"description":"The column to upload the file into. Pick a column of type \"file\"."}
+   * @paramDef {"type":"String","label":"File","name":"fileUrl","required":true,"uiComponent":{"type":"FILE_SELECTOR"},"description":"The Flowrunner file to upload (its URL). Its bytes are streamed to Monday.com (max 500 MB)."}
+   * @paramDef {"type":"String","label":"File Name","name":"fileName","description":"Name to give the file on Monday.com (e.g. Report.pdf). Defaults to the source file name."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":"987654321","name":"Report.pdf","url":"https://files.monday.com/files/download/987654321/Report.pdf"}
+   */
+  async addFileToColumn(boardId, itemId, columnId, fileUrl, fileName) {
+    const logTag = 'addFileToColumn'
+
+    try {
+      const resolvedName = fileName || decodeURIComponent(String(fileUrl).split('/').pop().split('?')[0])
+      const fileBytes = this.#toBuffer(await Flowrunner.Request.get(fileUrl).setEncoding(null))
+
+      // Monday's file upload is a GraphQL multipart request to the /v2/file endpoint: the mutation
+      // declares a $file: File! variable, the `map` part binds the "image" form field to that
+      // variable, and the file bytes are sent as the "image" part.
+      const query = `mutation ($file: File!) { add_file_to_column(item_id: ${ itemId }, column_id: "${ columnId }", file: $file) { id name url } }`
+
+      const formData = new Flowrunner.Request.FormData()
+      formData.append('query', query)
+      formData.append('map', JSON.stringify({ image: 'variables.file' }))
+      formData.append('image', fileBytes, { filename: resolvedName })
+
+      const response = await Flowrunner.Request.post(`${ API_URL }/file`)
+        .set({
+          'Authorization': this.#getAccessToken(),
+          'API-Version': '2024-10',
+        })
+        .form(formData)
+
+      if (response.errors?.length) {
+        throw new Error(response.errors.map(e => e.message).join('; '))
+      }
+
+      return response.data?.add_file_to_column
+    } catch (error) {
+      logger.error(`[${ logTag }] Error:`, error.message)
+      throw new Error(`Failed to add file to column: ${ error.message }`)
+    }
+  }
+
+  /**
    * @description Move an item to a different group within the same Monday.com board.
    * @route POST /move-item-to-group
    *
@@ -743,6 +851,54 @@ class MondayDotCom {
     } catch (error) {
       logger.error(`[${ logTag }] Error:`, error.message)
       throw new Error(`Failed to move item to group: ${ error.message }`)
+    }
+  }
+
+  /**
+   * @description Move an item (and any subitems) from its current board to a different Monday.com board and group. Columns are matched by name and type automatically, or map them explicitly.
+   * @route POST /move-item-to-board
+   *
+   * @operationName Move Item to Board
+   * @category Items
+   * @appearanceColor #6161FF #9C9CFF
+   * @executionTimeoutInSeconds 120
+   *
+   * @paramDef {"type":"String","label":"Item ID","name":"itemId","required":true,"description":"The item to move. It lives on its current board, so no picker is offered here - map it from a previous step (e.g. Create Item or List Items) or paste the item ID."}
+   * @paramDef {"type":"String","label":"Destination Board ID","name":"boardId","required":true,"dictionary":"getBoardsDictionary","description":"The board to move the item to."}
+   * @paramDef {"type":"String","label":"Destination Group ID","name":"groupId","required":true,"dictionary":"getGroupsDictionary","dependsOn":["boardId"],"description":"The group on the destination board to place the item in."}
+   * @paramDef {"type":"Object","label":"Column Mapping","name":"columnsMapping","description":"Optional. Map source columns to destination columns when they differ. A JSON array of {\"source\":\"<source column id>\",\"target\":\"<destination column id>\"} objects; set target to null to drop a column. Leave blank to auto-match by name and type."}
+   * @paramDef {"type":"Object","label":"Subitem Column Mapping","name":"subitemsColumnsMapping","description":"Optional. Same as Column Mapping but for the moved item's subitems. Leave blank to auto-match."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":"1234567890","name":"Task Name"}
+   */
+  async moveItemToBoard(itemId, boardId, groupId, columnsMapping, subitemsColumnsMapping) {
+    const logTag = 'moveItemToBoard'
+
+    try {
+      let mappingClause = ''
+
+      const columns = this.#asObject(columnsMapping)
+
+      if (columns) {
+        mappingClause += `, columns_mapping: ${ this.#toGraphQLLiteral(columns) }`
+      }
+
+      const subitems = this.#asObject(subitemsColumnsMapping)
+
+      if (subitems) {
+        mappingClause += `, subitems_columns_mapping: ${ this.#toGraphQLLiteral(subitems) }`
+      }
+
+      const data = await this.#graphqlRequest({
+        query: `mutation { move_item_to_board(board_id: ${ boardId }, group_id: "${ groupId }", item_id: ${ itemId }${ mappingClause }) { id name } }`,
+        logTag,
+      })
+
+      return data.move_item_to_board
+    } catch (error) {
+      logger.error(`[${ logTag }] Error:`, error.message)
+      throw new Error(`Failed to move item to board: ${ error.message }`)
     }
   }
 
@@ -861,7 +1017,7 @@ class MondayDotCom {
    * @appearanceColor #6161FF #9C9CFF
    * @executionTimeoutInSeconds 120
    *
-   * @paramDef {"type":"String","label":"Subitem ID","name":"subitemId","required":true,"freeform":true,"description":"The unique ID of the subitem to delete. Subitems are nested under a parent item and monday.com has no top-level subitem list, so no picker is offered - copy the ID from a Create Subitem step or from the subitems of a Get Item step."}
+   * @paramDef {"type":"String","label":"Subitem ID","name":"subitemId","required":true,"description":"The unique ID of the subitem to delete. Subitems are nested under a parent item and monday.com has no top-level subitem list, so no picker is offered - copy the ID from a Create Subitem step or from the subitems of a Get Item step."}
    *
    * @returns {Object}
    * @sampleResult {"id":"1234567891"}
@@ -927,7 +1083,7 @@ class MondayDotCom {
    * @appearanceColor #6161FF #9C9CFF
    * @executionTimeoutInSeconds 120
    *
-   * @paramDef {"type":"String","label":"Update ID","name":"updateId","required":true,"freeform":true,"description":"The unique ID of the update to delete. Updates are comments posted on an item and monday.com has no scoped update picker, so no dictionary is offered - copy the ID returned by a Create Update step."}
+   * @paramDef {"type":"String","label":"Update ID","name":"updateId","required":true,"description":"The unique ID of the update to delete. Updates are comments posted on an item and monday.com has no scoped update picker, so no dictionary is offered - copy the ID returned by a Create Update step."}
    *
    * @returns {Object}
    * @sampleResult {"id":"2345678901"}
@@ -1616,6 +1772,51 @@ class MondayDotCom {
     } catch {
       return JSON.stringify(value)
     }
+  }
+
+  // Normalize a downloaded file body to a Buffer. Flowrunner.Request auto-parses
+  // the response by Content-Type, so a JSON/text source comes back as a parsed
+  // object/array/string rather than bytes despite .setEncoding(null). Buffer.from
+  // on a parsed array would also misread elements as byte values, so re-serialize
+  // anything that isn't already a Buffer.
+  #toBuffer(body) {
+    if (Buffer.isBuffer(body)) {
+      return body
+    }
+
+    if (typeof body === 'string') {
+      return Buffer.from(body)
+    }
+
+    return Buffer.from(JSON.stringify(body))
+  }
+
+  /**
+   * Serialise a plain value into an inline GraphQL literal (unquoted object keys, quoted
+   * strings, arrays as [..]) so a user-supplied filter / column mapping can be embedded in a
+   * query. A String under an enum key (operator / direction) is emitted unquoted so it reads as
+   * a GraphQL enum, not a quoted string; every other String is JSON-quoted and escaped.
+   */
+  #toGraphQLLiteral(value, key) {
+    if (Array.isArray(value)) {
+      return `[${ value.map(item => this.#toGraphQLLiteral(item)).join(', ') }]`
+    }
+
+    if (value !== null && typeof value === 'object') {
+      const entries = Object.entries(value).map(([k, v]) => `${ k }: ${ this.#toGraphQLLiteral(v, k) }`)
+
+      return `{${ entries.join(', ') }}`
+    }
+
+    if (typeof value === 'string') {
+      if (GRAPHQL_ENUM_KEYS.has(key) && /^[A-Za-z_][A-Za-z0-9_]*$/.test(value)) {
+        return value
+      }
+
+      return JSON.stringify(value)
+    }
+
+    return String(value)
   }
 
   async #fetchBoardItems(boardId) {

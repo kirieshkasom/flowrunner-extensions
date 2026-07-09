@@ -235,9 +235,6 @@ class Shippo {
     this.apiKey = apiKey
   }
 
-  /**
-   * @private
-   */
   async #apiRequest({ method, endpoint, query, payload }) {
     const url = API_BASE_URL + endpoint
     const httpMethod = (method || 'get').toLowerCase()
@@ -275,9 +272,6 @@ class Shippo {
     }
   }
 
-  /**
-   * @private
-   */
   #buildPaging(page, results) {
     const query = {}
 
@@ -292,9 +286,6 @@ class Shippo {
     return query
   }
 
-  /**
-   * @private
-   */
   #applySearch(items, search) {
     if (!search) {
       return items
@@ -306,18 +297,12 @@ class Shippo {
       String(item.value || '').toLowerCase().includes(needle))
   }
 
-  /**
-   * @private
-   */
   #resolveChoice(value, mapping) {
     if (value === undefined || value === null) return undefined
 
     return Object.prototype.hasOwnProperty.call(mapping, value) ? mapping[value] : value
   }
 
-  /**
-   * @private
-   */
   async #listDictionary(endpoint, payload, mapItem) {
     payload = payload || {}
 
@@ -357,7 +342,7 @@ class Shippo {
 
   /**
    * @typedef {Object} DictionaryResponse
-   * @property {Array.<DictionaryItem>} items
+   * @property {Array<DictionaryItem>} items
    * @property {String} [cursor]
    */
 
@@ -366,7 +351,7 @@ class Shippo {
    * @property {Number} count
    * @property {String} [next]
    * @property {String} [previous]
-   * @property {Array.<Object>} results
+   * @property {Array<Object>} results
    */
 
   /**
@@ -419,8 +404,8 @@ class Shippo {
    * @property {String} status
    * @property {Object} address_from
    * @property {Object} address_to
-   * @property {Array.<Object>} parcels
-   * @property {Array.<Rate>} rates
+   * @property {Array<Object>} parcels
+   * @property {Array<Rate>} rates
    * @property {String} [carrier_account]
    */
 
@@ -435,7 +420,7 @@ class Shippo {
    * @property {String} tracking_status
    * @property {String} label_url
    * @property {String} commercial_invoice_url
-   * @property {Array.<Object>} messages
+   * @property {Array<Object>} messages
    */
 
   /**
@@ -445,7 +430,7 @@ class Shippo {
    * @property {Object} address_from
    * @property {Object} address_to
    * @property {Object} tracking_status
-   * @property {Array.<Object>} tracking_history
+   * @property {Array<Object>} tracking_history
    * @property {String} eta
    * @property {String} servicelevel
    */
@@ -474,7 +459,7 @@ class Shippo {
    * @property {String} non_delivery_option
    * @property {Boolean} certify
    * @property {String} certify_signer
-   * @property {Array.<String>} items
+   * @property {Array<String>} items
    * @property {String} [incoterm]
    * @property {String} [eel_pfc]
    */
@@ -496,7 +481,7 @@ class Shippo {
    * @property {String} carrier_account
    * @property {String} shipment_date
    * @property {String} address_from
-   * @property {Array.<String>} transactions
+   * @property {Array<String>} transactions
    * @property {String} [documents]
    */
 
@@ -514,7 +499,7 @@ class Shippo {
    * @property {String} order_status
    * @property {Object} to_address
    * @property {Object} [from_address]
-   * @property {Array.<Object>} line_items
+   * @property {Array<Object>} line_items
    * @property {String} placed_at
    */
 
@@ -525,7 +510,7 @@ class Shippo {
    * @property {String} carrier_account
    * @property {String} requested_start_time
    * @property {String} requested_end_time
-   * @property {Array.<String>} transactions
+   * @property {Array<String>} transactions
    * @property {String} confirmation_code
    */
 
@@ -535,7 +520,7 @@ class Shippo {
    * @property {String} name
    * @property {String} type
    * @property {String} description
-   * @property {Array.<Object>} service_levels
+   * @property {Array<Object>} service_levels
    * @property {Number} rate_adjustment
    * @property {String} [flat_rate]
    * @property {String} [flat_rate_currency]
@@ -551,6 +536,20 @@ class Shippo {
    * @property {String} event
    * @property {Boolean} is_test
    * @property {Boolean} active
+   */
+
+  /**
+   * @typedef {Object} Batch
+   * @property {String} object_id
+   * @property {String} status
+   * @property {String} default_carrier_account
+   * @property {String} default_servicelevel_token
+   * @property {String} label_filetype
+   * @property {Array<String>} label_url
+   * @property {String} metadata
+   * @property {Object} object_results
+   * @property {Object} batch_shipments
+   * @property {String} object_owner
    */
 
   /* =========================================================================
@@ -1315,9 +1314,9 @@ class Shippo {
    *
    * @paramDef {"type":"Object","label":"Address From","name":"addressFrom","required":true,"schemaLoader":"addressSchema","description":"Sender address. Fill the address sub-form, or wire a complete Address object (for example the output of Create Address or Get Address)."}
    * @paramDef {"type":"Object","label":"Address To","name":"addressTo","required":true,"schemaLoader":"addressSchema","description":"Recipient address. Fill the address sub-form, or wire a complete Address object (for example the output of Create Address or Get Address)."}
-   * @paramDef {"type":"Array.<Object>","label":"Parcels","name":"parcels","required":true,"description":"Array of parcels in the shipment. Each entry can be either a parcel object_id string or an inline parcel object describing dimensions and weight."}
+   * @paramDef {"type":"Array<Object>","label":"Parcels","name":"parcels","required":true,"description":"Array of parcels in the shipment. Each entry can be either a parcel object_id string or an inline parcel object describing dimensions and weight."}
    * @paramDef {"type":"String","label":"Customs Declaration ID","name":"customsDeclaration","required":false,"dictionary":"getCustomsDeclarationsDictionary","description":"Optional Shippo object_id of a customs declaration. Required for international non-document shipments."}
-   * @paramDef {"type":"Object","label":"Extra","name":"extra","required":false,"freeform":true,"description":"Optional carrier extras passed through to Shippo, as a JSON object. Which keys apply and their shape vary by carrier, and several values are themselves nested objects (for example {\"signature_confirmation\":\"ADULT\",\"insurance\":{\"amount\":\"100\",\"currency\":\"USD\"},\"reference_1\":\"PO-123\"}), so there is no fixed sub-form."}
+   * @paramDef {"type":"Object","label":"Extra","name":"extra","required":false,"description":"Optional carrier extras passed through to Shippo, as a JSON object. Which keys apply and their shape vary by carrier, and several values are themselves nested objects (for example {\"signature_confirmation\":\"ADULT\",\"insurance\":{\"amount\":\"100\",\"currency\":\"USD\"},\"reference_1\":\"PO-123\"}), so there is no fixed sub-form."}
    * @paramDef {"type":"Boolean","label":"Async","name":"async","required":false,"uiComponent":{"type":"CHECKBOX"},"description":"When true Shippo returns immediately with status QUEUED and resolves rates in the background."}
    *
    * @returns {Shipment}
@@ -1423,7 +1422,7 @@ class Shippo {
    * @appearanceColor #10B97F #0E8C6B
    * @executionTimeoutInSeconds 30
    *
-   * @paramDef {"type":"String","label":"Rate ID","name":"rateId","required":true,"freeform":true,"description":"The Shippo object_id of the rate to retrieve. Rates belong to a shipment and are not independently listable, so take this from the rates array returned by Create Shipment or Get Shipment Rates."}
+   * @paramDef {"type":"String","label":"Rate ID","name":"rateId","required":true,"description":"The Shippo object_id of the rate to retrieve. Rates belong to a shipment and are not independently listable, so take this from the rates array returned by Create Shipment or Get Shipment Rates."}
    *
    * @returns {Rate}
    * @sampleResult {"object_id":"545ab0a1a6ea4c9f9adb2512f9e66d05","amount":"5.50","currency":"USD","provider":"USPS","servicelevel_token":"usps_priority","servicelevel_name":"Priority Mail","estimated_days":2,"attributes":["CHEAPEST"]}
@@ -1445,7 +1444,7 @@ class Shippo {
    * @appearanceColor #10B97F #0E8C6B
    * @executionTimeoutInSeconds 120
    *
-   * @paramDef {"type":"String","label":"Rate ID","name":"rateId","required":true,"freeform":true,"description":"The Shippo object_id of the rate to purchase. Rates belong to a shipment and are not independently listable, so take this from the rates array returned by Create Shipment or Get Shipment Rates."}
+   * @paramDef {"type":"String","label":"Rate ID","name":"rateId","required":true,"description":"The Shippo object_id of the rate to purchase. Rates belong to a shipment and are not independently listable, so take this from the rates array returned by Create Shipment or Get Shipment Rates."}
    * @paramDef {"type":"String","label":"Label File Type","name":"labelFileType","required":false,"dictionary":"getLabelFileTypesDictionary","description":"Output format for the generated label. Defaults to the carrier account default when omitted."}
    * @paramDef {"type":"String","label":"Metadata","name":"metadata","required":false,"description":"Optional reference string echoed back on the transaction (max 100 characters)."}
    * @paramDef {"type":"Boolean","label":"Async","name":"async","required":false,"uiComponent":{"type":"CHECKBOX"},"description":"When true Shippo returns immediately with status QUEUED and processes the purchase in the background."}
@@ -1529,6 +1528,151 @@ class Shippo {
    */
   async getTransaction(transactionId) {
     return this.#apiRequest({ method: 'get', endpoint: `/transactions/${ encodeURIComponent(transactionId) }` })
+  }
+
+  /* =========================================================================
+   * Batches
+   * =======================================================================*/
+
+  /**
+   * @typedef {Object} BatchShipment
+   * @paramDef {"type":"Object","label":"Shipment","name":"shipment","required":true,"description":"The shipment to rate and label. Provide address_from and address_to (each a saved address object_id string or an inline address object) and parcels (an array of parcel object_id strings or inline parcel objects)."}
+   * @paramDef {"type":"String","label":"Carrier Account ID","name":"carrier_account","required":false,"dictionary":"getCarrierAccountsDictionary","description":"Optional per-shipment carrier account object_id. Overrides the batch default for this one shipment."}
+   * @paramDef {"type":"String","label":"Service Level Token","name":"servicelevel_token","required":false,"dictionary":"getServiceLevelsDictionary","description":"Optional per-shipment Shippo service level token (for example usps_priority). Overrides the batch default for this one shipment."}
+   * @paramDef {"type":"String","label":"Metadata","name":"metadata","required":false,"description":"Optional reference string echoed back on this batch shipment."}
+   */
+
+  /**
+   * @description Creates a batch to buy shipping labels for many shipments at once. Shippo validates the batch asynchronously, so the response starts in status VALIDATING - poll Get Batch until it reaches VALID, then call Purchase Batch.
+   * @route POST /createBatch
+   *
+   * @operationName Create Batch
+   * @category Batches
+   * @appearanceColor #10B97F #0E8C6B
+   * @executionTimeoutInSeconds 120
+   *
+   * @paramDef {"type":"String","label":"Default Carrier Account ID","name":"defaultCarrierAccount","required":true,"dictionary":"getCarrierAccountsDictionary","description":"The Shippo object_id of the carrier account used by default for every shipment in the batch that does not name its own."}
+   * @paramDef {"type":"String","label":"Default Service Level Token","name":"defaultServicelevelToken","required":true,"dictionary":"getServiceLevelsDictionary","description":"Shippo service level token (for example usps_priority) used by default for every shipment in the batch that does not name its own."}
+   * @paramDef {"type":"Array<BatchShipment>","label":"Batch Shipments","name":"batchShipments","required":true,"description":"Array of shipments to include in the batch. Each entry has a shipment (address_from, address_to, parcels) plus optional per-shipment carrier_account and servicelevel_token that override the batch defaults."}
+   * @paramDef {"type":"String","label":"Label File Type","name":"labelFileType","required":false,"dictionary":"getLabelFileTypesDictionary","description":"Output format for the generated labels. Defaults to the format configured in the Shippo dashboard when omitted."}
+   * @paramDef {"type":"String","label":"Metadata","name":"metadata","required":false,"description":"Optional reference string echoed back on the batch (max 100 characters)."}
+   *
+   * @returns {Batch}
+   * @sampleResult {"object_id":"c6937c15a99440758b75cde7f18e2a0d","status":"VALIDATING","default_carrier_account":"b741b99f95e841639b54272834bcdd40","default_servicelevel_token":"usps_priority","label_filetype":"PDF_4x6","label_url":[],"metadata":"BATCH #170","object_results":{"creation_failed":0,"creation_succeeded":0,"purchase_failed":0,"purchase_succeeded":0},"batch_shipments":{"count":0,"next":null,"previous":null,"results":[]},"object_owner":"support@goshippo.com"}
+   */
+  async createBatch(defaultCarrierAccount, defaultServicelevelToken, batchShipments, labelFileType, metadata) {
+    const payload = {
+      default_carrier_account: defaultCarrierAccount,
+      default_servicelevel_token: defaultServicelevelToken,
+      batch_shipments: Array.isArray(batchShipments) ? batchShipments : [batchShipments].filter(Boolean),
+    }
+
+    if (labelFileType) {
+      payload.label_filetype = labelFileType
+    }
+
+    if (metadata) {
+      payload.metadata = metadata
+    }
+
+    return this.#apiRequest({ method: 'post', endpoint: '/batches', payload })
+  }
+
+  /**
+   * @description Retrieves a batch by its Shippo object_id. The object_results counts show validation and purchase progress and batch_shipments lists each shipment's status. Use it to poll an async batch until status is VALID (ready to purchase) or PURCHASED (labels ready in label_url).
+   * @route POST /getBatch
+   *
+   * @operationName Get Batch
+   * @category Batches
+   * @appearanceColor #10B97F #0E8C6B
+   * @executionTimeoutInSeconds 60
+   *
+   * @paramDef {"type":"String","label":"Batch ID","name":"batchId","required":true,"description":"The Shippo object_id of the batch to retrieve. Shippo has no list-batches endpoint, so take this from the output of Create Batch."}
+   * @paramDef {"type":"Number","label":"Page","name":"page","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Page number of the batch_shipments sub-list to retrieve. Defaults to 1."}
+   * @paramDef {"type":"Number","label":"Results Per Page","name":"results","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of batch shipments per page (1-100). Defaults to 5."}
+   *
+   * @returns {Batch}
+   * @sampleResult {"object_id":"c6937c15a99440758b75cde7f18e2a0d","status":"VALID","default_carrier_account":"b741b99f95e841639b54272834bcdd40","default_servicelevel_token":"usps_priority","label_filetype":"PDF_4x6","label_url":[],"metadata":"BATCH #170","object_results":{"creation_failed":0,"creation_succeeded":2,"purchase_failed":0,"purchase_succeeded":0},"batch_shipments":{"count":2,"next":null,"previous":null,"results":[{"object_id":"40f2cf49a3464614b998cc0eb61e768d","status":"VALID","carrier_account":"b741b99f95e841639b54272834bcdd40","servicelevel_token":"usps_priority","shipment":"6a2579a51e4f4e49a5eb5d9c6853bd39","transaction":null,"messages":[]}]},"object_owner":"support@goshippo.com"}
+   */
+  async getBatch(batchId, page, results) {
+    return this.#apiRequest({
+      method: 'get',
+      endpoint: `/batches/${ encodeURIComponent(batchId) }`,
+      query: this.#buildPaging(page, results),
+    })
+  }
+
+  /**
+   * @description Purchases every valid shipment in a batch, generating all the shipping labels in one call. The batch moves to status PURCHASING and then PURCHASED - poll Get Batch until label_url holds the combined label documents.
+   * @route POST /purchaseBatch
+   *
+   * @operationName Purchase Batch
+   * @category Batches
+   * @appearanceColor #10B97F #0E8C6B
+   * @executionTimeoutInSeconds 120
+   *
+   * @paramDef {"type":"String","label":"Batch ID","name":"batchId","required":true,"description":"The Shippo object_id of the batch to purchase. Take this from the output of Create Batch. The batch must be in status VALID."}
+   *
+   * @returns {Batch}
+   * @sampleResult {"object_id":"c6937c15a99440758b75cde7f18e2a0d","status":"PURCHASING","default_carrier_account":"b741b99f95e841639b54272834bcdd40","default_servicelevel_token":"usps_priority","label_filetype":"PDF_4x6","label_url":[],"metadata":"BATCH #170","object_results":{"creation_failed":0,"creation_succeeded":2,"purchase_failed":0,"purchase_succeeded":0},"batch_shipments":{"count":2,"next":null,"previous":null,"results":[]},"object_owner":"support@goshippo.com"}
+   */
+  async purchaseBatch(batchId) {
+    return this.#apiRequest({
+      method: 'post',
+      endpoint: `/batches/${ encodeURIComponent(batchId) }/purchase`,
+    })
+  }
+
+  /**
+   * @description Adds one or more shipments to an existing batch. Send the same shipment entries you would pass to Create Batch; Shippo validates them asynchronously and updates the batch's object_results counts.
+   * @route POST /addShipmentsToBatch
+   *
+   * @operationName Add Shipments to Batch
+   * @category Batches
+   * @appearanceColor #10B97F #0E8C6B
+   * @executionTimeoutInSeconds 120
+   *
+   * @paramDef {"type":"String","label":"Batch ID","name":"batchId","required":true,"description":"The Shippo object_id of the batch to add shipments to. Take this from the output of Create Batch."}
+   * @paramDef {"type":"Array<BatchShipment>","label":"Batch Shipments","name":"batchShipments","required":true,"description":"Array of shipments to add. Each entry has a shipment (address_from, address_to, parcels) plus optional per-shipment carrier_account and servicelevel_token."}
+   *
+   * @returns {Batch}
+   * @sampleResult {"object_id":"c6937c15a99440758b75cde7f18e2a0d","status":"VALIDATING","default_carrier_account":"b741b99f95e841639b54272834bcdd40","default_servicelevel_token":"usps_priority","label_filetype":"PDF_4x6","label_url":[],"metadata":"BATCH #170","object_results":{"creation_failed":0,"creation_succeeded":2,"purchase_failed":0,"purchase_succeeded":0},"batch_shipments":{"count":3,"next":null,"previous":null,"results":[]},"object_owner":"support@goshippo.com"}
+   */
+  async addShipmentsToBatch(batchId, batchShipments) {
+    const payload = Array.isArray(batchShipments) ? batchShipments : [batchShipments].filter(Boolean)
+
+    return this.#apiRequest({
+      method: 'post',
+      endpoint: `/batches/${ encodeURIComponent(batchId) }/add_shipments`,
+      payload,
+    })
+  }
+
+  /**
+   * @description Removes shipments from a batch by their batch-shipment object_ids. Each id is the object_id of an entry in the batch's batch_shipments list (from Get Batch), not the underlying shipment object_id. Returns the updated batch.
+   * @route POST /removeShipmentsFromBatch
+   *
+   * @operationName Remove Shipments from Batch
+   * @category Batches
+   * @appearanceColor #10B97F #0E8C6B
+   * @executionTimeoutInSeconds 120
+   *
+   * @paramDef {"type":"String","label":"Batch ID","name":"batchId","required":true,"description":"The Shippo object_id of the batch to remove shipments from. Take this from the output of Create Batch."}
+   * @paramDef {"type":"Array<String>","label":"Batch Shipment IDs","name":"batchShipmentIds","required":true,"description":"Array of batch-shipment object_ids to remove. Each is the object_id of an entry in the batch's batch_shipments list (from Get Batch), not the underlying shipment object_id. A comma-separated string is also accepted."}
+   *
+   * @returns {Batch}
+   * @sampleResult {"object_id":"c6937c15a99440758b75cde7f18e2a0d","status":"VALIDATING","default_carrier_account":"b741b99f95e841639b54272834bcdd40","default_servicelevel_token":"usps_priority","label_filetype":"PDF_4x6","label_url":[],"metadata":"BATCH #170","object_results":{"creation_failed":0,"creation_succeeded":1,"purchase_failed":0,"purchase_succeeded":0},"batch_shipments":{"count":1,"next":null,"previous":null,"results":[]},"object_owner":"support@goshippo.com"}
+   */
+  async removeShipmentsFromBatch(batchId, batchShipmentIds) {
+    const payload = Array.isArray(batchShipmentIds)
+      ? batchShipmentIds
+      : String(batchShipmentIds || '').split(',').map(id => id.trim()).filter(Boolean)
+
+    return this.#apiRequest({
+      method: 'post',
+      endpoint: `/batches/${ encodeURIComponent(batchId) }/remove_shipments`,
+      payload,
+    })
   }
 
   /* =========================================================================
@@ -1664,7 +1808,7 @@ class Shippo {
    * @paramDef {"type":"String","label":"Carrier Account ID","name":"carrierAccount","required":true,"dictionary":"getCarrierAccountsDictionary","description":"The Shippo object_id of the carrier account that will accept the manifest."}
    * @paramDef {"type":"String","label":"Shipment Date","name":"shipmentDate","required":true,"description":"Pickup or shipment date in ISO 8601 format (for example 2024-04-12T08:00:00Z)."}
    * @paramDef {"type":"String","label":"Address From ID","name":"addressFrom","required":true,"description":"The Shippo object_id of the address from which the carrier will pick up the shipments."}
-   * @paramDef {"type":"Array.<String>","label":"Transaction IDs","name":"transactions","required":true,"description":"Array of Shippo transaction object_ids to include in the manifest."}
+   * @paramDef {"type":"Array<String>","label":"Transaction IDs","name":"transactions","required":true,"description":"Array of Shippo transaction object_ids to include in the manifest."}
    * @paramDef {"type":"Boolean","label":"Async","name":"async","required":false,"uiComponent":{"type":"CHECKBOX"},"description":"When true the manifest is created asynchronously; the response returns immediately with status QUEUED."}
    *
    * @returns {Manifest}
@@ -1820,7 +1964,7 @@ class Shippo {
    * @paramDef {"type":"String","label":"Non-Delivery Option","name":"nonDeliveryOption","required":true,"dictionary":"getNonDeliveryOptionsDictionary","description":"Carrier instruction when delivery fails (RETURN or ABANDON)."}
    * @paramDef {"type":"Boolean","label":"Certify","name":"certify","required":true,"uiComponent":{"type":"CHECKBOX"},"description":"Must be true to certify that the information on the declaration is accurate."}
    * @paramDef {"type":"String","label":"Certify Signer","name":"certifySigner","required":true,"description":"Name of the person certifying the declaration. Required when certify is true."}
-   * @paramDef {"type":"Array.<String>","label":"Customs Item IDs","name":"items","required":true,"description":"Array of Shippo customs item object_ids to include on the declaration."}
+   * @paramDef {"type":"Array<String>","label":"Customs Item IDs","name":"items","required":true,"description":"Array of Shippo customs item object_ids to include on the declaration."}
    * @paramDef {"type":"String","label":"Incoterm","name":"incoterm","required":false,"dictionary":"getIncotermsDictionary","description":"Optional Incoterm controlling who pays duties and taxes."}
    * @paramDef {"type":"String","label":"EEL / PFC","name":"eelPfc","required":false,"dictionary":"getEELPFCsDictionary","description":"Optional Electronic Export Information citation for US international shipments."}
    * @paramDef {"type":"String","label":"B13A Filing Option","name":"b13aFilingOption","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Filed Electronically","Summary Reporting","Not Required"]}},"description":"Optional B13A filing option for Canadian exports."}
@@ -1948,6 +2092,84 @@ class Shippo {
     })
   }
 
+  /**
+   * @description Connects one of your own carrier accounts (USPS, FedEx, UPS, DHL and others) to Shippo so its negotiated rates and labels become available. Carrier login credentials go in the carrier-specific parameters object.
+   * @route POST /createCarrierAccount
+   *
+   * @operationName Create Carrier Account
+   * @category Carrier Accounts
+   * @appearanceColor #10B97F #0E8C6B
+   * @executionTimeoutInSeconds 60
+   *
+   * @paramDef {"type":"String","label":"Carrier","name":"carrier","required":true,"dictionary":"getCarriersDictionary","description":"Lower-case Shippo carrier token for the account (for example ups, fedex, dhl_express)."}
+   * @paramDef {"type":"String","label":"Account ID","name":"accountId","required":true,"description":"Your account number with the carrier (not a Shippo object_id) - type it in. Shippo masks this value in every API response."}
+   * @paramDef {"type":"Object","label":"Parameters","name":"parameters","required":false,"description":"Carrier-specific credentials and settings as a JSON object. Which keys apply varies by carrier (for example FedEx needs first_name, last_name, phone_number and an address; UPS differs), so there is no fixed sub-form - see Shippo's carrier accounts guide for the keys each carrier expects."}
+   * @paramDef {"type":"Boolean","label":"Active","name":"active","required":false,"uiComponent":{"type":"CHECKBOX"},"description":"Whether Shippo uses this account when fetching rates. Defaults to true."}
+   * @paramDef {"type":"String","label":"Metadata","name":"metadata","required":false,"description":"Optional reference string echoed back on the carrier account."}
+   *
+   * @returns {CarrierAccount}
+   * @sampleResult {"object_id":"3a2c8f8d7d8c4f0a9d5e6b7c8a9b0c1d","carrier":"fedex","account_id":"****","parameters":{},"active":true,"is_shippo_account":false,"test":false,"metadata":""}
+   */
+  async createCarrierAccount(carrier, accountId, parameters, active, metadata) {
+    const payload = {
+      carrier,
+      account_id: accountId,
+    }
+
+    if (parameters && typeof parameters === 'object') {
+      payload.parameters = parameters
+    }
+
+    if (active !== undefined && active !== null) {
+      payload.active = active === true
+    }
+
+    if (metadata) {
+      payload.metadata = metadata
+    }
+
+    return this.#apiRequest({ method: 'post', endpoint: '/carrier_accounts', payload })
+  }
+
+  /**
+   * @description Updates a connected carrier account - toggle it active or inactive, or refresh its carrier-specific credentials. The carrier and account_id together identify the account and cannot be changed.
+   * @route POST /updateCarrierAccount
+   *
+   * @operationName Update Carrier Account
+   * @category Carrier Accounts
+   * @appearanceColor #10B97F #0E8C6B
+   * @executionTimeoutInSeconds 60
+   *
+   * @paramDef {"type":"String","label":"Carrier Account ID","name":"carrierAccountId","required":true,"dictionary":"getCarrierAccountsDictionary","description":"The Shippo object_id of the carrier account to update."}
+   * @paramDef {"type":"Boolean","label":"Active","name":"active","required":false,"uiComponent":{"type":"CHECKBOX"},"description":"Set false to deactivate the account so Shippo stops using it for rates, or true to reactivate it."}
+   * @paramDef {"type":"Object","label":"Parameters","name":"parameters","required":false,"description":"Carrier-specific credentials to change, as a JSON object. Only the keys you send are updated; a key sent as null clears its stored value, and a masked field left as its six-asterisk placeholder is left unchanged. Keys vary by carrier."}
+   * @paramDef {"type":"String","label":"Metadata","name":"metadata","required":false,"description":"Optional reference string to store on the carrier account."}
+   *
+   * @returns {CarrierAccount}
+   * @sampleResult {"object_id":"b741b99f95e841639b54272834bcdd40","carrier":"fedex","account_id":"****","parameters":{},"active":false,"is_shippo_account":false,"test":false,"metadata":""}
+   */
+  async updateCarrierAccount(carrierAccountId, active, parameters, metadata) {
+    const payload = {}
+
+    if (active !== undefined && active !== null) {
+      payload.active = active === true
+    }
+
+    if (parameters && typeof parameters === 'object') {
+      payload.parameters = parameters
+    }
+
+    if (metadata !== undefined && metadata !== null) {
+      payload.metadata = metadata
+    }
+
+    return this.#apiRequest({
+      method: 'put',
+      endpoint: `/carrier_accounts/${ encodeURIComponent(carrierAccountId) }`,
+      payload,
+    })
+  }
+
   /* =========================================================================
    * Orders
    * =======================================================================*/
@@ -2009,7 +2231,7 @@ class Shippo {
    * @paramDef {"type":"String","label":"Order Status","name":"orderStatus","required":true,"dictionary":"getOrderStatusesDictionary","description":"Order status (UNKNOWN, AWAITPAY, PAID, REFUNDED, CANCELLED, PARTIALLY_FULFILLED, SHIPPED)."}
    * @paramDef {"type":"Object","label":"To Address","name":"toAddress","required":true,"schemaLoader":"addressSchema","description":"Recipient address. Fill the address sub-form, or wire a complete Address object (for example the output of Create Address or Get Address)."}
    * @paramDef {"type":"Object","label":"From Address","name":"fromAddress","required":false,"schemaLoader":"addressSchema","description":"Optional sender address. Fill the address sub-form, or wire a complete Address object (for example the output of Create Address or Get Address)."}
-   * @paramDef {"type":"Array.<Object>","label":"Line Items","name":"lineItems","required":true,"description":"Array of line items in the order. Each item should include title, quantity, total_price, currency, weight and weight_unit."}
+   * @paramDef {"type":"Array<Object>","label":"Line Items","name":"lineItems","required":true,"description":"Array of line items in the order. Each item should include title, quantity, total_price, currency, weight and weight_unit."}
    * @paramDef {"type":"String","label":"Placed At","name":"placedAt","required":true,"description":"ISO 8601 timestamp when the order was placed (for example 2024-04-12T15:05:21Z)."}
    * @paramDef {"type":"String","label":"Total Price","name":"totalPrice","required":false,"description":"Order subtotal as a string (for example 30.00)."}
    * @paramDef {"type":"String","label":"Total Tax","name":"totalTax","required":false,"description":"Order tax amount as a string."}
@@ -2071,7 +2293,7 @@ class Shippo {
    * @paramDef {"type":"PickupLocation","label":"Location","name":"location","required":true,"description":"Pickup location details including building_location_type (Front Door, Knock on Door, etc.), building_type, instructions and address (object_id or inline)."}
    * @paramDef {"type":"String","label":"Requested Start Time","name":"requestedStartTime","required":true,"description":"ISO 8601 timestamp for the earliest pickup time (for example 2024-04-12T08:00:00Z)."}
    * @paramDef {"type":"String","label":"Requested End Time","name":"requestedEndTime","required":true,"description":"ISO 8601 timestamp for the latest pickup time."}
-   * @paramDef {"type":"Array.<String>","label":"Transaction IDs","name":"transactions","required":true,"description":"Array of Shippo transaction object_ids to include in the pickup."}
+   * @paramDef {"type":"Array<String>","label":"Transaction IDs","name":"transactions","required":true,"description":"Array of Shippo transaction object_ids to include in the pickup."}
    * @paramDef {"type":"Boolean","label":"Is Test","name":"isTest","required":false,"uiComponent":{"type":"CHECKBOX"},"description":"When true Shippo treats the pickup as a test request and does not actually schedule with the carrier."}
    *
    * @returns {Pickup}
@@ -2124,7 +2346,7 @@ class Shippo {
    * @appearanceColor #10B97F #0E8C6B
    * @executionTimeoutInSeconds 30
    *
-   * @paramDef {"type":"String","label":"Pickup ID","name":"pickupId","required":true,"freeform":true,"description":"The Shippo object_id of the pickup to retrieve. Shippo has no list-pickups endpoint, so take this from the output of Create Pickup."}
+   * @paramDef {"type":"String","label":"Pickup ID","name":"pickupId","required":true,"description":"The Shippo object_id of the pickup to retrieve. Shippo has no list-pickups endpoint, so take this from the output of Create Pickup."}
    *
    * @returns {Pickup}
    * @sampleResult {"object_id":"e0cf70d568dc4e0c9d62c1eb6a78ec40","status":"SUCCESS","carrier_account":"b741b99f95e841639b54272834bcdd40","confirmation_code":"WTC310058750"}
@@ -2146,7 +2368,7 @@ class Shippo {
    * @appearanceColor #10B97F #0E8C6B
    * @executionTimeoutInSeconds 60
    *
-   * @returns {Array.<ServiceGroup>}
+   * @returns {Array<ServiceGroup>}
    * @sampleResult [{"object_id":"7f3e7a8e62094a8d9d08d7e8d27a2fbe","name":"USPS Domestic","type":"LIVE_RATE","description":"Live USPS rates","service_levels":[{"account_object_id":"b741b99f95e841639b54272834bcdd40","service_level_token":"usps_priority"}],"flat_rate":"5","flat_rate_currency":"USD","rate_adjustment":0,"is_active":true}]
    */
   async listServiceGroups() {
@@ -2171,7 +2393,7 @@ class Shippo {
    * @paramDef {"type":"String","label":"Name","name":"name","required":true,"description":"Display name for the service group shown to customers at checkout."}
    * @paramDef {"type":"String","label":"Description","name":"description","required":true,"description":"Description shown to buyers at checkout."}
    * @paramDef {"type":"String","label":"Type","name":"type","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Live Rate","Flat Rate","Free Shipping"]}},"description":"Pricing model. LIVE_RATE and FLAT_RATE both require Flat Rate and Flat Rate Currency (for LIVE_RATE the flat rate is the fallback returned when no live rate matches a service level). FREE_SHIPPING requires Free Shipping Threshold Min and Free Shipping Threshold Currency."}
-   * @paramDef {"type":"Array.<ServiceGroupServiceLevel>","label":"Service Levels","name":"serviceLevels","required":true,"description":"Array of service levels (each with account_object_id and service_level_token) to include in the group."}
+   * @paramDef {"type":"Array<ServiceGroupServiceLevel>","label":"Service Levels","name":"serviceLevels","required":true,"description":"Array of service levels (each with account_object_id and service_level_token) to include in the group."}
    * @paramDef {"type":"String","label":"Flat Rate","name":"flatRate","required":false,"description":"Flat rate amount as a string (integers or decimals, for example 5 or 5.50). Required unless Type is FREE_SHIPPING."}
    * @paramDef {"type":"String","label":"Flat Rate Currency","name":"flatRateCurrency","required":false,"dictionary":"getCurrenciesDictionary","description":"ISO 4217 currency code for the flat rate (for example USD). Required unless Type is FREE_SHIPPING."}
    * @paramDef {"type":"String","label":"Free Shipping Threshold Min","name":"freeShippingThresholdMin","required":false,"description":"Minimum cart total (as a string) above which shipping is free. Required when Type is FREE_SHIPPING."}
@@ -2286,6 +2508,96 @@ class Shippo {
       method: 'get',
       endpoint: `/webhooks/${ encodeURIComponent(webhookId) }`,
     })
+  }
+
+  /**
+   * @description Registers a webhook so Shippo POSTs a notification to your URL whenever the chosen event happens (a tracking update, a label transaction, or a batch change). Pair it with your own endpoint or the On Tracking Status Updated trigger.
+   * @route POST /createWebhook
+   *
+   * @operationName Create Webhook
+   * @category Webhooks
+   * @appearanceColor #10B97F #0E8C6B
+   * @executionTimeoutInSeconds 60
+   *
+   * @paramDef {"type":"String","label":"URL","name":"url","required":true,"description":"HTTPS URL that Shippo POSTs each event to."}
+   * @paramDef {"type":"String","label":"Event","name":"event","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"track_updated","label":"Tracking Updated"},{"value":"transaction_created","label":"Transaction Created"},{"value":"transaction_updated","label":"Transaction Updated"},{"value":"batch_created","label":"Batch Created"},{"value":"batch_purchased","label":"Batch Purchased"},{"value":"all","label":"All Events"}]}},"description":"Which event triggers this webhook."}
+   * @paramDef {"type":"Boolean","label":"Is Test","name":"isTest","required":false,"uiComponent":{"type":"CHECKBOX"},"description":"When true the webhook only fires for objects created with a test API token. Defaults to false."}
+   * @paramDef {"type":"Boolean","label":"Active","name":"active","required":false,"uiComponent":{"type":"CHECKBOX"},"description":"Whether the webhook is active and receiving events. Defaults to true."}
+   *
+   * @returns {Webhook}
+   * @sampleResult {"object_id":"abc12345abc12345abc12345abc12345","url":"https://example.com/shippo-webhook","event":"track_updated","is_test":false,"active":true,"object_created":"2024-04-12T08:00:00Z","object_updated":"2024-04-12T08:00:00Z","object_owner":"support@goshippo.com"}
+   */
+  async createWebhook(url, event, isTest, active) {
+    const payload = {
+      url,
+      event,
+      is_test: isTest === true,
+    }
+
+    if (active !== undefined && active !== null) {
+      payload.active = active === true
+    }
+
+    return this.#apiRequest({ method: 'post', endpoint: '/webhooks', payload })
+  }
+
+  /**
+   * @description Updates a registered webhook - change the destination URL, the event it listens for, or toggle it active. Shippo requires both URL and event on every update.
+   * @route POST /updateWebhook
+   *
+   * @operationName Update Webhook
+   * @category Webhooks
+   * @appearanceColor #10B97F #0E8C6B
+   * @executionTimeoutInSeconds 60
+   *
+   * @paramDef {"type":"String","label":"Webhook ID","name":"webhookId","required":true,"dictionary":"getWebhooksDictionary","description":"The Shippo object_id of the webhook to update."}
+   * @paramDef {"type":"String","label":"URL","name":"url","required":true,"description":"HTTPS URL that Shippo POSTs each event to."}
+   * @paramDef {"type":"String","label":"Event","name":"event","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"track_updated","label":"Tracking Updated"},{"value":"transaction_created","label":"Transaction Created"},{"value":"transaction_updated","label":"Transaction Updated"},{"value":"batch_created","label":"Batch Created"},{"value":"batch_purchased","label":"Batch Purchased"},{"value":"all","label":"All Events"}]}},"description":"Which event triggers this webhook."}
+   * @paramDef {"type":"Boolean","label":"Is Test","name":"isTest","required":false,"uiComponent":{"type":"CHECKBOX"},"description":"When true the webhook only fires for objects created with a test API token."}
+   * @paramDef {"type":"Boolean","label":"Active","name":"active","required":false,"uiComponent":{"type":"CHECKBOX"},"description":"Whether the webhook is active and receiving events."}
+   *
+   * @returns {Webhook}
+   * @sampleResult {"object_id":"abc12345abc12345abc12345abc12345","url":"https://example.com/shippo-webhook","event":"transaction_updated","is_test":false,"active":true,"object_created":"2024-04-12T08:00:00Z","object_updated":"2024-04-13T09:30:00Z","object_owner":"support@goshippo.com"}
+   */
+  async updateWebhook(webhookId, url, event, isTest, active) {
+    const payload = {
+      url,
+      event,
+      is_test: isTest === true,
+    }
+
+    if (active !== undefined && active !== null) {
+      payload.active = active === true
+    }
+
+    return this.#apiRequest({
+      method: 'put',
+      endpoint: `/webhooks/${ encodeURIComponent(webhookId) }`,
+      payload,
+    })
+  }
+
+  /**
+   * @description Deletes a registered webhook so Shippo stops sending it events.
+   * @route POST /deleteWebhook
+   *
+   * @operationName Delete Webhook
+   * @category Webhooks
+   * @appearanceColor #10B97F #0E8C6B
+   * @executionTimeoutInSeconds 30
+   *
+   * @paramDef {"type":"String","label":"Webhook ID","name":"webhookId","required":true,"dictionary":"getWebhooksDictionary","description":"The Shippo object_id of the webhook to delete."}
+   *
+   * @returns {Object}
+   * @sampleResult {"object_id":"abc12345abc12345abc12345abc12345","deleted":true}
+   */
+  async deleteWebhook(webhookId) {
+    await this.#apiRequest({
+      method: 'delete',
+      endpoint: `/webhooks/${ encodeURIComponent(webhookId) }`,
+    })
+
+    return { object_id: webhookId, deleted: true }
   }
 
   /* =========================================================================

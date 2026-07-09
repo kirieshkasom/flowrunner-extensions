@@ -299,6 +299,43 @@ class ShipStation {
   }
 
   /**
+   * @typedef {Object} getTagsDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter tags by name. Filtering is performed locally on retrieved results."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for retrieving the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Tags Dictionary
+   * @description Provides a searchable list of the order tags configured in the ShipStation account for dynamic parameter selection. Returns each tag's name and numeric tag ID.
+   * @route POST /get-tags-dictionary
+   * @paramDef {"type":"getTagsDictionary__payload","label":"Payload","name":"payload","description":"Contains optional search string and pagination cursor for retrieving and filtering tags."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Backorder","value":8362,"note":"Color: #800080"}],"cursor":null}
+   */
+  async getTagsDictionary(payload) {
+    const { search } = payload || {}
+
+    const tags = await this.#apiRequest({
+      url: `${ API_BASE_URL }/accounts/listtags`,
+      logTag: 'getTagsDictionary',
+    })
+
+    let items = (tags || []).map(tag => ({
+      label: tag.name,
+      value: tag.tagId,
+      note: tag.color ? `Color: ${ tag.color }` : `ID: ${ tag.tagId }`,
+    }))
+
+    if (search) {
+      const term = search.toLowerCase()
+      items = items.filter(item => item.label.toLowerCase().includes(term))
+    }
+
+    return { items, cursor: null }
+  }
+
+  /**
    * @registerAs DICTIONARY
    * @operationName Get Order Statuses Dictionary
    * @description Provides the static list of order statuses supported by ShipStation for filtering and updating orders.
@@ -677,7 +714,7 @@ class ShipStation {
    * @paramDef {"type":"String","label":"Order Key","name":"orderKey","description":"Unique key from the source system. If supplied and matches an existing order, the order is updated rather than created."}
    * @paramDef {"type":"String","label":"Customer Username","name":"customerUsername","description":"Username of the customer who placed the order. Required to generate a customer profile."}
    * @paramDef {"type":"String","label":"Customer Email","name":"customerEmail","description":"Email address of the customer."}
-   * @paramDef {"type":"Array.<ShipStationOrderItem>","label":"Items","name":"items","description":"Array of line item objects belonging to the order."}
+   * @paramDef {"type":"Array<ShipStationOrderItem>","label":"Items","name":"items","description":"Array of line item objects belonging to the order."}
    * @paramDef {"type":"Number","label":"Amount Paid","name":"amountPaid","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Total amount paid by the customer."}
    * @paramDef {"type":"Number","label":"Tax Amount","name":"taxAmount","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Total tax charged on the order."}
    * @paramDef {"type":"Number","label":"Shipping Amount","name":"shippingAmount","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Shipping cost charged to the customer."}
@@ -845,7 +882,7 @@ class ShipStation {
    * @executionTimeoutInSeconds 120
    *
    * @paramDef {"type":"Number","label":"Order ID","name":"orderId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The unique ShipStation order ID to tag."}
-   * @paramDef {"type":"Number","label":"Tag ID","name":"tagId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The numeric tag ID to apply. Tag IDs are managed in the ShipStation user interface."}
+   * @paramDef {"type":"Number","label":"Tag ID","name":"tagId","required":true,"dictionary":"getTagsDictionary","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The tag to apply. Pick one of the account's order tags; List Order Tags shows them all."}
    *
    * @returns {Object}
    * @sampleResult {"success":true,"message":"Tag added successfully."}
@@ -868,7 +905,7 @@ class ShipStation {
    * @executionTimeoutInSeconds 120
    *
    * @paramDef {"type":"Number","label":"Order ID","name":"orderId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The unique ShipStation order ID to untag."}
-   * @paramDef {"type":"Number","label":"Tag ID","name":"tagId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The numeric tag ID to remove from the order."}
+   * @paramDef {"type":"Number","label":"Tag ID","name":"tagId","required":true,"dictionary":"getTagsDictionary","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The tag to remove from the order. Pick one of the account's order tags; List Order Tags shows them all."}
    *
    * @returns {Object}
    * @sampleResult {"success":true,"message":"Tag removed successfully."}
@@ -879,6 +916,24 @@ class ShipStation {
       method: 'post',
       body: { orderId, tagId },
       logTag: 'removeTagFromOrder',
+    })
+  }
+
+  /**
+   * @description Retrieves the order tags configured in the ShipStation account, each with its numeric ID, name, and display color. Use this to discover the tag IDs accepted by Add Tag to Order and Remove Tag from Order.
+   * @route POST /list-tags
+   * @operationName List Order Tags
+   * @category Orders
+   * @appearanceColor #1A75BB #5BA3D9
+   * @executionTimeoutInSeconds 120
+   *
+   * @returns {Object}
+   * @sampleResult [{"tagId":8362,"name":"Backorder","color":"#800080"}]
+   */
+  async listTags() {
+    return await this.#apiRequest({
+      url: `${ API_BASE_URL }/accounts/listtags`,
+      logTag: 'listTags',
     })
   }
 
@@ -1145,6 +1200,147 @@ class ShipStation {
     })
   }
 
+  /**
+   * @description Creates a shipping label for an order that already exists in ShipStation and returns the label data, tracking number, and cost. The order supplies the addresses, so only the carrier, service, confirmation, and ship date are required. The returned labelData is a base64-encoded PDF. Charges the connected carrier account unless Test Label is on.
+   * @route POST /create-label-for-order
+   * @operationName Create Label for Order
+   * @category Shipments
+   * @appearanceColor #1A75BB #5BA3D9
+   * @executionTimeoutInSeconds 120
+   *
+   * @paramDef {"type":"Number","label":"Order ID","name":"orderId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The unique ShipStation order ID to create the label for."}
+   * @paramDef {"type":"String","label":"Carrier Code","name":"carrierCode","required":true,"dictionary":"getCarriersDictionary","description":"Carrier code (for example 'usps' or 'fedex') that should issue the label."}
+   * @paramDef {"type":"String","label":"Service Code","name":"serviceCode","required":true,"dictionary":"getCarrierServicesDictionary","dependsOn":["carrierCode"],"description":"Service code identifying the chosen shipping service."}
+   * @paramDef {"type":"String","label":"Confirmation","name":"confirmation","required":true,"dictionary":"getConfirmationTypesDictionary","description":"Type of delivery confirmation to request. Choose None for no confirmation."}
+   * @paramDef {"type":"String","label":"Ship Date","name":"shipDate","required":true,"uiComponent":{"type":"DATE_PICKER"},"description":"Date the label should ship."}
+   * @paramDef {"type":"String","label":"Package Code","name":"packageCode","dictionary":"getCarrierPackagesDictionary","dependsOn":["carrierCode"],"description":"Package type code (for example 'package' or 'flat_rate_envelope'). Leave blank to use the order's package."}
+   * @paramDef {"type":"ShipStationWeight","label":"Weight","name":"weight","description":"Package weight object with value and units. Leave blank to use the order's weight."}
+   * @paramDef {"type":"ShipStationDimensions","label":"Dimensions","name":"dimensions","description":"Package dimensions object containing length, width, height, and units."}
+   * @paramDef {"type":"Object","label":"Insurance Options","name":"insuranceOptions","schemaLoader":"createInsuranceOptionsSchema","description":"Insurance settings, including provider, insureShipment flag, and insuredValue."}
+   * @paramDef {"type":"Object","label":"International Options","name":"internationalOptions","schemaLoader":"createInternationalOptionsSchema","description":"Customs information for international shipments."}
+   * @paramDef {"type":"Object","label":"Advanced Options","name":"advancedOptions","schemaLoader":"createAdvancedOptionsSchema","description":"Carrier-specific advanced options such as warehouseId, billToParty, and saturdayDelivery."}
+   * @paramDef {"type":"Boolean","label":"Test Label","name":"testLabel","uiComponent":{"type":"TOGGLE"},"description":"Whether to create a test label that does not charge the carrier account."}
+   *
+   * @returns {Object}
+   * @sampleResult {"shipmentId":12345,"shipmentCost":7.62,"insuranceCost":0,"trackingNumber":"9400111202555842761524","labelData":"<base64-encoded PDF>","formData":null}
+   */
+  async createLabelForOrder(
+    orderId,
+    carrierCode,
+    serviceCode,
+    confirmation,
+    shipDate,
+    packageCode,
+    weight,
+    dimensions,
+    insuranceOptions,
+    internationalOptions,
+    advancedOptions,
+    testLabel
+  ) {
+    if (insuranceOptions?.provider) {
+      insuranceOptions.provider = this.#resolveChoice(insuranceOptions.provider, { Shipsurance: 'shipsurance', Carrier: 'carrier', 'Third-Party Provider': 'provider', XCover: 'xcover', ParcelGuard: 'parcelguard' })
+    }
+
+    if (internationalOptions?.contents) {
+      internationalOptions.contents = this.#resolveChoice(internationalOptions.contents, { Merchandise: 'merchandise', Documents: 'documents', Gift: 'gift', 'Returned Goods': 'returned_goods', Sample: 'sample' })
+    }
+
+    if (internationalOptions?.nonDelivery) {
+      internationalOptions.nonDelivery = this.#resolveChoice(internationalOptions.nonDelivery, { 'Return to Sender': 'return_to_sender', 'Treat as Abandoned': 'treat_as_abandoned' })
+    }
+
+    if (advancedOptions?.billToParty) {
+      advancedOptions.billToParty = this.#resolveChoice(advancedOptions.billToParty, { 'My Account': 'my_account', 'My Other Account': 'my_other_account', Recipient: 'recipient', 'Third Party': 'third_party' })
+    }
+
+    const body = clean({
+      orderId,
+      carrierCode,
+      serviceCode,
+      confirmation,
+      shipDate,
+      packageCode,
+      weight,
+      dimensions,
+      insuranceOptions,
+      internationalOptions,
+      advancedOptions,
+      testLabel,
+    })
+
+    return await this.#apiRequest({
+      url: `${ API_BASE_URL }/orders/createlabelfororder`,
+      method: 'post',
+      body,
+      logTag: 'createLabelForOrder',
+    })
+  }
+
+  /**
+   * @description Retrieves a paginated list of fulfillments - shipments recorded against orders by an external marketplace or fulfillment provider rather than shipped through ShipStation - with optional filtering by fulfillment, order, tracking number, recipient, and date ranges. Useful for reconciling externally fulfilled orders and tracking their delivery.
+   * @route POST /list-fulfillments
+   * @operationName List Fulfillments
+   * @category Shipments
+   * @appearanceColor #1A75BB #5BA3D9
+   * @executionTimeoutInSeconds 120
+   *
+   * @paramDef {"type":"Number","label":"Fulfillment ID","name":"fulfillmentId","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Filters to the single fulfillment with this ID."}
+   * @paramDef {"type":"Number","label":"Order ID","name":"orderId","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Filters fulfillments to those tied to the specified order ID."}
+   * @paramDef {"type":"String","label":"Order Number","name":"orderNumber","description":"Filters fulfillments to those tied to the specified order number."}
+   * @paramDef {"type":"String","label":"Tracking Number","name":"trackingNumber","description":"Filters fulfillments to the one with the specified tracking number."}
+   * @paramDef {"type":"String","label":"Recipient Name","name":"recipientName","description":"Filters fulfillments to those whose recipient name matches the specified value."}
+   * @paramDef {"type":"String","label":"Create Date Start","name":"createDateStart","uiComponent":{"type":"DATE_PICKER"},"description":"Returns fulfillments created on or after this date."}
+   * @paramDef {"type":"String","label":"Create Date End","name":"createDateEnd","uiComponent":{"type":"DATE_PICKER"},"description":"Returns fulfillments created on or before this date."}
+   * @paramDef {"type":"String","label":"Ship Date Start","name":"shipDateStart","uiComponent":{"type":"DATE_PICKER"},"description":"Returns fulfillments shipped on or after this date."}
+   * @paramDef {"type":"String","label":"Ship Date End","name":"shipDateEnd","uiComponent":{"type":"DATE_PICKER"},"description":"Returns fulfillments shipped on or before this date."}
+   * @paramDef {"type":"String","label":"Sort By","name":"sortBy","uiComponent":{"type":"DROPDOWN","options":{"values":["Ship Date","Create Date"]}},"description":"Field to sort the result set by."}
+   * @paramDef {"type":"String","label":"Sort Direction","name":"sortDir","uiComponent":{"type":"DROPDOWN","options":{"values":["Ascending","Descending"]}},"description":"Sort direction. ASC for ascending, DESC for descending."}
+   * @paramDef {"type":"Number","label":"Page","name":"page","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Page number to retrieve (1-based)."}
+   * @paramDef {"type":"Number","label":"Page Size","name":"pageSize","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of fulfillments per page. Maximum allowed value is 500."}
+   *
+   * @returns {Object}
+   * @sampleResult {"fulfillments":[{"fulfillmentId":33859002,"orderId":94113592,"orderNumber":"101","userId":"a1b2c3","customerEmail":"buyer@example.com","trackingNumber":"9400111202555842761524","createDate":"2025-08-21T08:00:00.000","shipDate":"2025-08-21T00:00:00.000","voidDate":null,"deliveryDate":null,"carrierCode":"stamps_com","fulfillmentProviderCode":null,"fulfillmentServiceCode":null,"fulfillmentFee":0,"voidRequested":false,"voided":false,"marketplaceNotified":true,"notifyErrorMessage":null,"shipTo":{"name":"Jane Doe","company":null,"street1":"123 Main St","street2":null,"street3":null,"city":"Austin","state":"TX","postalCode":"78701","country":"US","phone":"5125550100","residential":null,"addressVerified":null}}],"total":1,"page":1,"pages":1}
+   */
+  async listFulfillments(
+    fulfillmentId,
+    orderId,
+    orderNumber,
+    trackingNumber,
+    recipientName,
+    createDateStart,
+    createDateEnd,
+    shipDateStart,
+    shipDateEnd,
+    sortBy,
+    sortDir,
+    page,
+    pageSize
+  ) {
+    sortBy = this.#resolveChoice(sortBy, { 'Ship Date': 'ShipDate', 'Create Date': 'CreateDate' })
+    sortDir = this.#resolveChoice(sortDir, { Ascending: 'ASC', Descending: 'DESC' })
+
+    return await this.#apiRequest({
+      url: `${ API_BASE_URL }/fulfillments`,
+      query: {
+        fulfillmentId,
+        orderId,
+        orderNumber,
+        trackingNumber,
+        recipientName,
+        createDateStart,
+        createDateEnd,
+        shipDateStart,
+        shipDateEnd,
+        sortBy,
+        sortDir,
+        page,
+        pageSize,
+      },
+      logTag: 'listFulfillments',
+    })
+  }
+
   /* ============================================================
    * Customer Action Methods
    * ============================================================ */
@@ -1223,9 +1419,9 @@ class ShipStation {
    *
    * @paramDef {"type":"String","label":"SKU","name":"sku","description":"Filters products to those that match the specified SKU."}
    * @paramDef {"type":"String","label":"Name","name":"name","description":"Filters products by name."}
-   * @paramDef {"type":"String","label":"Product Category ID","name":"productCategoryId","freeform":true,"description":"Filters products to those in the specified category. Enter the category ID directly - ShipStation exposes no endpoint to list product categories, so this cannot be a pick list."}
-   * @paramDef {"type":"String","label":"Product Type ID","name":"productTypeId","freeform":true,"description":"Filters products to those of the specified type. Enter the type ID directly - ShipStation exposes no endpoint to list product types, so this cannot be a pick list."}
-   * @paramDef {"type":"String","label":"Tag ID","name":"tagId","freeform":true,"description":"Filters products to those with the specified tag. Enter the tag ID directly - ShipStation exposes no endpoint to list product tags, so this cannot be a pick list."}
+   * @paramDef {"type":"String","label":"Product Category ID","name":"productCategoryId","description":"Filters products to those in the specified category. Enter the category ID directly - ShipStation exposes no endpoint to list product categories, so this cannot be a pick list."}
+   * @paramDef {"type":"String","label":"Product Type ID","name":"productTypeId","description":"Filters products to those of the specified type. Enter the type ID directly - ShipStation exposes no endpoint to list product types, so this cannot be a pick list."}
+   * @paramDef {"type":"String","label":"Tag ID","name":"tagId","description":"Filters products to those with the specified tag. Enter the tag ID directly - ShipStation exposes no endpoint to list product tags, so this cannot be a pick list."}
    * @paramDef {"type":"String","label":"UPC","name":"upc","description":"Filters products to those with the specified UPC code."}
    * @paramDef {"type":"String","label":"Start Date","name":"startDate","uiComponent":{"type":"DATE_PICKER"},"description":"Returns products created after the specified date."}
    * @paramDef {"type":"String","label":"End Date","name":"endDate","uiComponent":{"type":"DATE_PICKER"},"description":"Returns products created before the specified date."}
