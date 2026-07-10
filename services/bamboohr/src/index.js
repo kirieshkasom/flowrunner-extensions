@@ -90,10 +90,9 @@ function filterItems(items, search) {
  * @integrationTriggersScope SINGLE_APP
  */
 class BambooHR {
-  constructor(config, context) {
+  constructor(config) {
     this.clientId = config.clientId
     this.clientSecret = config.clientSecret
-    this.backendless = context.backendless
 
     const rawDomain = config.companyDomain || ''
 
@@ -1191,8 +1190,9 @@ class BambooHR {
 
       const fileData = await Flowrunner.Request.get(fileUrl).setEncoding(null)
 
-      const formData = new FormData()
-      formData.append('file', new Blob([fileData]), fileName)
+      // Do NOT set Content-Type manually — the form supplies the multipart boundary.
+      const formData = new Flowrunner.Request.FormData()
+      formData.append('file', fileData, { filename: fileName })
       formData.append('fileName', fileName)
       formData.append('category', String(categoryId))
 
@@ -1204,10 +1204,7 @@ class BambooHR {
         `${ this.#getApiBaseUrl() }/employees/${ employeeId }/files`
       ).set(this.#getAccessTokenHeader())
 
-      request.form(formData)
-      request.set({ 'Content-Type': 'multipart/form-data' })
-
-      await request
+      await request.form(formData)
 
       logger.debug(
         `[uploadEmployeeFile] File "${ fileName }" uploaded successfully for employee ${ employeeId }`
