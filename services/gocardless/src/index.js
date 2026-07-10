@@ -415,11 +415,19 @@ class GoCardlessService {
   // ===========================================================================
 
   /**
+   * @typedef {Object} listCustomersDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter customers locally by email, given name, family name, or company name."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Customers Dictionary
    * @route POST /get-customers-dictionary
    * @description Loads customers for dropdowns.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor}"}
+   * @paramDef {"type":"listCustomersDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text and pagination cursor for listing customers."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"Jane Doe","value":"CU000123456","note":"jane@example.com - GB"}],"cursor":null}
    */
   async listCustomersDict(payload) {
     const { search, cursor } = payload || {}
@@ -457,11 +465,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listMandatesDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Customer","name":"customer","required":false,"description":"Only show mandates belonging to this customer."}
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"description":"Only show mandates in this status."}
+   */
+
+  /**
+   * @typedef {Object} listMandatesDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter mandates locally by reference, scheme, or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listMandatesDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: customer and/or status."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Mandates Dictionary
    * @route POST /get-mandates-dictionary
    * @description Loads Direct Debit mandates for dropdowns. Optionally filter by customer or status.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {customer, status}}"}
+   * @paramDef {"type":"listMandatesDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional customer/status filters for listing mandates."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"REF-1234","value":"MD000123456","note":"active - bacs - CU000123456"}],"cursor":null}
    */
   async listMandatesDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -496,11 +519,19 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listCreditorsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter creditors locally by name or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Creditors Dictionary
    * @route POST /get-creditors-dictionary
    * @description Loads your own GoCardless creditor accounts for dropdowns. Most merchants have just one.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor}"}
+   * @paramDef {"type":"listCreditorsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text and pagination cursor for listing creditors."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"Acme Ltd","value":"CR000000000001","note":"successful"}],"cursor":null}
    */
   async listCreditorsDict(payload) {
     const { search, cursor } = payload || {}
@@ -520,11 +551,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listSubscriptionsDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Mandate","name":"mandate","required":false,"description":"Only show subscriptions running under this mandate."}
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"description":"Only show subscriptions in this status."}
+   */
+
+  /**
+   * @typedef {Object} listSubscriptionsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter subscriptions locally by name or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listSubscriptionsDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: mandate and/or status."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Subscriptions Dictionary
    * @route POST /get-subscriptions-dictionary
    * @description Loads recurring subscriptions for dropdowns. Filter by mandate or status.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {mandate, status}}"}
+   * @paramDef {"type":"listSubscriptionsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional mandate/status filters for listing subscriptions."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"Standard Plan","value":"SB000123456","note":"active - 1500 GBP - monthly"}],"cursor":null}
    */
   async listSubscriptionsDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -557,11 +603,27 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listPaymentsDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Mandate","name":"mandate","required":false,"description":"Only show payments collected under this mandate."}
+   * @paramDef {"type":"String","label":"Customer","name":"customer","required":false,"description":"Only show payments from this customer."}
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"description":"Only show payments in this status."}
+   */
+
+  /**
+   * @typedef {Object} listPaymentsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter payments locally by reference, ID, or description."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listPaymentsDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: mandate, customer, and/or status."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Payments Dictionary
    * @route POST /get-payments-dictionary
    * @description Loads payments for dropdowns. Filter by mandate, customer, or status.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {mandate, customer, status}}"}
+   * @paramDef {"type":"listPaymentsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional mandate/customer/status filters for listing payments."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"INV-4242","value":"PM000123456","note":"pending_submission - 1000 GBP - 2026-05-19"}],"cursor":null}
    */
   async listPaymentsDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -598,11 +660,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listPayoutsDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"description":"Only show payouts in this status."}
+   * @paramDef {"type":"String","label":"Creditor","name":"creditor","required":false,"description":"Only show payouts belonging to this creditor."}
+   */
+
+  /**
+   * @typedef {Object} listPayoutsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter payouts locally by ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listPayoutsDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: status and/or creditor."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Payouts Dictionary
    * @route POST /get-payouts-dictionary
    * @description Loads payouts (bank transfers GoCardless sent you) for dropdowns. Filter by status.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {status, creditor}}"}
+   * @paramDef {"type":"listPayoutsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional status/creditor filters for listing payouts."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"25000 GBP - 2026-05-18","value":"PO000123456","note":"pending - merchant"}],"cursor":null}
    */
   async listPayoutsDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -633,11 +710,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listRefundsDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Payment","name":"payment","required":false,"description":"Only show refunds issued against this payment."}
+   * @paramDef {"type":"String","label":"Mandate","name":"mandate","required":false,"description":"Only show refunds issued under this mandate."}
+   */
+
+  /**
+   * @typedef {Object} listRefundsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter refunds locally by reference or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listRefundsDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: payment and/or mandate."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Refunds Dictionary
    * @route POST /get-refunds-dictionary
    * @description Loads refunds for dropdowns. Filter by payment or mandate.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {payment, mandate}}"}
+   * @paramDef {"type":"listRefundsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional payment/mandate filters for listing refunds."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"REFUND-1","value":"RF000123456","note":"2026-05-16 - PM000123456"}],"cursor":null}
    */
   async listRefundsDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -668,11 +760,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listBillingRequestsDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"description":"Only show billing requests in this status."}
+   * @paramDef {"type":"String","label":"Customer","name":"customer","required":false,"description":"Only show billing requests linked to this customer."}
+   */
+
+  /**
+   * @typedef {Object} listBillingRequestsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter billing requests locally by ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listBillingRequestsDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: status and/or customer."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Billing Requests Dictionary
    * @route POST /get-billing-requests-dictionary
    * @description Loads billing requests (hosted onboarding sessions) for dropdowns.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {status, customer}}"}
+   * @paramDef {"type":"listBillingRequestsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional status/customer filters for listing billing requests."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"BRQ000ABCDEF","value":"BRQ000ABCDEF","note":"pending - 2026-05-16"}],"cursor":null}
    */
   async listBillingRequestsDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -703,11 +810,19 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listBillingRequestTemplatesDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter templates locally by name or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Billing Request Templates Dictionary
    * @route POST /get-billing-request-templates-dictionary
    * @description Loads reusable billing request templates for dropdowns.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor}"}
+   * @paramDef {"type":"listBillingRequestTemplatesDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text and pagination cursor for listing billing request templates."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"Standard Onboarding","value":"BRT000ABCDEF","note":"GBP"}],"cursor":null}
    */
   async listBillingRequestTemplatesDict(payload) {
     const { search, cursor } = payload || {}
@@ -727,11 +842,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listInstitutionsDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Country Code","name":"countryCode","required":false,"description":"Two-letter country code to narrow the institution list. Defaults to GB."}
+   * @paramDef {"type":"String","label":"Scheme","name":"scheme","required":false,"description":"Only show institutions supporting this Direct Debit scheme."}
+   */
+
+  /**
+   * @typedef {Object} listInstitutionsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter institutions locally by name or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listInstitutionsDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: country code and/or scheme."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Institutions Dictionary
    * @route POST /get-institutions-dictionary
    * @description Loads banks that support instant bank pay for dropdowns. Provide a country to narrow the list.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {countryCode, scheme}}"}
+   * @paramDef {"type":"listInstitutionsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional country/scheme filters for listing institutions."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"Monzo Bank","value":"MONZO_MONZGB2L","note":"MONZGB2L"}],"cursor":null}
    */
   async listInstitutionsDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -756,11 +886,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listCustomerBankAccountsDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Customer","name":"customer","required":false,"description":"Only show bank accounts belonging to this customer."}
+   * @paramDef {"type":"Boolean","label":"Enabled","name":"enabled","required":false,"description":"Only show accounts that are (or are not) currently enabled."}
+   */
+
+  /**
+   * @typedef {Object} listCustomerBankAccountsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter accounts locally by account holder name, bank name, or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listCustomerBankAccountsDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: customer and/or enabled."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Customer Bank Accounts Dictionary
    * @route POST /get-customer-bank-accounts-dictionary
    * @description Loads saved customer bank accounts for dropdowns. Optionally filter by customer.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {customer, enabled}}"}
+   * @paramDef {"type":"listCustomerBankAccountsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional customer/enabled filters for listing customer bank accounts."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"Jane Doe","value":"BA000123456","note":"MONZO BANK LIMITED - ending 56 - GBP"}],"cursor":null}
    */
   async listCustomerBankAccountsDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -805,11 +950,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listInstalmentSchedulesDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Mandate","name":"mandate","required":false,"description":"Only show instalment schedules running under this mandate."}
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"description":"Only show instalment schedules in this status."}
+   */
+
+  /**
+   * @typedef {Object} listInstalmentSchedulesDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter instalment schedules locally by name or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listInstalmentSchedulesDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: mandate and/or status."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Instalment Schedules Dictionary
    * @route POST /get-instalment-schedules-dictionary
    * @description Loads instalment schedules for dropdowns. Optionally filter by mandate or status.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {mandate, status}}"}
+   * @paramDef {"type":"listInstalmentSchedulesDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional mandate/status filters for listing instalment schedules."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"Invoice 1234","value":"IS000123456","note":"active - 3000 GBP"}],"cursor":null}
    */
   async listInstalmentSchedulesDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -1123,6 +1283,7 @@ class GoCardlessService {
    * @paramDef {"type":"Number","label":"Page Size","name":"limit","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"How many results per page (1 to 500). Defaults to 50."}
    * @paramDef {"type":"String","label":"Next Page Token","name":"cursor","required":false,"description":"Advanced. Paste 'cursors.after' from a previous response to fetch the next page."}
    * @returns {Object}
+   * @sampleResult {"data":[{"id":"BA000123456","created_at":"2026-05-16T10:00:00.000Z","account_holder_name":"Jane Doe","account_number_ending":"56","bank_name":"MONZO BANK LIMITED","country_code":"GB","currency":"GBP","enabled":true,"metadata":{},"links":{"customer":"CU000123456"}}],"items":[{"id":"BA000123456","created_at":"2026-05-16T10:00:00.000Z","account_holder_name":"Jane Doe","account_number_ending":"56","bank_name":"MONZO BANK LIMITED","country_code":"GB","currency":"GBP","enabled":true,"metadata":{},"links":{"customer":"CU000123456"}}],"cursors":{"before":null,"after":null},"limit":50,"hasMore":false}
    */
   async listCustomerBankAccounts(customerId, enabled, limit, cursor) {
     const response = await this.#api({
@@ -1147,6 +1308,7 @@ class GoCardlessService {
    * @appearanceColor #00b87b #008f5d
    * @paramDef {"type":"String","label":"Bank Account","name":"bankAccountId","required":true,"dictionary":"listCustomerBankAccountsDict","description":"Pick the customer bank account (its ID starts with BA)."}
    * @returns {Object}
+   * @sampleResult {"id":"BA000123456","created_at":"2026-05-16T10:00:00.000Z","account_holder_name":"Jane Doe","account_number_ending":"56","bank_name":"MONZO BANK LIMITED","country_code":"GB","currency":"GBP","enabled":true,"metadata":{},"links":{"customer":"CU000123456"}}
    */
   async getCustomerBankAccount(bankAccountId) {
     if (!bankAccountId)
@@ -1178,6 +1340,7 @@ class GoCardlessService {
    * @paramDef {"type":"Object","label":"Metadata","name":"metadata","required":false,"description":"Optional notes - up to 3 key/value pairs."}
    * @paramDef {"type":"String","label":"Idempotency Key (Advanced)","name":"idempotencyKey","required":false,"description":"Advanced. Leave blank unless forcing a fresh creation."}
    * @returns {Object}
+   * @sampleResult {"id":"BA000123456","created_at":"2026-05-16T10:00:00.000Z","account_holder_name":"Jane Doe","account_number_ending":"56","bank_name":"MONZO BANK LIMITED","country_code":"GB","currency":"GBP","enabled":true,"metadata":{},"links":{"customer":"CU000123456"}}
    */
   async createCustomerBankAccount(
     customerId,
@@ -1230,6 +1393,7 @@ class GoCardlessService {
    * @appearanceColor #00b87b #008f5d
    * @paramDef {"type":"String","label":"Bank Account","name":"bankAccountId","required":true,"dictionary":"listCustomerBankAccountsDict","description":"Pick the customer bank account to disable (its ID starts with BA)."}
    * @returns {Object}
+   * @sampleResult {"id":"BA000123456","created_at":"2026-05-16T10:00:00.000Z","account_holder_name":"Jane Doe","account_number_ending":"56","bank_name":"MONZO BANK LIMITED","country_code":"GB","currency":"GBP","enabled":false,"metadata":{},"links":{"customer":"CU000123456"}}
    */
   async disableCustomerBankAccount(bankAccountId) {
     if (!bankAccountId)
@@ -1459,6 +1623,7 @@ class GoCardlessService {
    * @paramDef {"type":"String","label":"Mandate","name":"mandateId","required":false,"dictionary":"listMandatesDict","description":"Existing mandate to render. Leave blank to render an unsigned PDF from raw bank details (provide them in Prefill below)."}
    * @paramDef {"type":"Object","label":"Prefill (Unsigned)","name":"prefill","required":false,"schemaLoader":"mandatePdfPrefillSchema","description":"Alternative: render a blank unsigned PDF from bank details. Fill these when no mandate is selected above."}
    * @returns {Object}
+   * @sampleResult {"url":"https://pdfs.gocardless.com/MD000123456.pdf?signature=abc123","expires_at":"2026-05-16T10:30:00.000Z"}
    */
   async getMandatePdf(mandateId, prefill) {
     const body = {
@@ -2373,6 +2538,7 @@ class GoCardlessService {
    * @paramDef {"type":"Number","label":"Page Size","name":"limit","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"How many items per page (1 to 500). Defaults to 50."}
    * @paramDef {"type":"String","label":"Next Page Token","name":"cursor","required":false,"description":"Advanced. Paste 'cursors.after' from a previous response."}
    * @returns {Object}
+   * @sampleResult {"data":[{"amount":"1000","type":"payment_paid_out","taxes":[],"links":{"payment":"PM000123456","mandate":"MD000123456"}}],"items":[{"amount":"1000","type":"payment_paid_out","taxes":[],"links":{"payment":"PM000123456","mandate":"MD000123456"}}],"cursors":{"before":null,"after":null},"limit":50,"hasMore":false}
    */
   async listPayoutItems(payoutId, includeTaxes, limit, cursor) {
     if (!payoutId) throw new Error('[GoCardless] payoutId is required')
@@ -2417,6 +2583,7 @@ class GoCardlessService {
    * @paramDef {"type":"Object","label":"Metadata","name":"metadata","required":false,"description":"Optional notes - up to 3 key/value pairs."}
    * @paramDef {"type":"String","label":"Idempotency Key (Advanced)","name":"idempotencyKey","required":false,"description":"Advanced. Leave blank unless forcing a fresh creation."}
    * @returns {Object}
+   * @sampleResult {"id":"BRQ000ABCDEF","created_at":"2026-05-16T10:00:00.000Z","status":"pending","fallback_enabled":true,"fallback_occurred":false,"mandate_request":{"scheme":"bacs","verify":"recommended","currency":"GBP"},"payment_request":null,"metadata":{},"links":{}}
    */
   async createBillingRequest(
     collectMandate,
@@ -2485,6 +2652,7 @@ class GoCardlessService {
    * @appearanceColor #5e35b1 #311b92
    * @paramDef {"type":"String","label":"Billing Request","name":"billingRequestId","required":true,"dictionary":"listBillingRequestsDict","description":"Pick the billing request."}
    * @returns {Object}
+   * @sampleResult {"id":"BRQ000ABCDEF","created_at":"2026-05-16T10:00:00.000Z","status":"pending","fallback_enabled":true,"fallback_occurred":false,"mandate_request":{"scheme":"bacs","verify":"recommended","currency":"GBP"},"payment_request":null,"metadata":{},"links":{"customer":"CU000123456"}}
    */
   async getBillingRequest(billingRequestId) {
     if (!billingRequestId)
@@ -2571,6 +2739,7 @@ class GoCardlessService {
    * @paramDef {"type":"String","label":"Billing Request","name":"billingRequestId","required":true,"dictionary":"listBillingRequestsDict","description":"Billing request to cancel."}
    * @paramDef {"type":"Object","label":"Metadata","name":"metadata","required":false,"description":"Optional notes."}
    * @returns {Object}
+   * @sampleResult {"id":"BRQ000ABCDEF","created_at":"2026-05-16T10:00:00.000Z","status":"cancelled","fallback_enabled":true,"fallback_occurred":false,"mandate_request":{"scheme":"bacs","verify":"recommended","currency":"GBP"},"payment_request":null,"metadata":{},"links":{"customer":"CU000123456"}}
    */
   async cancelBillingRequest(billingRequestId, metadata) {
     if (!billingRequestId)
@@ -2597,6 +2766,7 @@ class GoCardlessService {
    * @paramDef {"type":"String","label":"Billing Request","name":"billingRequestId","required":true,"dictionary":"listBillingRequestsDict","description":"Billing request to finalise."}
    * @paramDef {"type":"Object","label":"Metadata","name":"metadata","required":false,"description":"Optional notes."}
    * @returns {Object}
+   * @sampleResult {"id":"BRQ000ABCDEF","created_at":"2026-05-16T10:00:00.000Z","status":"fulfilled","fallback_enabled":true,"fallback_occurred":false,"mandate_request":{"scheme":"bacs","verify":"recommended","currency":"GBP"},"payment_request":null,"metadata":{},"links":{"customer":"CU000123456","mandate_request_mandate":"MD000123456"}}
    */
   async fulfilBillingRequest(billingRequestId, metadata) {
     if (!billingRequestId)
@@ -2717,6 +2887,7 @@ class GoCardlessService {
    * @category Utility
    * @appearanceColor #757575 #424242
    * @returns {Object}
+   * @sampleResult {"ok":true,"environment":"sandbox","creditor":{"id":"CR000000000001","name":"Acme Ltd","verification_status":"successful"},"organisationId":"OR000123456"}
    */
   async testConnection() {
     const response = await this.#api({
@@ -2751,6 +2922,7 @@ class GoCardlessService {
    * @paramDef {"type":"String","label":"Bank Code","name":"bankCode","required":false,"description":"Bank code (Canada / New Zealand only)."}
    * @paramDef {"type":"String","label":"Bank Country","name":"countryCode","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["United Kingdom","Germany","France","Netherlands","Spain","Italy","Ireland","Austria","Belgium","Portugal","Finland","Luxembourg","Sweden","Denmark","Australia","New Zealand","Canada","United States"]}},"description":"Country where the bank is. Required when using account number (not needed for IBAN)."}
    * @returns {Object}
+   * @sampleResult {"available_debit_schemes":["bacs","faster_payments"],"bank_name":"MONZO BANK LIMITED","bic":"MONZGB2L"}
    */
   async lookupBankDetails(
     iban,
@@ -2795,6 +2967,7 @@ class GoCardlessService {
    * @paramDef {"type":"String","label":"Scenario","name":"scenario","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Payment Submitted","Payment Confirmed","Payment Paid Out","Payment Failed","Payment Late Failure","Payment Late Failure Settled","Payment Charged Back","Payment Chargeback Settled","Mandate Activated","Mandate Customer Approval Granted","Mandate Customer Approval Skipped","Mandate Failed","Mandate Expired","Mandate Transferred","Mandate Transferred With Resubmission","Mandate Suspended By Payer","Refund Paid","Refund Settled","Refund Bounced","Refund Returned","Payout Bounced","Creditor Verification Status Action Required","Creditor Verification Status In Review","Creditor Verification Status Successful","Billing Request Fulfilled","Billing Request Fulfilled And Payment Failed","Billing Request Fulfilled And Payment Confirmed To Failed","Billing Request Fulfilled And Payment Paid Out"]}},"description":"State change to simulate."}
    * @paramDef {"type":"String","label":"Resource ID","name":"resourceId","required":true,"description":"ID of the resource to transition. The resource type depends on the scenario, so there is no single pick-list - paste the matching ID (for example a payment ID for any 'payment_' scenario)."}
    * @returns {Object}
+   * @sampleResult {"scenario_simulators":{"id":"payment_confirmed"}}
    */
   async runScenarioSimulator(scenario, resourceId) {
     if (!scenario) throw new Error('[GoCardless] scenario is required')
@@ -2978,6 +3151,7 @@ class GoCardlessService {
    * @appearanceColor #ff7043 #d84315
    * @paramDef {"type":"String","label":"Only When Action Is","name":"action","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Created","Customer Approval Granted","Customer Approval Denied","Submitted","Confirmed","Failed","Cancelled","Paid Out","Late Failure Settled","Chargeback Cancelled","Chargeback Settled","Charged Back","Resubmission Requested"]}},"description":"Only fire on this action. Examples: 'confirmed' = bank has accepted the charge, 'paid_out' = money is in your account, 'failed' = bounced. Leave blank to fire on all payment events."}
    * @returns {Object}
+   * @sampleResult {"id":"EV000PAYMENT1","created_at":"2026-05-16T10:00:00.000Z","resource_type":"payments","action":"confirmed","details":{"origin":"gocardless","cause":"payment_confirmed","description":"Payment confirmed by the banks.","scheme":"bacs"},"metadata":{},"links":{"payment":"PM000123456","mandate":"MD000123456"},"resourceId":"PM000123456"}
    */
   async onPaymentEvent(invocation) {
     return this.#pollEvents({
@@ -2996,6 +3170,7 @@ class GoCardlessService {
    * @appearanceColor #1e88e5 #0d47a1
    * @paramDef {"type":"String","label":"Only When Action Is","name":"action","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Created","Customer Approval Granted","Customer Approval Skipped","Submitted","Active","Failed","Cancelled","Transferred","Expired","Resubmission Requested","Reinstated","Replaced","Consumed","Blocked","Suspended By Payer"]}},"description":"Only fire on this action. Examples: 'active' = customer is now chargeable, 'cancelled' = customer or you cancelled. Leave blank for all mandate events."}
    * @returns {Object}
+   * @sampleResult {"id":"EV000MANDATE1","created_at":"2026-05-16T10:00:00.000Z","resource_type":"mandates","action":"active","details":{"origin":"gocardless","cause":"mandate_activated","description":"Mandate has been successfully activated.","scheme":"bacs"},"metadata":{},"links":{"mandate":"MD000123456","customer":"CU000123456"},"resourceId":"MD000123456"}
    */
   async onMandateEvent(invocation) {
     return this.#pollEvents({
@@ -3014,6 +3189,7 @@ class GoCardlessService {
    * @appearanceColor #8e24aa #4a148c
    * @paramDef {"type":"String","label":"Only When Action Is","name":"action","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Created","Payment Created","Cancelled","Paused","Resumed","Finished","Customer Approval Granted","Customer Approval Denied","Scheduled Pause Started"]}},"description":"Only fire on this action. Examples: 'payment_created' = a charge for this cycle was just generated, 'cancelled' = subscription stopped. Leave blank for all."}
    * @returns {Object}
+   * @sampleResult {"id":"EV000SUBSCRIB1","created_at":"2026-05-16T10:00:00.000Z","resource_type":"subscriptions","action":"payment_created","details":{"origin":"gocardless","cause":"subscription_payment_created","description":"A payment was created for this subscription's billing cycle.","scheme":"bacs"},"metadata":{},"links":{"subscription":"SB000123456","mandate":"MD000123456"},"resourceId":"SB000123456"}
    */
   async onSubscriptionEvent(invocation) {
     return this.#pollEvents({
@@ -3032,6 +3208,7 @@ class GoCardlessService {
    * @appearanceColor #43a047 #1b5e20
    * @paramDef {"type":"String","label":"Only When Action Is","name":"action","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Created","Paid","Submitted","Cancelled","Failed","Bounced","Funds Returned","Refund Settled"]}},"description":"Only fire on this action. 'paid' = refund left your account, 'refund_settled' = customer received it. Leave blank for all."}
    * @returns {Object}
+   * @sampleResult {"id":"EV000REFUND1","created_at":"2026-05-16T10:00:00.000Z","resource_type":"refunds","action":"paid","details":{"origin":"gocardless","cause":"refund_paid","description":"Refund has been paid to the customer's bank.","scheme":"bacs"},"metadata":{},"links":{"refund":"RF000123456","payment":"PM000123456","mandate":"MD000123456"},"resourceId":"RF000123456"}
    */
   async onRefundEvent(invocation) {
     return this.#pollEvents({
@@ -3050,6 +3227,7 @@ class GoCardlessService {
    * @appearanceColor #00897b #004d40
    * @paramDef {"type":"String","label":"Only When Action Is","name":"action","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Paid","Bounced","Fx Rate Confirmed","Tax Updated"]}},"description":"Only fire on this action. 'paid' is the usual one - fires when the money lands in your bank account. Leave blank for all."}
    * @returns {Object}
+   * @sampleResult {"id":"EV000PAYOUT1","created_at":"2026-05-16T10:00:00.000Z","resource_type":"payouts","action":"paid","details":{"origin":"gocardless","cause":"payout_paid","description":"Payout has been paid to your bank account.","scheme":"bacs"},"metadata":{},"links":{"payout":"PO000123456","creditor":"CR000000000001"},"resourceId":"PO000123456"}
    */
   async onPayoutEvent(invocation) {
     return this.#pollEvents({
@@ -3068,6 +3246,7 @@ class GoCardlessService {
    * @appearanceColor #5e35b1 #311b92
    * @paramDef {"type":"String","label":"Only When Action Is","name":"action","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Created","Customer Details Confirmed","Bank Account Collected","Flow Created","Flow Initialised","Flow Completed","Flow Visited","Flow Exited","Payer Finalised Payment Details","Fulfilled","Cancelled","Failed"]}},"description":"Only fire on this action. Examples: 'fulfilled' = customer finished and mandate/payment is created, 'flow_exited' = customer left without finishing. Leave blank for all."}
    * @returns {Object}
+   * @sampleResult {"id":"EV000BILLREQ1","created_at":"2026-05-16T10:00:00.000Z","resource_type":"billing_requests","action":"fulfilled","details":{"origin":"gocardless","cause":"billing_request_fulfilled","description":"Billing request has been fulfilled.","scheme":"bacs"},"metadata":{},"links":{"billing_request":"BRQ000ABCDEF","customer":"CU000123456"},"resourceId":"BRQ000ABCDEF"}
    */
   async onBillingRequestEvent(invocation) {
     return this.#pollEvents({
