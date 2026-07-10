@@ -28,6 +28,7 @@ const ERROR_HINTS = {
 /**
  * @integrationName EasyPost
  * @integrationIcon /icon.png
+ * @integrationTriggersScope SINGLE_APP
  **/
 class EasyPost {
   constructor(config) {
