@@ -84,12 +84,12 @@ Highest usage in n8n / broadest customer demand.
 - [x] Mistral AI (`services/mistral-ai`)
 - [x] Groq (`services/groq`)
 - [ ] Ollama (self-hosted models)
-- [ ] OpenRouter
-- [ ] xAI Grok
-- [ ] DeepSeek
+- [x] OpenRouter (`services/openrouter`)
+- [x] xAI Grok (`services/xai-grok`)
+- [x] DeepSeek (`services/deepseek`)
 - [ ] Cohere
 - [ ] Hugging Face Inference
-- [ ] Perplexity
+- [x] Perplexity (`services/perplexity`)
 - [ ] Pinecone (vector store)
 - [ ] Qdrant (vector store)
 - [ ] Weaviate (vector store)
