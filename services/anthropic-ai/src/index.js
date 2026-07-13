@@ -2018,15 +2018,14 @@ class AnthropicClaudeService {
         // skipped so each completion fires exactly once.
         return previous === undefined ? true : !isSettled(previous)
       })
+      // Polling events are raw data objects (the platform routes them to this trigger already);
+      // wrapping them in {name, data} prevents delivery.
       .map(session => ({
-        name: 'onSessionIdle',
-        data: {
-          sessionId: session.id,
-          title: session.title || null,
-          status: session.status,
-          createdAt: session.created_at,
-          updatedAt: session.updated_at,
-        },
+        sessionId: session.id,
+        title: session.title || null,
+        status: session.status,
+        createdAt: session.created_at,
+        updatedAt: session.updated_at,
       }))
 
     // Merge into the previous map (capped) so sessions that scroll out of the 100-session
