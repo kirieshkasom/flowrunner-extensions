@@ -43,15 +43,20 @@ Every operation opens a short-lived `pg.Client`, runs its query, and always clos
 
 ## Configuration
 
+Connect with either a single connection string (the copy-paste URI Supabase, Neon, RDS, Heroku etc. provide) or individual fields. When Connection String is set it takes precedence and the individual fields are ignored.
+
 | Setting | Required | Description |
 | --- | --- | --- |
-| Host | Yes | Hostname or IP address of the PostgreSQL server. Must be reachable from FlowRunner. |
-| Port | Yes | TCP port (default `5432`). |
-| Database | Yes | Database name to connect to. |
-| User | Yes | Database user (role) name. |
-| Password | Yes | Password for the database user. |
-| Use SSL/TLS | No | Enable TLS-encrypted connections. Required by most managed databases (AWS RDS, Google Cloud SQL, Azure Database, Heroku Postgres). Certificate verification is relaxed to support managed providers' default certificates. |
+| Connection String | No | Full PostgreSQL URI, e.g. `postgresql://user:password@db.example.com:5432/mydb`. Takes precedence over the fields below. Special characters in the password must be URL-encoded. |
+| Host | No* | Hostname or IP address of the PostgreSQL server. Must be reachable from FlowRunner. |
+| Port | No | TCP port (default `5432`). |
+| Database | No* | Database name to connect to. |
+| User | No* | Database user (role) name. |
+| Password | No* | Password for the database user. |
+| Use SSL/TLS | No | Enable TLS-encrypted connections. Required by most managed databases (AWS RDS, Google Cloud SQL, Azure Database, Heroku Postgres). Certificate verification is relaxed to support managed providers' default certificates. With a connection string, enabling this adds TLS on top of the URI; when off, any `sslmode` in the URI still applies. |
 | Connection Timeout (seconds) | No | How long to wait when establishing a connection (default `10`). |
+
+\* Required when no Connection String is provided.
 
 ## Safety Notes
 

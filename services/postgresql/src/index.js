@@ -41,6 +41,7 @@ class PostgreSQL {
   constructor(config) {
     this.config = config || {}
 
+    this.connectionString = (this.config.connectionString || '').trim()
     this.host = this.config.host
     this.port = parseInt(this.config.port, 10) || DEFAULT_PORT
     this.database = this.config.database
@@ -59,21 +60,10 @@ class PostgreSQL {
   //  Connections are NEVER cached between invocations.
   // ==========================================================================
   async #withClient(logTag, fn) {
-    const client = new pg.Client({
-      host: this.host,
-      port: this.port,
-      database: this.database,
-      user: this.user,
-      password: this.password,
-      ssl: this.ssl ? { rejectUnauthorized: false } : false,
-      connectionTimeoutMillis: this.connectionTimeoutMillis,
-      statement_timeout: STATEMENT_TIMEOUT_MS,
-      query_timeout: STATEMENT_TIMEOUT_MS,
-      application_name: 'flowrunner-postgresql',
-    })
+    const client = new pg.Client(this.#buildClientConfig(logTag))
 
     try {
-      logger.debug(`${ logTag } - connecting to ${ this.host }:${ this.port }/${ this.database }`)
+      logger.debug(`${ logTag } - connecting to ${ this.#connectionLabel() }`)
 
       await client.connect()
 
@@ -87,6 +77,59 @@ class PostgreSQL {
         logger.warn(`${ logTag } - failed to close connection: ${ endError.message }`)
       }
     }
+  }
+
+  // A Connection String, when set, wins over the individual fields. When using it, the SSL
+  // toggle only ADDS the managed-provider-friendly ssl config on top; when the toggle is off
+  // the string's own sslmode/ssl query params stay in effect (we must not pass ssl: false,
+  // as explicit config overrides values parsed from the string).
+  #buildClientConfig(logTag) {
+    const shared = {
+      connectionTimeoutMillis: this.connectionTimeoutMillis,
+      statement_timeout: STATEMENT_TIMEOUT_MS,
+      query_timeout: STATEMENT_TIMEOUT_MS,
+      application_name: 'flowrunner-postgresql',
+    }
+
+    if (this.connectionString) {
+      return {
+        connectionString: this.connectionString,
+        ...(this.ssl ? { ssl: { rejectUnauthorized: false } } : {}),
+        ...shared,
+      }
+    }
+
+    if (!this.host || !this.database || !this.user) {
+      logger.error(`${ logTag } - incomplete connection configuration`)
+
+      throw new Error(
+        'PostgreSQL error: incomplete connection configuration. ' +
+        'Provide a Connection String (e.g. postgresql://user:password@host:5432/database), ' +
+        'or fill in Host, Database, User and Password in the service configuration.'
+      )
+    }
+
+    return {
+      host: this.host,
+      port: this.port,
+      database: this.database,
+      user: this.user,
+      password: this.password,
+      ssl: this.ssl ? { rejectUnauthorized: false } : false,
+      ...shared,
+    }
+  }
+
+  // Human-readable connection target for logs. Never includes credentials: the connection
+  // string embeds the password, so only its host part is extracted.
+  #connectionLabel() {
+    if (this.connectionString) {
+      const match = this.connectionString.match(/@([^/?]+)/)
+
+      return match ? `${ match[1] } (connection string)` : 'connection string'
+    }
+
+    return `${ this.host }:${ this.port }/${ this.database }`
   }
 
   #throwPgError(error, logTag) {
@@ -583,45 +626,53 @@ class PostgreSQL {
 
 Flowrunner.ServerCode.addService(PostgreSQL, [
   {
+    name: 'connectionString',
+    displayName: 'Connection String',
+    type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
+    required: false,
+    shared: false,
+    hint: 'Full PostgreSQL connection URI, e.g. postgresql://user:password@db.example.com:5432/mydb - most managed providers (Supabase, Neon, RDS, Heroku) supply one. When set, it takes precedence and the Host/Port/Database/User/Password fields below are ignored. Special characters in the password must be URL-encoded; if that is a problem, use the individual fields instead.',
+  },
+  {
     name: 'host',
     displayName: 'Host',
     type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
-    required: true,
+    required: false,
     shared: false,
-    hint: 'Hostname or IP address of the PostgreSQL server (e.g. db.example.com). The server must be reachable from FlowRunner.',
+    hint: 'Hostname or IP address of the PostgreSQL server (e.g. db.example.com). Required unless a Connection String is provided. The server must be reachable from FlowRunner.',
   },
   {
     name: 'port',
     displayName: 'Port',
     type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
-    required: true,
+    required: false,
     shared: false,
     defaultValue: '5432',
-    hint: 'TCP port of the PostgreSQL server. The default is 5432.',
+    hint: 'TCP port of the PostgreSQL server. The default is 5432. Ignored when a Connection String is provided.',
   },
   {
     name: 'database',
     displayName: 'Database',
     type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
-    required: true,
+    required: false,
     shared: false,
-    hint: 'Name of the database to connect to.',
+    hint: 'Name of the database to connect to. Required unless a Connection String is provided.',
   },
   {
     name: 'user',
     displayName: 'User',
     type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
-    required: true,
+    required: false,
     shared: false,
-    hint: 'Database user (role) name.',
+    hint: 'Database user (role) name. Required unless a Connection String is provided.',
   },
   {
     name: 'password',
     displayName: 'Password',
     type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
-    required: true,
+    required: false,
     shared: false,
-    hint: 'Password for the database user.',
+    hint: 'Password for the database user. Required unless a Connection String is provided.',
   },
   {
     name: 'ssl',
@@ -630,7 +681,7 @@ Flowrunner.ServerCode.addService(PostgreSQL, [
     required: false,
     shared: false,
     defaultValue: false,
-    hint: 'Enable TLS-encrypted connections. Required by most managed databases (e.g. AWS RDS, Google Cloud SQL, Azure Database, Heroku Postgres).',
+    hint: 'Enable TLS-encrypted connections. Required by most managed databases (e.g. AWS RDS, Google Cloud SQL, Azure Database, Heroku Postgres). With a Connection String, enabling this adds managed-provider-friendly TLS on top of the URI; when off, any sslmode in the URI still applies.',
   },
   {
     name: 'connectionTimeoutSeconds',
