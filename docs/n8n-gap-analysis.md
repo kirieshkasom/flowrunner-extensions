@@ -37,18 +37,18 @@ Highest usage in n8n / broadest customer demand.
 - [ ] RabbitMQ
 
 ### Team chat, meetings & messaging
-- [ ] Discord
-- [ ] Microsoft Teams
-- [ ] Zoom
-- [ ] Google Chat
+- [x] Discord (`services/discord`)
+- [x] Microsoft Teams (`services/microsoft-teams`)
+- [x] Zoom (`services/zoom`)
+- [x] Google Chat (`services/google-chat`)
 - [ ] LinkedIn
 - [ ] Facebook Graph API (Pages/posts)
 - [ ] Reddit
 
 ### Helpdesk & support
-- [ ] Zendesk
-- [ ] Freshdesk
-- [ ] Help Scout
+- [x] Zendesk (`services/zendesk`)
+- [x] Freshdesk (`services/freshdesk`)
+- [x] Help Scout (`services/help-scout`)
 
 ### Transactional & marketing email
 - [x] SendGrid (`services/sendgrid`)
