@@ -45,16 +45,20 @@ the service mints and caches a bearer token automatically on each run.
 
 **2. Configure the service**
 
-| Config item     | Description                                                                                     |
-| --------------- | ----------------------------------------------------------------------------------------------- |
-| `Resource URL`  | Your Halo API resource URL, e.g. `https://yourcompany.halopsa.com` (strip any trailing slash).  |
-| `Client ID`     | Client ID of the Halo API application configured for Client Credentials.                         |
-| `Client Secret` | Client Secret of that same application.                                                          |
+| Config item                 | Description                                                                                                                          |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `Resource URL`               | Your Halo Resource Server URL, e.g. `https://yourcompany.halopsa.com` (strip any trailing slash).                                  |
+| `Authorisation Server URL`   | Optional. Only set this if your Halo instance shows an Authorisation Server URL that differs from the Resource Server URL.           |
+| `Tenant`                     | Optional. Halo tenant name; required only when a separate Authorisation Server URL is used (passed as `?tenant=`).                  |
+| `Client ID`                  | Client ID of the Halo API application configured for Client Credentials.                                                            |
+| `Client Secret`              | Client Secret of that same application.                                                                                             |
 
-The service derives the API base as `{Resource URL}/api` and mints tokens from
-`{Resource URL}/auth/token` (the common Halo default). It requests the `all` scope and sends the
-token as a `Bearer` header on every API call. If your Halo instance uses a **separate** authorization
-host, set `Resource URL` to the host that serves both `/api` and `/auth/token`.
+The service derives the API base as `{Resource URL}/api`. By default it mints tokens from
+`{Resource URL}/auth/token` (the common Halo default, and the only option on-premise). If your Halo
+tenant exposes a **separate Authorisation Server** whose host differs from the Resource Server, set
+the `Authorisation Server URL` (and `Tenant`) config items; tokens are then minted from
+`{Authorisation Server URL}/token?tenant={Tenant}`. In all cases it requests the `all` scope and
+sends the token as a `Bearer` header on every API call.
 
 ## Notes
 

@@ -16,11 +16,26 @@ class HaloPSA {
   constructor(config) {
     // Strip any trailing slash so URL concatenation is predictable.
     this.resourceUrl = (config.resourceUrl || '').replace(/\/+$/, '')
+    this.authUrl = (config.authUrl || '').replace(/\/+$/, '')
+    this.tenant = (config.tenant || '').trim()
     this.clientId = config.clientId
     this.clientSecret = config.clientSecret
 
+    // The API is always served from {Resource URL}/api.
     this.apiBaseUrl = `${ this.resourceUrl }/api`
-    this.tokenUrl = `${ this.resourceUrl }/auth/token`
+
+    // Token endpoint. Halo hosted tenants may expose a dedicated Authorisation Server that is a
+    // different host from the Resource Server; in that case tokens are minted at
+    // {Auth URL}/token?tenant={tenant}. When no separate Auth URL is configured, tokens are
+    // minted from the Resource URL at {Resource URL}/auth/token (works for most tenants and all
+    // on-premise installs).
+    if (this.authUrl) {
+      const tenantQuery = this.tenant ? `?tenant=${ encodeURIComponent(this.tenant) }` : ''
+
+      this.tokenUrl = `${ this.authUrl }/token${ tenantQuery }`
+    } else {
+      this.tokenUrl = `${ this.resourceUrl }/auth/token`
+    }
   }
 
   // ==================================================================================
@@ -143,7 +158,9 @@ class HaloPSA {
         search: search || undefined,
         client_id: clientId || undefined,
         open_only: openOnly ? true : undefined,
-        paginate: usePaging ? true : undefined,
+        // NOTE: Halo's list pagination flag is the (Halo-specific) misspelling "pageinate",
+        // NOT "paginate". Using "paginate" is silently ignored and pagination never engages.
+        pageinate: usePaging ? true : undefined,
         page_no: usePaging ? pageNo : undefined,
         page_size: usePaging ? pageSize : undefined,
       },
@@ -223,7 +240,7 @@ class HaloPSA {
    * @returns {Object}
    * @sampleResult {"id":1234,"summary":"Email not working (resolved)","status_id":9,"client_id":12,"agent_id":5}
    */
-  async updateTicket(ticketId, summary, statusId, priorityId, agentId, details) {
+  async updateTicket(ticketId, summary, details, statusId, priorityId, agentId) {
     const ticket = { id: Number(ticketId) }
 
     if (summary !== undefined && summary !== '') ticket.summary = summary
@@ -339,7 +356,7 @@ class HaloPSA {
       url: `${ this.apiBaseUrl }/Client`,
       query: {
         search: search || undefined,
-        paginate: usePaging ? true : undefined,
+        pageinate: usePaging ? true : undefined,
         page_no: usePaging ? pageNo : undefined,
         page_size: usePaging ? pageSize : undefined,
       },
@@ -676,7 +693,7 @@ class HaloPSA {
       url: `${ this.apiBaseUrl }/Client`,
       query: {
         search: search || undefined,
-        paginate: true,
+        pageinate: true,
         page_no: pageNo,
         page_size: pageSize,
       },
@@ -744,7 +761,23 @@ Flowrunner.ServerCode.addService(HaloPSA, [
     type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
     required: true,
     shared: false,
-    hint: 'Your Halo API resource URL, e.g. https://yourcompany.halopsa.com (no trailing slash). The API is served from {Resource URL}/api and tokens from {Resource URL}/auth/token.',
+    hint: 'Your Halo Resource Server URL, e.g. https://yourcompany.halopsa.com (no trailing slash). Copy it from Configuration → Integrations → Halo API. The API is served from {Resource URL}/api. Unless a separate Authorisation Server is configured below, tokens are minted from {Resource URL}/auth/token.',
+  },
+  {
+    name: 'authUrl',
+    displayName: 'Authorisation Server URL',
+    type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
+    required: false,
+    shared: false,
+    hint: 'Optional. Only set this if your Halo instance shows an Authorisation Server URL that differs from the Resource Server URL (some hosted tenants). When set, tokens are minted from {Authorisation Server URL}/token. Leave blank to use {Resource URL}/auth/token.',
+  },
+  {
+    name: 'tenant',
+    displayName: 'Tenant',
+    type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
+    required: false,
+    shared: false,
+    hint: 'Optional. The Halo tenant name, required only when a separate Authorisation Server URL is used (it is passed as ?tenant=). Find it in Configuration → Integrations → Halo API.',
   },
   {
     name: 'clientId',
