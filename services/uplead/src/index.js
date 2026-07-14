@@ -11,8 +11,8 @@ const MANAGEMENT_LEVELS = {
   'Manager': 'M',
   'Director': 'D',
   'Vice President': 'VP',
-  'C-Level': 'C',
-  'C-Level Executive': 'CX',
+  'C-Level (C)': 'C',
+  'C-Level (CX)': 'CX',
 }
 
 const JOB_FUNCTIONS = [
@@ -75,7 +75,7 @@ class UpLeadService {
       return body !== undefined ? await request.send(clean(body)) : await request
     } catch (error) {
       const status = error.status || error.statusCode
-      const message = error.body?.message || error.body?.error || error.message
+      const message = error.body?.error?.message || error.body?.error || error.body?.message || error.message
 
       logger.error(`${ logTag } - failed${ status ? ` (${ status })` : '' }: ${ message }`)
 
@@ -96,7 +96,7 @@ class UpLeadService {
    * @paramDef {"type":"String","label":"Company Domain","name":"domain","description":"Company domain (e.g. amazon.com) the person works at. Used with first and last name when email is not provided."}
    *
    * @returns {Object}
-   * @sampleResult {"id":"12345","first_name":"Jane","last_name":"Doe","title":"VP of Marketing","job_function":"marketing","management_level":"VP","email":"jane.doe@amazon.com","email_status":"valid","phone_number":"+1 206-266-1000","mobile_directdial":"+1 206-555-0100","city":"Seattle","state":"WA","country":"United States","linkedin_url":"https://www.linkedin.com/in/janedoe","industry":"Retail","domain":"amazon.com","company_name":"Amazon"}
+   * @sampleResult {"data":{"id":"12345","first_name":"Jane","last_name":"Doe","title":"VP of Marketing","job_function":"marketing","job_sub_function":"brand marketing","management_level":"VP","gender":"female","email":"jane.doe@amazon.com","email_status":"valid","phone_number":"+1 206-266-1000","mobile_directdial":"+1 206-555-0100","city":"Seattle","state":"WA","county":"King","country":"United States","linkedin_url":"https://www.linkedin.com/in/janedoe","industry":"Retail","domain":"amazon.com","company_name":"Amazon"},"userInfo":{"availableCredits":950}}
    */
   async enrichPerson(email, firstName, lastName, domain) {
     const logTag = '[enrichPerson]'
@@ -125,7 +125,7 @@ class UpLeadService {
    * @paramDef {"type":"String","label":"Company Name","name":"company","description":"Company name to enrich. Used when a domain is not available."}
    *
    * @returns {Object}
-   * @sampleResult {"id":"6789","company_name":"Amazon","domain":"amazon.com","address":"410 Terry Ave N","city":"Seattle","state":"WA","zip":"98109","country":"United States","phone_number":"+1 206-266-1000","employees":"10001+","revenue":"$1B+","industry":"Retail","sic_code":"5961","naics_code":"454110","year_founded":"1994","logo":"https://logo.uplead.com/amazon.com","linkedin_url":"https://www.linkedin.com/company/amazon","twitter_url":"https://twitter.com/amazon","type":"Public","ticker":"AMZN","exchange":"NASDAQ"}
+   * @sampleResult {"data":{"id":"6789","company_name":"Amazon","domain":"amazon.com","address":"410 Terry Ave N","city":"Seattle","state":"WA","zip":"98109","country":"United States","county":"King","phone_number":"+1 206-266-1000","fax_number":"+1 206-266-1001","employees":"10001+","revenue":"$1B+","industry":"Retail","sic_code":5961,"sic_description":"Retail Stores","naics_code":454110,"naics_description":"Electronic Shopping","description":"Online retailer","year_founded":1994,"logo":"https://logo.uplead.com/amazon.com","linkedin_url":"https://www.linkedin.com/company/amazon","twitter_url":"https://twitter.com/amazon","facebook_url":"https://facebook.com/amazon","type":"Public","ticker":"AMZN","exchange":"NASDAQ","alexa_rank":5},"userInfo":{"availableCredits":949}}
    */
   async enrichCompany(domain, company) {
     const logTag = '[enrichCompany]'
@@ -144,14 +144,14 @@ class UpLeadService {
   /**
    * @operationName Search Contacts
    * @category Prospecting
-   * @description Searches UpLead's B2B database for contacts at a company and returns a paginated list of people with their titles, verified emails and email statuses, phone numbers, LinkedIn URLs, and locations. Filter by company domain plus optional job function, management level, job title, and location (city, state, country). Returns a meta object with pagination details. Credits are consumed only when contact records are revealed.
+   * @description Searches UpLead's B2B database for contacts at a company and returns a paginated list of people (under data.results) with their titles, verified emails and email statuses, phone numbers, LinkedIn URLs, and locations. Filter by company domain plus optional job function, management level, job title, and location (city, state, country). The data.meta object carries pagination details (total, page, next_page, previous_page, first_page, last_page). Credits are consumed only when contact records are revealed.
    * @route POST /search-contacts
    * @appearanceColor #0DA0BE #29B6D4
    *
    * @paramDef {"type":"String","label":"Company Domain","name":"domain","required":true,"description":"Company domain to search contacts at (e.g. amazon.com)."}
    * @paramDef {"type":"String","label":"Job Title","name":"title","description":"Filter by job title keyword (e.g. Marketing Manager)."}
    * @paramDef {"type":"String","label":"Job Function","name":"jobFunction","uiComponent":{"type":"DROPDOWN","options":{"values":["advisory","analyst","creative","education","engineering","finance","fulfillment","health","hospitality","human resources","legal","manufacturing","marketing","operations","partnerships","product","professional service","public service","research","sales","sales engineering","support","trade","unemployed"]}},"description":"Filter by department / job function."}
-   * @paramDef {"type":"String","label":"Management Level","name":"managementLevel","uiComponent":{"type":"DROPDOWN","options":{"values":["Manager","Director","Vice President","C-Level","C-Level Executive"]}},"description":"Filter by seniority / management level."}
+   * @paramDef {"type":"String","label":"Management Level","name":"managementLevel","uiComponent":{"type":"DROPDOWN","options":{"values":["Manager","Director","Vice President","C-Level (C)","C-Level (CX)"]}},"description":"Filter by seniority / management level. Maps to UpLead codes M, D, VP, C, and CX."}
    * @paramDef {"type":"String","label":"City","name":"city","description":"Filter by city."}
    * @paramDef {"type":"String","label":"State","name":"state","description":"Filter by state or region."}
    * @paramDef {"type":"String","label":"Country","name":"country","description":"Filter by country."}
@@ -159,7 +159,7 @@ class UpLeadService {
    * @paramDef {"type":"Number","label":"Results Per Page","name":"perPage","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of contacts per page (default 10)."}
    *
    * @returns {Object}
-   * @sampleResult {"data":[{"id":"12345","first_name":"Jane","last_name":"Doe","title":"VP of Marketing","email":"jane.doe@amazon.com","email_status":"valid","phone_number":"+1 206-266-1000","linkedin_url":"https://www.linkedin.com/in/janedoe","city":"Seattle","state":"WA","country":"United States","company_name":"Amazon","domain":"amazon.com"}],"meta":{"total":42,"page":1,"next_page":2,"previous_page":null,"first_page":1,"last_page":5}}
+   * @sampleResult {"data":{"results":[{"id":"12345","first_name":"Jane","last_name":"Doe","title":"VP of Marketing","email":"jane.doe@amazon.com","email_status":"valid","city":"Seattle","state":"WA","country":"United States","domain":"amazon.com","company_name":"Amazon"}],"meta":{"total":42,"page":1,"next_page":2,"previous_page":null,"first_page":true,"last_page":false}},"userInfo":{"availableCredits":940}}
    */
   async searchContacts(domain, title, jobFunction, managementLevel, city, state, country, page, perPage) {
     const logTag = '[searchContacts]'
@@ -185,14 +185,14 @@ class UpLeadService {
   /**
    * @operationName Enrich Person and Company
    * @category Enrichment
-   * @description Enriches a person and their company in a single call from a work email. Returns the combined profile: the person's name, title, verified email and email status, phone numbers, and LinkedIn, alongside their company's firmographics (industry, employee count, revenue, location, social links). Use this when you only have an email and want both records at once.
+   * @description Enriches a person and their company in a single call from a work email. Returns the combined profile under data: the person's name, title, verified email and email status, mobile direct-dial, and LinkedIn, with the company's firmographics nested under data.company (industry, employee count, revenue, location, social links). Use this when you only have an email and want both records at once.
    * @route POST /enrich-person-and-company
    * @appearanceColor #0DA0BE #29B6D4
    *
    * @paramDef {"type":"String","label":"Email","name":"email","required":true,"description":"Work email to enrich both the person and their company from (e.g. jane.doe@amazon.com)."}
    *
    * @returns {Object}
-   * @sampleResult {"person":{"first_name":"Jane","last_name":"Doe","title":"VP of Marketing","email":"jane.doe@amazon.com","email_status":"valid","linkedin_url":"https://www.linkedin.com/in/janedoe"},"company":{"company_name":"Amazon","domain":"amazon.com","industry":"Retail","employees":"10001+","revenue":"$1B+","city":"Seattle","country":"United States"}}
+   * @sampleResult {"data":{"id":"12345","first_name":"Jane","last_name":"Doe","title":"VP of Marketing","job_function":"marketing","management_level":"VP","email":"jane.doe@amazon.com","email_status":"valid","mobile_directdial":"+1 206-555-0100","city":"Seattle","state":"WA","country":"United States","linkedin_url":"https://www.linkedin.com/in/janedoe","company":{"id":"6789","company_name":"Amazon","domain":"amazon.com","industry":"Retail","employees":"10001+","revenue":"$1B+","city":"Seattle","country":"United States","linkedin_url":"https://www.linkedin.com/company/amazon"}},"userInfo":{"availableCredits":938}}
    */
   async enrichPersonAndCompany(email) {
     const logTag = '[enrichPersonAndCompany]'
@@ -210,12 +210,12 @@ class UpLeadService {
   /**
    * @operationName Get Remaining Credits
    * @category Account
-   * @description Returns the number of API credits remaining on the connected UpLead account, along with the account email. Use this to check account status and confirm the API key is valid before running enrichment or search operations.
+   * @description Returns the number of API credits remaining on the connected UpLead account (under data.credits), along with the account email (data.email). Use this to check account status and confirm the API key is valid before running enrichment or search operations.
    * @route GET /get-credits
    * @appearanceColor #0DA0BE #29B6D4
    *
    * @returns {Object}
-   * @sampleResult {"email":"account@example.com","credits":950}
+   * @sampleResult {"data":{"email":"account@example.com","credits":950}}
    */
   async getCredits() {
     const logTag = '[getCredits]'
