@@ -41,6 +41,16 @@ FlowRunner integration for [MongoDB](https://www.mongodb.com/) databases, includ
 - **Create Index** — create an index from a keys spec (`{"email":1}`) with options (`unique`, `name`, `sparse`, `expireAfterSeconds` for TTL).
 - **List Indexes** — all indexes on a collection.
 
+### Vector Search
+
+> **MongoDB Atlas only.** These operations require MongoDB Atlas (v6.0.11+) or MongoDB 8.2+ with Atlas Search enabled. Self-hosted community MongoDB below 8.2 does **not** support `$vectorSearch` or search-index management, and these actions will error against such deployments.
+
+- **Vector Search** — run an Atlas `$vectorSearch` query and return the nearest documents to a query vector, each annotated with a relevance `vectorSearchScore` (via `$meta`). Takes an index name, the embedding field path, a query vector, `numCandidates` (default 100), `limit` (default 10), and an optional pre-filter. Requires a pre-created vector search index. 120s execution limit.
+- **Create Search Index** — create an Atlas Search or Atlas Vector Search index. For vectors, use type **Vector Search** with a `fields` definition (e.g. `{"fields":[{"type":"vector","path":"embedding","numDimensions":1536,"similarity":"cosine"}]}`; `similarity` is `euclidean`/`cosine`/`dotProduct`, plus `{"type":"filter","path":"<field>"}` entries for pre-filterable fields). Index builds are asynchronous.
+- **List Search Indexes** — list all search/vector-search indexes on a collection with name, type, build status, and definition.
+- **Update Search Index** — replace an existing search index's definition by name (rebuilt asynchronously).
+- **Drop Search Index** — permanently delete a search index by name (documents are unaffected).
+
 ## List of Triggers
 
 This service does not define any triggers.

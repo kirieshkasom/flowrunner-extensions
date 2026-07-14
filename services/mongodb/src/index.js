@@ -672,6 +672,188 @@ class MongoDB {
   }
 
   // ==========================================================================
+  //  VECTOR SEARCH (MongoDB Atlas only)
+  //  These operations require MongoDB Atlas (v6.0.11+) or MongoDB 8.2+ with a
+  //  pre-created Atlas Vector Search index. Self-hosted community MongoDB below
+  //  8.2 does NOT support $vectorSearch or the search-index management commands.
+  // ==========================================================================
+  /**
+   * @operationName Vector Search
+   * @description Runs an Atlas Vector Search ($vectorSearch) query against a collection and returns the nearest documents to the supplied query vector, each annotated with a relevance score under "vectorSearchScore". Requires MongoDB Atlas (or MongoDB 8.2+) and a pre-created vector search index on the target field. Provide the index name, the field path that stores the embedding vector, and the query vector (an array of numbers matching the index's dimensionality). numCandidates controls how many nearest neighbours the approximate search considers (higher is more accurate but slower; typically 10-20x the limit), and limit caps the returned documents. An optional pre-filter (standard MongoDB query syntax over fields indexed as "filter" in the vector index) narrows the search space before the vector comparison. ObjectId and Date values in results are returned as strings.
+   * @category Vector Search
+   * @route POST /vector-search
+   * @appearanceColor #47A248 #00684A
+   * @executionTimeoutInSeconds 120
+   * @paramDef {"type":"String","label":"Collection","name":"collection","required":true,"dictionary":"getCollectionsDictionary","description":"The collection to search. It must have an Atlas Vector Search index defined on the embedding field."}
+   * @paramDef {"type":"String","label":"Index Name","name":"indexName","required":true,"description":"The name of the Atlas Vector Search index to use (e.g. vector_index). Create it with Create Search Index or in the Atlas UI."}
+   * @paramDef {"type":"String","label":"Vector Field Path","name":"path","required":true,"description":"The document field path that stores the embedding vector (e.g. embedding or plot.embedding)."}
+   * @paramDef {"type":"Array<Number>","label":"Query Vector","name":"queryVector","required":true,"description":"The query embedding as an array of numbers. Its length must match the numDimensions of the vector index."}
+   * @paramDef {"type":"Number","label":"Number of Candidates","name":"numCandidates","uiComponent":{"type":"NUMERIC_STEPPER"},"defaultValue":100,"description":"How many nearest-neighbour candidates the approximate search considers before selecting the top results. Higher is more accurate but slower; typically 10-20x the Limit. Defaults to 100. Ignored when the index/query uses exact search."}
+   * @paramDef {"type":"Number","label":"Limit","name":"limit","uiComponent":{"type":"NUMERIC_STEPPER"},"defaultValue":10,"description":"Maximum number of matching documents to return. Defaults to 10."}
+   * @paramDef {"type":"Object","label":"Pre-Filter","name":"filter","description":"Optional MongoDB query filter applied before the vector comparison, over fields indexed as \"filter\" in the vector index (e.g. {\"category\":\"news\",\"year\":{\"$gte\":2020}}). Leave empty to search all documents."}
+   * @returns {Object}
+   * @sampleResult {"results":[{"_id":"665f1c2ab7e4a3d2f0a11b22","title":"Intro to Vectors","vectorSearchScore":0.94}],"count":1}
+   */
+  async vectorSearch(collection, indexName, path, queryVector, numCandidates, limit, filter) {
+    const collectionName = this.#requireCollection(collection)
+
+    if (typeof indexName !== 'string' || !indexName.trim()) {
+      throw new Error('Index Name is required and must be a non-empty string.')
+    }
+
+    if (typeof path !== 'string' || !path.trim()) {
+      throw new Error('Vector Field Path is required and must be a non-empty string.')
+    }
+
+    if (!Array.isArray(queryVector) || !queryVector.length || !queryVector.every(value => typeof value === 'number' && Number.isFinite(value))) {
+      throw new Error('Query Vector is required and must be a non-empty array of numbers.')
+    }
+
+    const effectiveLimit = limit !== undefined && limit !== null && limit !== '' ? parseInt(limit, 10) : 10
+    const effectiveCandidates = numCandidates !== undefined && numCandidates !== null && numCandidates !== '' ? parseInt(numCandidates, 10) : 100
+
+    const vectorStage = {
+      index: indexName.trim(),
+      path: path.trim(),
+      queryVector,
+      numCandidates: effectiveCandidates > 0 ? effectiveCandidates : 100,
+      limit: effectiveLimit > 0 ? effectiveLimit : 10,
+    }
+
+    if (this.#isPlainObject(filter) && Object.keys(filter).length) {
+      vectorStage.filter = this.#normalizeFilter(filter)
+    }
+
+    const pipeline = [
+      { $vectorSearch: vectorStage },
+      { $addFields: { vectorSearchScore: { $meta: 'vectorSearchScore' } } },
+    ]
+
+    return this.#withDb('vectorSearch', async db => {
+      const results = await db.collection(collectionName).aggregate(pipeline, { allowDiskUse: true }).toArray()
+
+      return { results: this.#serialize(results), count: results.length }
+    })
+  }
+
+  /**
+   * @operationName Create Search Index
+   * @description Creates an Atlas Search or Atlas Vector Search index on a collection (MongoDB Atlas or MongoDB 8.2+ only). For a Vector Search index, use type "Vector Search" and a definition with a "fields" array, e.g. {"fields":[{"type":"vector","path":"embedding","numDimensions":1536,"similarity":"cosine"}]} (similarity is euclidean, cosine, or dotProduct); add {"type":"filter","path":"<field>"} entries for fields you want to pre-filter on. For a standard Atlas Search index, use type "Search" and a mappings-based definition. Index builds are asynchronous — the index becomes queryable a short time after this call returns. Returns the created index name.
+   * @category Vector Search
+   * @route POST /create-search-index
+   * @appearanceColor #47A248 #00684A
+   * @paramDef {"type":"String","label":"Collection","name":"collection","required":true,"dictionary":"getCollectionsDictionary","description":"The collection to create the search index on."}
+   * @paramDef {"type":"String","label":"Index Name","name":"name","required":true,"description":"Name for the new search index (e.g. vector_index). Must be unique on the collection."}
+   * @paramDef {"type":"String","label":"Index Type","name":"type","required":true,"defaultValue":"Vector Search","uiComponent":{"type":"DROPDOWN","options":{"values":["Vector Search","Search"]}},"description":"The kind of Atlas index to create: Vector Search (for $vectorSearch) or Search (standard full-text Atlas Search)."}
+   * @paramDef {"type":"Object","label":"Definition","name":"definition","required":true,"description":"The index definition as a JSON object. For Vector Search: {\"fields\":[{\"type\":\"vector\",\"path\":\"embedding\",\"numDimensions\":1536,\"similarity\":\"cosine\"}]}. For Search: a mappings object, e.g. {\"mappings\":{\"dynamic\":true}}."}
+   * @returns {Object}
+   * @sampleResult {"indexName":"vector_index","collection":"movies","type":"vectorSearch"}
+   */
+  async createSearchIndex(collection, name, type, definition) {
+    const collectionName = this.#requireCollection(collection)
+
+    if (typeof name !== 'string' || !name.trim()) {
+      throw new Error('Index Name is required and must be a non-empty string.')
+    }
+
+    this.#requireNonEmptyObject(definition, 'Definition')
+
+    const indexType = this.#resolveSearchIndexType(type)
+
+    return this.#withDb('createSearchIndex', async db => {
+      const created = await db.collection(collectionName).createSearchIndex({
+        name: name.trim(),
+        type: indexType,
+        definition,
+      })
+
+      return { indexName: created, collection: collectionName, type: indexType }
+    })
+  }
+
+  /**
+   * @operationName List Search Indexes
+   * @description Lists all Atlas Search and Atlas Vector Search indexes defined on a collection, including each index's name, type, current build status (e.g. BUILDING, READY, FAILED), whether it is queryable, and its latest definition. Requires MongoDB Atlas or MongoDB 8.2+. Returns an empty list when the collection has no search indexes.
+   * @category Vector Search
+   * @route GET /list-search-indexes
+   * @appearanceColor #47A248 #00684A
+   * @paramDef {"type":"String","label":"Collection","name":"collection","required":true,"dictionary":"getCollectionsDictionary","description":"The collection whose search indexes to list."}
+   * @returns {Object}
+   * @sampleResult {"indexes":[{"name":"vector_index","type":"vectorSearch","status":"READY","queryable":true}],"count":1}
+   */
+  async listSearchIndexes(collection) {
+    const collectionName = this.#requireCollection(collection)
+
+    return this.#withDb('listSearchIndexes', async db => {
+      const indexes = await db.collection(collectionName).listSearchIndexes().toArray()
+
+      return { indexes: this.#serialize(indexes), count: indexes.length }
+    })
+  }
+
+  /**
+   * @operationName Update Search Index
+   * @description Updates the definition of an existing Atlas Search or Atlas Vector Search index by name (MongoDB Atlas or MongoDB 8.2+ only). Supply the full new definition — it replaces the current one. The index is rebuilt asynchronously and remains queryable with the previous definition until the rebuild completes. Use the same definition shape as Create Search Index for the index's type.
+   * @category Vector Search
+   * @route PATCH /update-search-index
+   * @appearanceColor #47A248 #00684A
+   * @paramDef {"type":"String","label":"Collection","name":"collection","required":true,"dictionary":"getCollectionsDictionary","description":"The collection the search index belongs to."}
+   * @paramDef {"type":"String","label":"Index Name","name":"name","required":true,"description":"The name of the existing search index to update (e.g. vector_index)."}
+   * @paramDef {"type":"Object","label":"Definition","name":"definition","required":true,"description":"The full new index definition, replacing the current one. For Vector Search: {\"fields\":[{\"type\":\"vector\",\"path\":\"embedding\",\"numDimensions\":1536,\"similarity\":\"cosine\"}]}."}
+   * @returns {Object}
+   * @sampleResult {"indexName":"vector_index","collection":"movies","updated":true}
+   */
+  async updateSearchIndex(collection, name, definition) {
+    const collectionName = this.#requireCollection(collection)
+
+    if (typeof name !== 'string' || !name.trim()) {
+      throw new Error('Index Name is required and must be a non-empty string.')
+    }
+
+    this.#requireNonEmptyObject(definition, 'Definition')
+
+    return this.#withDb('updateSearchIndex', async db => {
+      await db.collection(collectionName).updateSearchIndex(name.trim(), definition)
+
+      return { indexName: name.trim(), collection: collectionName, updated: true }
+    })
+  }
+
+  /**
+   * @operationName Drop Search Index
+   * @description Permanently deletes an Atlas Search or Atlas Vector Search index from a collection by name (MongoDB Atlas or MongoDB 8.2+ only). This does not delete any documents — only the search index. Queries that relied on the index will fail until an equivalent index is recreated.
+   * @category Vector Search
+   * @route DELETE /drop-search-index
+   * @appearanceColor #47A248 #00684A
+   * @paramDef {"type":"String","label":"Collection","name":"collection","required":true,"dictionary":"getCollectionsDictionary","description":"The collection the search index belongs to."}
+   * @paramDef {"type":"String","label":"Index Name","name":"name","required":true,"description":"The name of the search index to permanently delete (e.g. vector_index)."}
+   * @returns {Object}
+   * @sampleResult {"indexName":"vector_index","collection":"movies","dropped":true}
+   */
+  async dropSearchIndex(collection, name) {
+    const collectionName = this.#requireCollection(collection)
+
+    if (typeof name !== 'string' || !name.trim()) {
+      throw new Error('Index Name is required and must be a non-empty string.')
+    }
+
+    return this.#withDb('dropSearchIndex', async db => {
+      await db.collection(collectionName).dropSearchIndex(name.trim())
+
+      return { indexName: name.trim(), collection: collectionName, dropped: true }
+    })
+  }
+
+  // Maps the friendly Index Type dropdown label to the Atlas search index type token.
+  #resolveSearchIndexType(type) {
+    const mapping = { 'Vector Search': 'vectorSearch', 'Search': 'search' }
+
+    if (type === undefined || type === null || type === '') return 'vectorSearch'
+
+    return Object.prototype.hasOwnProperty.call(mapping, type) ? mapping[type] : type
+  }
+
+  // ==========================================================================
   //  DICTIONARIES
   // ==========================================================================
   /**
