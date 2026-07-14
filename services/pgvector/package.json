@@ -1,0 +1,10 @@
+{
+  "name": "flowrunner-service",
+  "version": "1.0.0",
+  "scripts": {},
+  "dependencies": {
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {},
+  "license": "MIT"
+}
