@@ -239,7 +239,7 @@ class TapfiliateService {
    * @operationName Approve Affiliate
    * @category Affiliates
    * @description Approves an affiliate's participation in a specific program. Approval is per program, so provide both the program id and the affiliate id. Returns the updated program affiliation.
-   * @route PUT /programs/{program_id}/affiliates/{affiliate_id}/approved
+   * @route PUT /programs/{program_id}/affiliates/{affiliate_id}/approval
    * @appearanceColor #4A90D9 #6FB0EE
    *
    * @paramDef {"type":"String","label":"Program ID","name":"programId","required":true,"dictionary":"getProgramsDictionary","description":"The program the affiliate belongs to. Approval is per program."}
@@ -253,7 +253,7 @@ class TapfiliateService {
 
     return await this.#apiRequest({
       logTag,
-      url: `${ API_BASE_URL }/programs/${ encodeURIComponent(programId) }/affiliates/${ encodeURIComponent(affiliateId) }/approved/`,
+      url: `${ API_BASE_URL }/programs/${ encodeURIComponent(programId) }/affiliates/${ encodeURIComponent(affiliateId) }/approval/`,
       method: 'put',
       body: {},
     })
@@ -263,7 +263,7 @@ class TapfiliateService {
    * @operationName Disapprove Affiliate
    * @category Affiliates
    * @description Disapproves (revokes approval for) an affiliate in a specific program. Approval is per program, so provide both the program id and the affiliate id.
-   * @route DELETE /programs/{program_id}/affiliates/{affiliate_id}/approved
+   * @route DELETE /programs/{program_id}/affiliates/{affiliate_id}/approval
    * @appearanceColor #4A90D9 #6FB0EE
    *
    * @paramDef {"type":"String","label":"Program ID","name":"programId","required":true,"dictionary":"getProgramsDictionary","description":"The program the affiliate belongs to."}
@@ -277,7 +277,7 @@ class TapfiliateService {
 
     await this.#apiRequest({
       logTag,
-      url: `${ API_BASE_URL }/programs/${ encodeURIComponent(programId) }/affiliates/${ encodeURIComponent(affiliateId) }/approved/`,
+      url: `${ API_BASE_URL }/programs/${ encodeURIComponent(programId) }/affiliates/${ encodeURIComponent(affiliateId) }/approval/`,
       method: 'delete',
     })
 
@@ -403,13 +403,13 @@ class TapfiliateService {
   /**
    * @operationName Create Conversion
    * @category Conversions
-   * @description Records a conversion (sale or lead) and its commissions. Attribute it with at least one tracking identifier: click id, referral code, customer id or coupon. You may pass an external_id (your order id), an amount for automatic commission calculation, an explicit program_id, a manual commissions array, and arbitrary meta_data. Returns the created conversion with generated commissions.
+   * @description Records a conversion (sale or lead) and its commissions. Attribute it with at least one tracking identifier: click id, referral code, customer id or coupon. You may pass an external_id (your order id), an amount for automatic commission calculation, an explicit program group, a manual commissions array, and arbitrary meta_data. Returns the created conversion with generated commissions.
    * @route POST /conversions
    * @appearanceColor #E8590C #F08A4B
    *
    * @paramDef {"type":"String","label":"External ID","name":"externalId","description":"Your own identifier for this conversion (e.g. order id). Used to prevent duplicate conversions."}
    * @paramDef {"type":"Number","label":"Amount","name":"amount","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Sale amount used to auto-calculate commissions when no explicit commissions are provided."}
-   * @paramDef {"type":"String","label":"Program ID","name":"programId","dictionary":"getProgramsDictionary","description":"The program to attribute the conversion to. Optional when it can be inferred from the tracking identifier."}
+   * @paramDef {"type":"String","label":"Program Group","name":"programGroup","dictionary":"getProgramsDictionary","description":"The program group (program id) to attribute the conversion to. Optional when it can be inferred from the tracking identifier."}
    * @paramDef {"type":"String","label":"Click ID","name":"clickId","description":"The click id captured on the landing page to attribute this conversion."}
    * @paramDef {"type":"String","label":"Referral Code","name":"referralCode","description":"Referral code used to attribute this conversion to an affiliate."}
    * @paramDef {"type":"String","label":"Customer ID","name":"customerId","description":"The customer id to attribute this conversion to (recurring/customer-based attribution)."}
@@ -420,7 +420,7 @@ class TapfiliateService {
    * @returns {Object}
    * @sampleResult {"id":12345,"external_id":"order-987","amount":100,"commissions":[{"id":54321,"amount":10,"approved":false}],"created_at":"2026-07-14T10:00:00"}
    */
-  async createConversion(externalId, amount, programId, clickId, referralCode, customerId, coupon, commissions, metaData) {
+  async createConversion(externalId, amount, programGroup, clickId, referralCode, customerId, coupon, commissions, metaData) {
     const logTag = '[createConversion]'
 
     return await this.#apiRequest({
@@ -430,7 +430,7 @@ class TapfiliateService {
       body: clean({
         external_id: externalId,
         amount,
-        program_id: programId,
+        program_group: programGroup,
         click_id: clickId,
         referral_code: referralCode,
         customer_id: customerId,
@@ -501,19 +501,19 @@ class TapfiliateService {
   /**
    * @operationName Add Commission to Conversion
    * @category Conversions
-   * @description Adds an additional commission to an existing conversion. Provide the conversion id and the commission amount, with an optional comment and commission type. Returns the created commission.
+   * @description Adds an additional commission to an existing conversion. Provide the conversion id and the conversion sub-amount the commission is calculated from, with an optional comment and commission type. Returns the created commission.
    * @route POST /conversions/{id}/commissions
    * @appearanceColor #E8590C #F08A4B
    *
    * @paramDef {"type":"String","label":"Conversion ID","name":"conversionId","required":true,"description":"The id of the conversion to add a commission to."}
-   * @paramDef {"type":"Number","label":"Amount","name":"amount","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The commission amount to add."}
+   * @paramDef {"type":"Number","label":"Conversion Sub-Amount","name":"conversionSubAmount","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The portion of the conversion amount this commission is calculated from."}
    * @paramDef {"type":"String","label":"Comment","name":"comment","description":"Optional note describing the commission."}
    * @paramDef {"type":"String","label":"Commission Type","name":"commissionType","description":"Optional commission type identifier (matches a commission type configured on the program)."}
    *
    * @returns {Object}
    * @sampleResult {"id":54322,"amount":5,"comment":"Bonus","approved":false}
    */
-  async addCommissionToConversion(conversionId, amount, comment, commissionType) {
+  async addCommissionToConversion(conversionId, conversionSubAmount, comment, commissionType) {
     const logTag = '[addCommissionToConversion]'
 
     return await this.#apiRequest({
@@ -521,7 +521,7 @@ class TapfiliateService {
       url: `${ API_BASE_URL }/conversions/${ encodeURIComponent(conversionId) }/commissions/`,
       method: 'post',
       body: clean({
-        amount,
+        conversion_sub_amount: conversionSubAmount,
         comment,
         commission_type: commissionType,
       }),
@@ -596,7 +596,7 @@ class TapfiliateService {
    * @operationName Approve Commission
    * @category Commissions
    * @description Approves a pending commission by id, making it eligible for payout. Returns the updated commission.
-   * @route PUT /commissions/{id}/approved
+   * @route PUT /commissions/{id}/approval
    * @appearanceColor #2B8A3E #51C46A
    *
    * @paramDef {"type":"String","label":"Commission ID","name":"commissionId","required":true,"description":"The id of the commission to approve."}
@@ -609,7 +609,7 @@ class TapfiliateService {
 
     return await this.#apiRequest({
       logTag,
-      url: `${ API_BASE_URL }/commissions/${ encodeURIComponent(commissionId) }/approved/`,
+      url: `${ API_BASE_URL }/commissions/${ encodeURIComponent(commissionId) }/approval/`,
       method: 'put',
       body: {},
     })
@@ -619,7 +619,7 @@ class TapfiliateService {
    * @operationName Disapprove Commission
    * @category Commissions
    * @description Disapproves a commission by id, removing it from the payable balance. Returns the updated commission.
-   * @route DELETE /commissions/{id}/approved
+   * @route DELETE /commissions/{id}/approval
    * @appearanceColor #2B8A3E #51C46A
    *
    * @paramDef {"type":"String","label":"Commission ID","name":"commissionId","required":true,"description":"The id of the commission to disapprove."}
@@ -632,7 +632,7 @@ class TapfiliateService {
 
     await this.#apiRequest({
       logTag,
-      url: `${ API_BASE_URL }/commissions/${ encodeURIComponent(commissionId) }/approved/`,
+      url: `${ API_BASE_URL }/commissions/${ encodeURIComponent(commissionId) }/approval/`,
       method: 'delete',
     })
 
@@ -653,19 +653,14 @@ class TapfiliateService {
    * @paramDef {"type":"String","label":"Customer ID","name":"customerId","required":true,"description":"Your unique identifier for the customer."}
    * @paramDef {"type":"String","label":"Click ID","name":"clickId","description":"The click id used to attribute this customer to an affiliate. Provide this or a referral code."}
    * @paramDef {"type":"String","label":"Referral Code","name":"referralCode","description":"The referral code used to attribute this customer to an affiliate."}
-   * @paramDef {"type":"String","label":"Status","name":"status","uiComponent":{"type":"DROPDOWN","options":{"values":["New","Active","Cancelled"]}},"description":"Optional lifecycle status of the customer."}
+   * @paramDef {"type":"String","label":"Coupon","name":"coupon","description":"Optional coupon code used to attribute this customer to an affiliate."}
+   * @paramDef {"type":"String","label":"Status","name":"status","description":"Optional initial lifecycle status for the customer."}
    *
    * @returns {Object}
    * @sampleResult {"id":"cust-123","status":"new","affiliate":{"id":"john-doe"},"created_at":"2026-07-14T10:00:00"}
    */
-  async createCustomer(customerId, clickId, referralCode, status) {
+  async createCustomer(customerId, clickId, referralCode, coupon, status) {
     const logTag = '[createCustomer]'
-
-    const resolvedStatus = this.#resolveChoice(status, {
-      'New': 'new',
-      'Active': 'active',
-      'Cancelled': 'cancelled',
-    })
 
     return await this.#apiRequest({
       logTag,
@@ -675,7 +670,8 @@ class TapfiliateService {
         customer_id: customerId,
         click_id: clickId,
         referral_code: referralCode,
-        status: resolvedStatus,
+        coupon,
+        status,
       }),
     })
   }
@@ -705,17 +701,20 @@ class TapfiliateService {
   /**
    * @operationName List Customers
    * @category Customers
-   * @description Lists customers in the account, optionally filtered by the attributed affiliate. Results are paginated.
+   * @description Lists customers in the account, optionally filtered by the attributed affiliate, program, or a created date range. Results are paginated.
    * @route GET /customers
    * @appearanceColor #A61E4D #D6558B
    *
    * @paramDef {"type":"String","label":"Affiliate ID","name":"affiliateId","description":"Filter customers by the affiliate they are attributed to."}
+   * @paramDef {"type":"String","label":"Program ID","name":"programId","dictionary":"getProgramsDictionary","description":"Filter customers by program."}
+   * @paramDef {"type":"String","label":"Created After","name":"dateFrom","uiComponent":{"type":"DATE_PICKER"},"description":"Return customers created on or after this date (YYYY-MM-DD)."}
+   * @paramDef {"type":"String","label":"Created Before","name":"dateTo","uiComponent":{"type":"DATE_PICKER"},"description":"Return customers created on or before this date (YYYY-MM-DD)."}
    * @paramDef {"type":"Number","label":"Page","name":"page","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Page number of results to return (starts at 1)."}
    *
    * @returns {Array<Object>}
    * @sampleResult [{"id":"cust-123","status":"active","affiliate":{"id":"john-doe"}}]
    */
-  async listCustomers(affiliateId, page) {
+  async listCustomers(affiliateId, programId, dateFrom, dateTo, page) {
     const logTag = '[listCustomers]'
 
     return await this.#apiRequest({
@@ -724,6 +723,9 @@ class TapfiliateService {
       method: 'get',
       query: {
         affiliate_id: affiliateId,
+        program_id: programId,
+        date_from: dateFrom,
+        date_to: dateTo,
         page,
       },
     })
