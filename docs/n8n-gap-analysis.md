@@ -187,7 +187,7 @@ Solid demand; round out category coverage.
 - [x] Databricks (`services/databricks`)
 - [ ] Azure Cosmos DB
 - [ ] Azure Storage (Blob/Table)
-- [ ] TimescaleDB
+- [x] TimescaleDB (`services/timescaledb`)
 - [ ] MQTT
 - [ ] AMQP
 - [x] Baserow (`services/baserow`)
@@ -303,7 +303,7 @@ Include for parity claims; low individual demand.
 - [x] NASA (`services/nasa`)
 - [ ] Netscaler (Citrix ADC)
 - [x] One Simple API (`services/one-simple-api`)
-- [ ] OpenThesaurus
+- [x] OpenThesaurus (`services/openthesaurus`)
 - [x] OpenWeatherMap (`services/openweathermap`)
 - [ ] Orbit (service shut down in 2024 — skip)
 - [x] Oura (`services/oura`)
