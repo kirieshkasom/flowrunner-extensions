@@ -119,7 +119,7 @@ class NocoDB {
 
     const result = await this.#apiRequest({
       logTag: 'getTablesDictionary',
-      url: `${ this.#apiBase() }/meta/bases/${ baseId }/tables/`,
+      url: `${ this.#apiBase() }/meta/bases/${ baseId }/tables`,
     })
 
     const tables = result?.list || []
@@ -209,7 +209,7 @@ class NocoDB {
 
     const result = await this.#apiRequest({
       logTag: 'getViewsDictionary',
-      url: `${ this.#apiBase() }/meta/tables/${ tableId }/views/`,
+      url: `${ this.#apiBase() }/meta/tables/${ tableId }/views`,
     })
 
     const views = result?.list || []
@@ -527,7 +527,7 @@ class NocoDB {
   async listTables(baseId) {
     return this.#apiRequest({
       logTag: 'listTables',
-      url: `${ this.#apiBase() }/meta/bases/${ baseId }/tables/`,
+      url: `${ this.#apiBase() }/meta/bases/${ baseId }/tables`,
     })
   }
 
@@ -561,7 +561,7 @@ class NocoDB {
   async createTable(baseId, tableName, columns) {
     return this.#apiRequest({
       logTag: 'createTable',
-      url: `${ this.#apiBase() }/meta/bases/${ baseId }/tables/`,
+      url: `${ this.#apiBase() }/meta/bases/${ baseId }/tables`,
       method: 'post',
       body: {
         table_name: tableName,
@@ -585,7 +585,7 @@ class NocoDB {
   async listViews(tableId) {
     return this.#apiRequest({
       logTag: 'listViews',
-      url: `${ this.#apiBase() }/meta/tables/${ tableId }/views/`,
+      url: `${ this.#apiBase() }/meta/tables/${ tableId }/views`,
     })
   }
 }
