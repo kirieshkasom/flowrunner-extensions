@@ -61,21 +61,21 @@ Highest usage in n8n / broadest customer demand.
 - [x] Customer.io (`services/customerio`)
 
 ### Google suite (missing pieces)
-- [ ] Google Docs
-- [ ] Google Slides
-- [ ] Google Analytics (GA4)
-- [ ] Google Ads
-- [ ] Google Contacts
-- [ ] Google Tasks
-- [ ] Google Translate
-- [ ] Google Cloud Storage
-- [ ] Google Firebase (Firestore + Realtime DB)
+- [x] Google Docs (`services/google-docs`)
+- [x] Google Slides (`services/google-slides`)
+- [x] Google Analytics (GA4) (`services/google-analytics`)
+- [x] Google Ads (`services/google-ads`)
+- [x] Google Contacts (`services/google-contacts`)
+- [x] Google Tasks (`services/google-tasks`)
+- [x] Google Translate (`services/google-translate`)
+- [x] Google Cloud Storage (`services/google-cloud-storage`)
+- [x] Google Firebase Firestore (`services/google-firestore` — Realtime DB not covered)
 
 ### Microsoft suite (missing pieces)
-- [ ] Microsoft Excel 365
-- [ ] Microsoft OneDrive
-- [ ] Microsoft To Do
-- [ ] Microsoft Dynamics 365 CRM
+- [x] Microsoft Excel 365 (`services/microsoft-excel`)
+- [x] Microsoft OneDrive (`services/microsoft-onedrive`)
+- [x] Microsoft To Do (`services/microsoft-todo`)
+- [x] Microsoft Dynamics 365 CRM (`services/dynamics-365`)
 
 ### AI / LLM providers & infra
 - [x] Anthropic Claude (`services/anthropic-ai`)
