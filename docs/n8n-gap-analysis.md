@@ -177,10 +177,10 @@ Solid demand; round out category coverage.
 - [x] Line (`services/line`)
 
 ### Helpdesk / ITSM
-- [ ] Freshservice
-- [ ] Zammad
-- [ ] HaloPSA
-- [ ] SyncroMSP
+- [x] Freshservice (`services/freshservice`)
+- [x] Zammad (`services/zammad`)
+- [x] HaloPSA (`services/halopsa`)
+- [x] SyncroMSP (`services/syncromsp`)
 
 ### Databases / low-code data
 - [ ] Oracle Database
@@ -234,13 +234,13 @@ Solid demand; round out category coverage.
 - [ ] DHL (shipping)
 
 ### Forms & events
-- [ ] Formstack
-- [ ] Form.io
-- [ ] Wufoo
-- [ ] Acuity Scheduling
-- [ ] Demio
-- [ ] Onfleet
-- [ ] Workable
+- [x] Formstack (`services/formstack`)
+- [x] Form.io (`services/formio`)
+- [x] Wufoo (`services/wufoo`)
+- [x] Acuity Scheduling (`services/acuity`)
+- [x] Demio (`services/demio`)
+- [x] Onfleet (`services/onfleet`)
+- [x] Workable (`services/workable`)
 
 ### Content / social / media
 - [ ] Storyblok
