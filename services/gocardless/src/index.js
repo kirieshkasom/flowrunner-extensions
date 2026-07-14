@@ -17,6 +17,7 @@ const {
   CURRENCY_LABELS,
   SCHEME_LABELS,
   ACCOUNT_TYPE_LABELS,
+  MANDATE_IMPORT_ENTRY_STATUS_LABELS,
   MANDATE_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
   SUBSCRIPTION_STATUS_LABELS,
@@ -415,11 +416,19 @@ class GoCardlessService {
   // ===========================================================================
 
   /**
+   * @typedef {Object} listCustomersDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter customers locally by email, given name, family name, or company name."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Customers Dictionary
    * @route POST /get-customers-dictionary
    * @description Loads customers for dropdowns.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor}"}
+   * @paramDef {"type":"listCustomersDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text and pagination cursor for listing customers."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"Jane Doe","value":"CU000123456","note":"jane@example.com - GB"}],"cursor":null}
    */
   async listCustomersDict(payload) {
     const { search, cursor } = payload || {}
@@ -457,11 +466,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listMandatesDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Customer","name":"customer","required":false,"description":"Only show mandates belonging to this customer."}
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"description":"Only show mandates in this status."}
+   */
+
+  /**
+   * @typedef {Object} listMandatesDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter mandates locally by reference, scheme, or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listMandatesDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: customer and/or status."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Mandates Dictionary
    * @route POST /get-mandates-dictionary
    * @description Loads Direct Debit mandates for dropdowns. Optionally filter by customer or status.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {customer, status}}"}
+   * @paramDef {"type":"listMandatesDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional customer/status filters for listing mandates."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"REF-1234","value":"MD000123456","note":"active - bacs - CU000123456"}],"cursor":null}
    */
   async listMandatesDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -496,11 +520,19 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listCreditorsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter creditors locally by name or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Creditors Dictionary
    * @route POST /get-creditors-dictionary
    * @description Loads your own GoCardless creditor accounts for dropdowns. Most merchants have just one.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor}"}
+   * @paramDef {"type":"listCreditorsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text and pagination cursor for listing creditors."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"Acme Ltd","value":"CR000000000001","note":"successful"}],"cursor":null}
    */
   async listCreditorsDict(payload) {
     const { search, cursor } = payload || {}
@@ -520,11 +552,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listSubscriptionsDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Mandate","name":"mandate","required":false,"description":"Only show subscriptions running under this mandate."}
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"description":"Only show subscriptions in this status."}
+   */
+
+  /**
+   * @typedef {Object} listSubscriptionsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter subscriptions locally by name or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listSubscriptionsDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: mandate and/or status."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Subscriptions Dictionary
    * @route POST /get-subscriptions-dictionary
    * @description Loads recurring subscriptions for dropdowns. Filter by mandate or status.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {mandate, status}}"}
+   * @paramDef {"type":"listSubscriptionsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional mandate/status filters for listing subscriptions."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"Standard Plan","value":"SB000123456","note":"active - 1500 GBP - monthly"}],"cursor":null}
    */
   async listSubscriptionsDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -557,11 +604,27 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listPaymentsDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Mandate","name":"mandate","required":false,"description":"Only show payments collected under this mandate."}
+   * @paramDef {"type":"String","label":"Customer","name":"customer","required":false,"description":"Only show payments from this customer."}
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"description":"Only show payments in this status."}
+   */
+
+  /**
+   * @typedef {Object} listPaymentsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter payments locally by reference, ID, or description."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listPaymentsDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: mandate, customer, and/or status."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Payments Dictionary
    * @route POST /get-payments-dictionary
    * @description Loads payments for dropdowns. Filter by mandate, customer, or status.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {mandate, customer, status}}"}
+   * @paramDef {"type":"listPaymentsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional mandate/customer/status filters for listing payments."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"INV-4242","value":"PM000123456","note":"pending_submission - 1000 GBP - 2026-05-19"}],"cursor":null}
    */
   async listPaymentsDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -598,11 +661,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listPayoutsDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"description":"Only show payouts in this status."}
+   * @paramDef {"type":"String","label":"Creditor","name":"creditor","required":false,"description":"Only show payouts belonging to this creditor."}
+   */
+
+  /**
+   * @typedef {Object} listPayoutsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter payouts locally by ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listPayoutsDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: status and/or creditor."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Payouts Dictionary
    * @route POST /get-payouts-dictionary
    * @description Loads payouts (bank transfers GoCardless sent you) for dropdowns. Filter by status.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {status, creditor}}"}
+   * @paramDef {"type":"listPayoutsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional status/creditor filters for listing payouts."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"25000 GBP - 2026-05-18","value":"PO000123456","note":"pending - merchant"}],"cursor":null}
    */
   async listPayoutsDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -633,11 +711,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listRefundsDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Payment","name":"payment","required":false,"description":"Only show refunds issued against this payment."}
+   * @paramDef {"type":"String","label":"Mandate","name":"mandate","required":false,"description":"Only show refunds issued under this mandate."}
+   */
+
+  /**
+   * @typedef {Object} listRefundsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter refunds locally by reference or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listRefundsDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: payment and/or mandate."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Refunds Dictionary
    * @route POST /get-refunds-dictionary
    * @description Loads refunds for dropdowns. Filter by payment or mandate.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {payment, mandate}}"}
+   * @paramDef {"type":"listRefundsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional payment/mandate filters for listing refunds."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"REFUND-1","value":"RF000123456","note":"2026-05-16 - PM000123456"}],"cursor":null}
    */
   async listRefundsDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -668,11 +761,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listBillingRequestsDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"description":"Only show billing requests in this status."}
+   * @paramDef {"type":"String","label":"Customer","name":"customer","required":false,"description":"Only show billing requests linked to this customer."}
+   */
+
+  /**
+   * @typedef {Object} listBillingRequestsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter billing requests locally by ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listBillingRequestsDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: status and/or customer."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Billing Requests Dictionary
    * @route POST /get-billing-requests-dictionary
    * @description Loads billing requests (hosted onboarding sessions) for dropdowns.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {status, customer}}"}
+   * @paramDef {"type":"listBillingRequestsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional status/customer filters for listing billing requests."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"BRQ000ABCDEF","value":"BRQ000ABCDEF","note":"pending - 2026-05-16"}],"cursor":null}
    */
   async listBillingRequestsDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -703,11 +811,19 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listBillingRequestTemplatesDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter templates locally by name or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Billing Request Templates Dictionary
    * @route POST /get-billing-request-templates-dictionary
    * @description Loads reusable billing request templates for dropdowns.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor}"}
+   * @paramDef {"type":"listBillingRequestTemplatesDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text and pagination cursor for listing billing request templates."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"Standard Onboarding","value":"BRT000ABCDEF","note":"GBP"}],"cursor":null}
    */
   async listBillingRequestTemplatesDict(payload) {
     const { search, cursor } = payload || {}
@@ -727,11 +843,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listInstitutionsDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Country Code","name":"countryCode","required":false,"description":"Two-letter country code to narrow the institution list. Defaults to GB."}
+   * @paramDef {"type":"String","label":"Scheme","name":"scheme","required":false,"description":"Only show institutions supporting this Direct Debit scheme."}
+   */
+
+  /**
+   * @typedef {Object} listInstitutionsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter institutions locally by name or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listInstitutionsDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: country code and/or scheme."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Institutions Dictionary
    * @route POST /get-institutions-dictionary
    * @description Loads banks that support instant bank pay for dropdowns. Provide a country to narrow the list.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {countryCode, scheme}}"}
+   * @paramDef {"type":"listInstitutionsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional country/scheme filters for listing institutions."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"Monzo Bank","value":"MONZO_MONZGB2L","note":"MONZGB2L"}],"cursor":null}
    */
   async listInstitutionsDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -756,11 +887,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listCustomerBankAccountsDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Customer","name":"customer","required":false,"description":"Only show bank accounts belonging to this customer."}
+   * @paramDef {"type":"Boolean","label":"Enabled","name":"enabled","required":false,"description":"Only show accounts that are (or are not) currently enabled."}
+   */
+
+  /**
+   * @typedef {Object} listCustomerBankAccountsDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter accounts locally by account holder name, bank name, or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listCustomerBankAccountsDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: customer and/or enabled."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Customer Bank Accounts Dictionary
    * @route POST /get-customer-bank-accounts-dictionary
    * @description Loads saved customer bank accounts for dropdowns. Optionally filter by customer.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {customer, enabled}}"}
+   * @paramDef {"type":"listCustomerBankAccountsDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional customer/enabled filters for listing customer bank accounts."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"Jane Doe","value":"BA000123456","note":"MONZO BANK LIMITED - ending 56 - GBP"}],"cursor":null}
    */
   async listCustomerBankAccountsDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -805,11 +951,26 @@ class GoCardlessService {
   }
 
   /**
+   * @typedef {Object} listInstalmentSchedulesDict__payloadCriteria
+   * @paramDef {"type":"String","label":"Mandate","name":"mandate","required":false,"description":"Only show instalment schedules running under this mandate."}
+   * @paramDef {"type":"String","label":"Status","name":"status","required":false,"description":"Only show instalment schedules in this status."}
+   */
+
+  /**
+   * @typedef {Object} listInstalmentSchedulesDict__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","required":false,"description":"Optional text to filter instalment schedules locally by name or ID."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","required":false,"description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"listInstalmentSchedulesDict__payloadCriteria","label":"Criteria","name":"criteria","required":false,"description":"Optional filters: mandate and/or status."}
+   */
+
+  /**
    * @registerAs DICTIONARY
+   * @operationName List Instalment Schedules Dictionary
    * @route POST /get-instalment-schedules-dictionary
    * @description Loads instalment schedules for dropdowns. Optionally filter by mandate or status.
-   * @paramDef {"type":"Object","name":"payload","required":false,"description":"Dictionary payload: {search, cursor, criteria: {mandate, status}}"}
+   * @paramDef {"type":"listInstalmentSchedulesDict__payload","label":"Payload","name":"payload","required":false,"description":"Search text, pagination cursor, and optional mandate/status filters for listing instalment schedules."}
    * @returns {Object}
+   * @sampleResult {"items":[{"label":"Invoice 1234","value":"IS000123456","note":"active - 3000 GBP"}],"cursor":null}
    */
   async listInstalmentSchedulesDict(payload) {
     const { search, cursor, criteria } = payload || {}
@@ -1123,6 +1284,7 @@ class GoCardlessService {
    * @paramDef {"type":"Number","label":"Page Size","name":"limit","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"How many results per page (1 to 500). Defaults to 50."}
    * @paramDef {"type":"String","label":"Next Page Token","name":"cursor","required":false,"description":"Advanced. Paste 'cursors.after' from a previous response to fetch the next page."}
    * @returns {Object}
+   * @sampleResult {"data":[{"id":"BA000123456","created_at":"2026-05-16T10:00:00.000Z","account_holder_name":"Jane Doe","account_number_ending":"56","bank_name":"MONZO BANK LIMITED","country_code":"GB","currency":"GBP","enabled":true,"metadata":{},"links":{"customer":"CU000123456"}}],"items":[{"id":"BA000123456","created_at":"2026-05-16T10:00:00.000Z","account_holder_name":"Jane Doe","account_number_ending":"56","bank_name":"MONZO BANK LIMITED","country_code":"GB","currency":"GBP","enabled":true,"metadata":{},"links":{"customer":"CU000123456"}}],"cursors":{"before":null,"after":null},"limit":50,"hasMore":false}
    */
   async listCustomerBankAccounts(customerId, enabled, limit, cursor) {
     const response = await this.#api({
@@ -1147,6 +1309,7 @@ class GoCardlessService {
    * @appearanceColor #00b87b #008f5d
    * @paramDef {"type":"String","label":"Bank Account","name":"bankAccountId","required":true,"dictionary":"listCustomerBankAccountsDict","description":"Pick the customer bank account (its ID starts with BA)."}
    * @returns {Object}
+   * @sampleResult {"id":"BA000123456","created_at":"2026-05-16T10:00:00.000Z","account_holder_name":"Jane Doe","account_number_ending":"56","bank_name":"MONZO BANK LIMITED","country_code":"GB","currency":"GBP","enabled":true,"metadata":{},"links":{"customer":"CU000123456"}}
    */
   async getCustomerBankAccount(bankAccountId) {
     if (!bankAccountId)
@@ -1178,6 +1341,7 @@ class GoCardlessService {
    * @paramDef {"type":"Object","label":"Metadata","name":"metadata","required":false,"description":"Optional notes - up to 3 key/value pairs."}
    * @paramDef {"type":"String","label":"Idempotency Key (Advanced)","name":"idempotencyKey","required":false,"description":"Advanced. Leave blank unless forcing a fresh creation."}
    * @returns {Object}
+   * @sampleResult {"id":"BA000123456","created_at":"2026-05-16T10:00:00.000Z","account_holder_name":"Jane Doe","account_number_ending":"56","bank_name":"MONZO BANK LIMITED","country_code":"GB","currency":"GBP","enabled":true,"metadata":{},"links":{"customer":"CU000123456"}}
    */
   async createCustomerBankAccount(
     customerId,
@@ -1230,6 +1394,7 @@ class GoCardlessService {
    * @appearanceColor #00b87b #008f5d
    * @paramDef {"type":"String","label":"Bank Account","name":"bankAccountId","required":true,"dictionary":"listCustomerBankAccountsDict","description":"Pick the customer bank account to disable (its ID starts with BA)."}
    * @returns {Object}
+   * @sampleResult {"id":"BA000123456","created_at":"2026-05-16T10:00:00.000Z","account_holder_name":"Jane Doe","account_number_ending":"56","bank_name":"MONZO BANK LIMITED","country_code":"GB","currency":"GBP","enabled":false,"metadata":{},"links":{"customer":"CU000123456"}}
    */
   async disableCustomerBankAccount(bankAccountId) {
     if (!bankAccountId)
@@ -1459,6 +1624,7 @@ class GoCardlessService {
    * @paramDef {"type":"String","label":"Mandate","name":"mandateId","required":false,"dictionary":"listMandatesDict","description":"Existing mandate to render. Leave blank to render an unsigned PDF from raw bank details (provide them in Prefill below)."}
    * @paramDef {"type":"Object","label":"Prefill (Unsigned)","name":"prefill","required":false,"schemaLoader":"mandatePdfPrefillSchema","description":"Alternative: render a blank unsigned PDF from bank details. Fill these when no mandate is selected above."}
    * @returns {Object}
+   * @sampleResult {"url":"https://pdfs.gocardless.com/MD000123456.pdf?signature=abc123","expires_at":"2026-05-16T10:30:00.000Z"}
    */
   async getMandatePdf(mandateId, prefill) {
     const body = {
@@ -1477,6 +1643,314 @@ class GoCardlessService {
     })
 
     return this.#unwrap(response, 'mandate_pdfs')
+  }
+
+  // ===========================================================================
+  // 5A. MANDATE IMPORTS
+  // ===========================================================================
+  // Bulk-migrate existing Direct Debit mandates from another provider. There is no endpoint to
+  // list mandate imports, so mandateImportId params below carry no dictionary - keep the ID GC
+  // returns from Create Mandate Import. Restricted to approved integrators by GoCardless.
+
+  /**
+   * @description Start migrating existing Direct Debit mandates from another provider into GoCardless. This opens an empty import - add each mandate with Add Mandate Import Entry, then Submit Mandate Import when done. GoCardless reviews and processes the import (sandbox auto-processes in about 10 seconds). Requires the Mandate Imports feature on your GoCardless account.
+   * @route POST /create-mandate-import
+   * @operationName Create Mandate Import
+   * @category Mandate Imports
+   * @appearanceColor #0097a7 #006064
+   * @sampleResultLoader {"methodName":"getMandateImport_SampleResultLoader","dependsOn":[]}
+   * @paramDef {"type":"String","label":"Scheme","name":"scheme","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["ACH (US)","Autogiro (Sweden)","Bacs (UK)","BECS (Australia)","BECS (New Zealand)","Betalingsservice (Denmark)","Faster Payments (UK)","PAD (Canada)","PayTo (Australia)","SEPA Core (Europe)"]}},"description":"Direct Debit scheme of the mandates being imported. All mandates in one import must use the same scheme."}
+   * @paramDef {"type":"String","label":"Creditor","name":"creditorId","required":false,"dictionary":"listCreditorsDict","description":"Which of your creditor accounts the imported mandates belong to. Only needed if your account manages multiple creditors - leave blank otherwise."}
+   * @paramDef {"type":"String","label":"Idempotency Key (Advanced)","name":"idempotencyKey","required":false,"description":"Advanced. Leave blank unless forcing a fresh import when retrying."}
+   * @returns {Object}
+   */
+  async createMandateImport(scheme, creditorId, idempotencyKey) {
+    if (!scheme) throw new Error('[GoCardless] scheme is required')
+
+    const body = {
+      mandate_imports:
+        cleanupObject({
+          scheme: resolveChoice(scheme, SCHEME_LABELS),
+          links: creditorId ? { creditor: creditorId } : undefined,
+        }) || {},
+    }
+
+    return this.#createWithReplayRecovery({
+      path: '/mandate_imports',
+      resourceKey: 'mandate_imports',
+      body,
+      logTag: 'createMandateImport',
+      idempotencyKey,
+      idempotencyArgs: body,
+    })
+  }
+
+  /**
+   * @description Check the status of a mandate import - created (still accepting entries), submitted (waiting for GoCardless to process), processing, processed (mandates created - reconcile with List Mandate Import Entries), or cancelled.
+   * @route POST /get-mandate-import
+   * @operationName Get Mandate Import
+   * @category Mandate Imports
+   * @appearanceColor #0097a7 #006064
+   * @sampleResultLoader {"methodName":"getMandateImport_SampleResultLoader","dependsOn":[]}
+   * @paramDef {"type":"String","label":"Mandate Import","name":"mandateImportId","required":true,"description":"ID of the mandate import (starts with IM). GoCardless has no endpoint to list mandate imports, so paste the ID returned by Create Mandate Import."}
+   * @returns {Object}
+   */
+  async getMandateImport(mandateImportId) {
+    if (!mandateImportId)
+      throw new Error('[GoCardless] mandateImportId is required')
+
+    const response = await this.#api({
+      path: `/mandate_imports/${ mandateImportId }`,
+      logTag: 'getMandateImport',
+    })
+
+    return this.#unwrap(response, 'mandate_imports')
+  }
+
+  /**
+   * @description Finish adding entries and hand the import over to GoCardless for processing. After submitting you can no longer add entries. In sandbox the import is processed automatically about 10 seconds later; in live a GoCardless team member approves it.
+   * @route POST /submit-mandate-import
+   * @operationName Submit Mandate Import
+   * @category Mandate Imports
+   * @appearanceColor #0097a7 #006064
+   * @sampleResultLoader {"methodName":"getMandateImport_SampleResultLoader","dependsOn":[]}
+   * @paramDef {"type":"String","label":"Mandate Import","name":"mandateImportId","required":true,"description":"ID of the mandate import to submit (starts with IM), from Create Mandate Import. No list endpoint exists to pick it from."}
+   * @returns {Object}
+   */
+  async submitMandateImport(mandateImportId) {
+    if (!mandateImportId)
+      throw new Error('[GoCardless] mandateImportId is required')
+
+    const response = await this.#api({
+      path: `/mandate_imports/${ mandateImportId }/actions/submit`,
+      method: 'post',
+      body: {},
+      logTag: 'submitMandateImport',
+    })
+
+    return this.#unwrap(response, 'mandate_imports')
+  }
+
+  /**
+   * @description Abort a mandate import before it is submitted - none of its entries become mandates. Imports that were already submitted or processed cannot be cancelled.
+   * @route POST /cancel-mandate-import
+   * @operationName Cancel Mandate Import
+   * @category Mandate Imports
+   * @appearanceColor #0097a7 #006064
+   * @sampleResultLoader {"methodName":"getMandateImport_SampleResultLoader","dependsOn":[]}
+   * @paramDef {"type":"String","label":"Mandate Import","name":"mandateImportId","required":true,"description":"ID of the mandate import to cancel (starts with IM), from Create Mandate Import. No list endpoint exists to pick it from."}
+   * @returns {Object}
+   */
+  async cancelMandateImport(mandateImportId) {
+    if (!mandateImportId)
+      throw new Error('[GoCardless] mandateImportId is required')
+
+    const response = await this.#api({
+      path: `/mandate_imports/${ mandateImportId }/actions/cancel`,
+      method: 'post',
+      body: {},
+      logTag: 'cancelMandateImport',
+    })
+
+    return this.#unwrap(response, 'mandate_imports')
+  }
+
+  /**
+   * @description Add one existing mandate to an open import - the customer's identity, their bank account, and (for SEPA moves) the original mandate reference. Each entry becomes a real mandate when the import is processed. Give every entry a Record Identifier so you can match the created mandate back to your system afterwards. Limit: 30,000 entries per import.
+   * @route POST /add-mandate-import-entry
+   * @operationName Add Mandate Import Entry
+   * @category Mandate Imports
+   * @appearanceColor #0097a7 #006064
+   * @paramDef {"type":"String","label":"Mandate Import","name":"mandateImportId","required":true,"description":"ID of the open mandate import to add this entry to (starts with IM), from Create Mandate Import. No list endpoint exists to pick it from."}
+   * @paramDef {"type":"Object","label":"Customer","name":"customer","required":true,"schemaLoader":"mandateImportEntryCustomerSchema","description":"Who the mandate belongs to. Provide first + last name or a company name; email is needed in most cases so GoCardless can notify them. Bacs and SEPA imports also require address line 1 and postal code."}
+   * @paramDef {"type":"Object","label":"Bank Account","name":"bankAccount","required":true,"schemaLoader":"mandateImportEntryBankAccountSchema","description":"The customer's bank account the mandate is on. Account holder name is required; then either an IBAN (most of Europe) or local details (account number + sort/branch/bank code)."}
+   * @paramDef {"type":"Object","label":"Amendment (SEPA Only)","name":"amendment","required":false,"schemaLoader":"mandateImportEntryAmendmentSchema","description":"Details of the original mandate at the previous provider. Required for SEPA imports (original mandate reference + original creditor ID); leave blank for other schemes."}
+   * @paramDef {"type":"String","label":"Record Identifier","name":"recordIdentifier","required":false,"description":"Your own unique reference for this entry (e.g. a row number or customer ID, max 255 characters). After processing, List Mandate Import Entries returns it next to the created mandate so you can link records in your system."}
+   * @paramDef {"type":"String","label":"Mandate Reference","name":"mandateReference","required":false,"description":"Reference for the new mandate. Leave blank to let GoCardless generate one that satisfies the scheme's rules."}
+   * @paramDef {"type":"Object","label":"Mandate Metadata","name":"mandateMetadata","required":false,"description":"Optional notes stored on the created mandate - up to 3 key/value pairs."}
+   * @paramDef {"type":"String","label":"Idempotency Key (Advanced)","name":"idempotencyKey","required":false,"description":"Advanced. Leave blank unless forcing a duplicate entry when retrying."}
+   * @returns {Object}
+   * @sampleResult {"record_identifier":"bank-file.xml/line-1","created_at":"2026-05-16T10:00:00.000Z","links":{"mandate_import":"IM000010790WX1"}}
+   */
+  async addMandateImportEntry(
+    mandateImportId,
+    customer,
+    bankAccount,
+    amendment,
+    recordIdentifier,
+    mandateReference,
+    mandateMetadata,
+    idempotencyKey
+  ) {
+    if (!mandateImportId)
+      throw new Error('[GoCardless] mandateImportId is required')
+    if (!customer) throw new Error('[GoCardless] customer is required')
+    if (!bankAccount) throw new Error('[GoCardless] bankAccount is required')
+
+    const body = {
+      mandate_import_entries:
+        cleanupObject({
+          links: { mandate_import: mandateImportId },
+          record_identifier: recordIdentifier,
+          customer: cleanupObject(customer),
+          bank_account: cleanupObject(bankAccount),
+          amendment: cleanupObject(amendment),
+          mandate: cleanupObject({
+            reference: mandateReference,
+            metadata: cleanupObject(mandateMetadata),
+          }),
+        }) || {},
+    }
+
+    const response = await this.#api({
+      path: '/mandate_import_entries',
+      method: 'post',
+      body,
+      logTag: 'addMandateImportEntry',
+      idempotencyKey,
+      idempotencyArgs: body,
+    })
+
+    return this.#unwrap(response, 'mandate_import_entries')
+  }
+
+  /**
+   * @description See every entry in a mandate import and, once the import is processed, which customer, bank account, and mandate each entry created - plus any processing errors for entries that failed. Match rows back to your system with the Record Identifier you set when adding entries.
+   * @route POST /list-mandate-import-entries
+   * @operationName List Mandate Import Entries
+   * @category Mandate Imports
+   * @appearanceColor #0097a7 #006064
+   * @paramDef {"type":"String","label":"Mandate Import","name":"mandateImportId","required":true,"description":"ID of the mandate import whose entries to list (starts with IM), from Create Mandate Import. No list endpoint exists to pick it from."}
+   * @paramDef {"type":"String","label":"Processing Result","name":"status","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Successfully Processed","Unsuccessfully Processed"]}},"description":"Only show entries that processed successfully, or only those that failed (check each failed entry's processing_errors for the reason). Leave blank for all entries."}
+   * @paramDef {"type":"Number","label":"Page Size","name":"limit","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"How many entries per page (1 to 500). Defaults to 50."}
+   * @paramDef {"type":"String","label":"Next Page Token","name":"cursor","required":false,"description":"Advanced. To fetch the next page manually, paste the 'cursors.after' value from a previous response here."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"record_identifier":"bank-file.xml/line-1","created_at":"2026-05-16T10:00:00.000Z","links":{"mandate_import":"IM000010790WX1","customer":"CU000123456","customer_bank_account":"BA000123456","mandate":"MD000123456"},"processing_errors":null}],"data":[{"record_identifier":"bank-file.xml/line-1","created_at":"2026-05-16T10:00:00.000Z","links":{"mandate_import":"IM000010790WX1","customer":"CU000123456","customer_bank_account":"BA000123456","mandate":"MD000123456"},"processing_errors":null}],"cursors":{"before":null,"after":null},"limit":50,"hasMore":false}
+   */
+  async listMandateImportEntries(mandateImportId, status, limit, cursor) {
+    if (!mandateImportId)
+      throw new Error('[GoCardless] mandateImportId is required')
+
+    const response = await this.#api({
+      path: '/mandate_import_entries',
+      logTag: 'listMandateImportEntries',
+      query: cleanupObject({
+        mandate_import: mandateImportId,
+        status: resolveChoice(status, MANDATE_IMPORT_ENTRY_STATUS_LABELS),
+        limit: this.#clampLimit(limit),
+        after: cursor,
+      }),
+    })
+
+    return this.#unwrapList(response, 'mandate_import_entries')
+  }
+
+  // ===========================================================================
+  // 5B. CREDITORS
+  // ===========================================================================
+
+  /**
+   * @description List your GoCardless creditor accounts (the businesses payments are paid out to) with their verification status and payout bank links. Most merchants have exactly one. Companion to Get/Update Creditor for flows that need the full record rather than a dropdown pick.
+   * @route POST /list-creditors
+   * @operationName List Creditors
+   * @category Creditors
+   * @appearanceColor #f9a825 #f57f17
+   * @sampleResultLoader {"methodName":"getCreditor_SampleResultLoader","dependsOn":[]}
+   * @paramDef {"type":"Number","label":"Page Size","name":"limit","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"How many creditors per page (1 to 500). Defaults to 50."}
+   * @paramDef {"type":"String","label":"Next Page Token","name":"cursor","required":false,"description":"Advanced. To fetch the next page manually, paste the 'cursors.after' value from a previous response here."}
+   * @returns {Object}
+   */
+  async listCreditors(limit, cursor) {
+    const response = await this.#api({
+      path: '/creditors',
+      logTag: 'listCreditors',
+      query: cleanupObject({
+        limit: this.#clampLimit(limit),
+        after: cursor,
+      }),
+    })
+
+    return this.#unwrapList(response, 'creditors')
+  }
+
+  /**
+   * @description Fetch one creditor account - trading name, address, verification status (whether it can receive payouts yet), refund permission, feature flags (e.g. whether Mandate Imports is enabled), and which bank accounts receive payouts per currency.
+   * @route POST /get-creditor
+   * @operationName Get Creditor
+   * @category Creditors
+   * @appearanceColor #f9a825 #f57f17
+   * @sampleResultLoader {"methodName":"getCreditor_SampleResultLoader","dependsOn":[]}
+   * @paramDef {"type":"String","label":"Creditor","name":"creditorId","required":true,"dictionary":"listCreditorsDict","description":"Pick the creditor account to fetch (its ID starts with CR)."}
+   * @returns {Object}
+   */
+  async getCreditor(creditorId) {
+    if (!creditorId) throw new Error('[GoCardless] creditorId is required')
+
+    const response = await this.#api({
+      path: `/creditors/${ creditorId }`,
+      logTag: 'getCreditor',
+    })
+
+    return this.#unwrap(response, 'creditors')
+  }
+
+  /**
+   * @description Change a creditor's trading name, address, payout bank-reference prefix, or which saved bank account receives payouts in each currency. Only the fields you fill are changed.
+   * @route POST /update-creditor
+   * @operationName Update Creditor
+   * @category Creditors
+   * @appearanceColor #f9a825 #f57f17
+   * @sampleResultLoader {"methodName":"getCreditor_SampleResultLoader","dependsOn":[]}
+   * @paramDef {"type":"String","label":"Creditor","name":"creditorId","required":true,"dictionary":"listCreditorsDict","description":"Pick the creditor account to update (its ID starts with CR)."}
+   * @paramDef {"type":"String","label":"Trading Name","name":"name","required":false,"description":"The creditor's trading name, shown to customers."}
+   * @paramDef {"type":"String","label":"Address Line 1","name":"addressLine1","required":false,"description":"First line of the creditor's address."}
+   * @paramDef {"type":"String","label":"Address Line 2","name":"addressLine2","required":false,"description":"Second line of the creditor's address."}
+   * @paramDef {"type":"String","label":"Address Line 3","name":"addressLine3","required":false,"description":"Third line of the creditor's address."}
+   * @paramDef {"type":"String","label":"City","name":"city","required":false,"description":"City of the creditor's address."}
+   * @paramDef {"type":"String","label":"Region","name":"region","required":false,"description":"Region, county, or department of the creditor's address."}
+   * @paramDef {"type":"String","label":"Postal Code","name":"postalCode","required":false,"description":"Postal or ZIP code of the creditor's address."}
+   * @paramDef {"type":"String","label":"Country","name":"countryCode","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["United Kingdom","Germany","France","Netherlands","Spain","Italy","Ireland","Austria","Belgium","Portugal","Finland","Luxembourg","Sweden","Denmark","Australia","New Zealand","Canada","United States"]}},"description":"Country of the creditor's address."}
+   * @paramDef {"type":"String","label":"Payout Bank Reference Prefix","name":"bankReferencePrefix","required":false,"description":"Prefix on the bank reference of payouts sent to this creditor - e.g. prefix ACME produces payout references like ACME-8G7Q8. Also used for EUR and GBP refunds."}
+   * @paramDef {"type":"Object","label":"Payout Bank Accounts","name":"payoutAccountLinks","required":false,"schemaLoader":"creditorPayoutAccountsSchema","description":"Which saved bank account receives payouts in each currency. Fill only the currencies you want to change, using bank account IDs (start with BA)."}
+   * @returns {Object}
+   */
+  async updateCreditor(
+    creditorId,
+    name,
+    addressLine1,
+    addressLine2,
+    addressLine3,
+    city,
+    region,
+    postalCode,
+    countryCode,
+    bankReferencePrefix,
+    payoutAccountLinks
+  ) {
+    if (!creditorId) throw new Error('[GoCardless] creditorId is required')
+
+    const response = await this.#api({
+      path: `/creditors/${ creditorId }`,
+      method: 'put',
+      body: {
+        creditors:
+          cleanupObject({
+            name,
+            address_line1: addressLine1,
+            address_line2: addressLine2,
+            address_line3: addressLine3,
+            city,
+            region,
+            postal_code: postalCode,
+            country_code: resolveChoice(countryCode, COUNTRY_LABELS),
+            bank_reference_prefix: bankReferencePrefix,
+            links: cleanupObject(payoutAccountLinks),
+          }) || {},
+      },
+      logTag: 'updateCreditor',
+    })
+
+    return this.#unwrap(response, 'creditors')
   }
 
   // ===========================================================================
@@ -2373,6 +2847,7 @@ class GoCardlessService {
    * @paramDef {"type":"Number","label":"Page Size","name":"limit","required":false,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"How many items per page (1 to 500). Defaults to 50."}
    * @paramDef {"type":"String","label":"Next Page Token","name":"cursor","required":false,"description":"Advanced. Paste 'cursors.after' from a previous response."}
    * @returns {Object}
+   * @sampleResult {"data":[{"amount":"1000","type":"payment_paid_out","taxes":[],"links":{"payment":"PM000123456","mandate":"MD000123456"}}],"items":[{"amount":"1000","type":"payment_paid_out","taxes":[],"links":{"payment":"PM000123456","mandate":"MD000123456"}}],"cursors":{"before":null,"after":null},"limit":50,"hasMore":false}
    */
   async listPayoutItems(payoutId, includeTaxes, limit, cursor) {
     if (!payoutId) throw new Error('[GoCardless] payoutId is required')
@@ -2417,6 +2892,7 @@ class GoCardlessService {
    * @paramDef {"type":"Object","label":"Metadata","name":"metadata","required":false,"description":"Optional notes - up to 3 key/value pairs."}
    * @paramDef {"type":"String","label":"Idempotency Key (Advanced)","name":"idempotencyKey","required":false,"description":"Advanced. Leave blank unless forcing a fresh creation."}
    * @returns {Object}
+   * @sampleResult {"id":"BRQ000ABCDEF","created_at":"2026-05-16T10:00:00.000Z","status":"pending","fallback_enabled":true,"fallback_occurred":false,"mandate_request":{"scheme":"bacs","verify":"recommended","currency":"GBP"},"payment_request":null,"metadata":{},"links":{}}
    */
   async createBillingRequest(
     collectMandate,
@@ -2485,6 +2961,7 @@ class GoCardlessService {
    * @appearanceColor #5e35b1 #311b92
    * @paramDef {"type":"String","label":"Billing Request","name":"billingRequestId","required":true,"dictionary":"listBillingRequestsDict","description":"Pick the billing request."}
    * @returns {Object}
+   * @sampleResult {"id":"BRQ000ABCDEF","created_at":"2026-05-16T10:00:00.000Z","status":"pending","fallback_enabled":true,"fallback_occurred":false,"mandate_request":{"scheme":"bacs","verify":"recommended","currency":"GBP"},"payment_request":null,"metadata":{},"links":{"customer":"CU000123456"}}
    */
   async getBillingRequest(billingRequestId) {
     if (!billingRequestId)
@@ -2571,6 +3048,7 @@ class GoCardlessService {
    * @paramDef {"type":"String","label":"Billing Request","name":"billingRequestId","required":true,"dictionary":"listBillingRequestsDict","description":"Billing request to cancel."}
    * @paramDef {"type":"Object","label":"Metadata","name":"metadata","required":false,"description":"Optional notes."}
    * @returns {Object}
+   * @sampleResult {"id":"BRQ000ABCDEF","created_at":"2026-05-16T10:00:00.000Z","status":"cancelled","fallback_enabled":true,"fallback_occurred":false,"mandate_request":{"scheme":"bacs","verify":"recommended","currency":"GBP"},"payment_request":null,"metadata":{},"links":{"customer":"CU000123456"}}
    */
   async cancelBillingRequest(billingRequestId, metadata) {
     if (!billingRequestId)
@@ -2597,6 +3075,7 @@ class GoCardlessService {
    * @paramDef {"type":"String","label":"Billing Request","name":"billingRequestId","required":true,"dictionary":"listBillingRequestsDict","description":"Billing request to finalise."}
    * @paramDef {"type":"Object","label":"Metadata","name":"metadata","required":false,"description":"Optional notes."}
    * @returns {Object}
+   * @sampleResult {"id":"BRQ000ABCDEF","created_at":"2026-05-16T10:00:00.000Z","status":"fulfilled","fallback_enabled":true,"fallback_occurred":false,"mandate_request":{"scheme":"bacs","verify":"recommended","currency":"GBP"},"payment_request":null,"metadata":{},"links":{"customer":"CU000123456","mandate_request_mandate":"MD000123456"}}
    */
   async fulfilBillingRequest(billingRequestId, metadata) {
     if (!billingRequestId)
@@ -2609,6 +3088,149 @@ class GoCardlessService {
         data: cleanupObject({ metadata: cleanupObject(metadata) }) || {},
       },
       logTag: 'fulfilBillingRequest',
+    })
+
+    return this.#unwrap(response, 'billing_requests')
+  }
+
+  // ---------------------------------------------------------------------------
+  // Non-hosted collect actions (own pages instead of the GoCardless-hosted flow).
+  // Requires a GoCardless Pro or Enterprise account with the custom payment pages upgrade.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * @description Complete the customer-details step of a billing request from your own pages instead of the GoCardless-hosted flow - submit the payer's name/email and billing address you collected yourself. GoCardless checks the fields satisfy the billing request's scheme and updates the linked customer immediately. Next step: Collect Bank Account (Own Pages). Requires a GoCardless Pro or Enterprise account with the custom payment pages upgrade.
+   * @route POST /collect-billing-request-customer-details
+   * @operationName Collect Customer Details (Own Pages)
+   * @category Billing Requests
+   * @appearanceColor #5e35b1 #311b92
+   * @paramDef {"type":"String","label":"Billing Request","name":"billingRequestId","required":true,"dictionary":"listBillingRequestsDict","description":"Billing request with a pending customer-details step."}
+   * @paramDef {"type":"Object","label":"Customer","name":"customer","required":true,"schemaLoader":"billingRequestCustomerSchema","description":"The payer's identity - first + last name or company name, plus email in most cases (GoCardless sends notifications to it)."}
+   * @paramDef {"type":"Object","label":"Billing Address","name":"customerBillingDetail","required":false,"schemaLoader":"billingRequestBillingDetailSchema","description":"The payer's billing address and scheme-specific identity fields (US state and IP address for ACH, CPR/CVR for Denmark, personnummer for Sweden)."}
+   * @returns {Object}
+   * @sampleResult {"id":"BRQ000ABCDEF","created_at":"2026-05-16T10:00:00.000Z","status":"pending","fallback_enabled":true,"fallback_occurred":false,"mandate_request":{"scheme":"bacs","verify":"recommended","currency":"GBP"},"payment_request":null,"metadata":{},"links":{"customer":"CU000123456","creditor":"CR000000000001"},"actions":[{"type":"collect_customer_details","required":true,"status":"completed"},{"type":"collect_bank_account","required":true,"status":"pending"}]}
+   */
+  async collectBillingRequestCustomerDetails(
+    billingRequestId,
+    customer,
+    customerBillingDetail
+  ) {
+    if (!billingRequestId)
+      throw new Error('[GoCardless] billingRequestId is required')
+    if (!customer) throw new Error('[GoCardless] customer is required')
+
+    const response = await this.#api({
+      path: `/billing_requests/${ billingRequestId }/actions/collect_customer_details`,
+      method: 'post',
+      body: {
+        data:
+          cleanupObject({
+            customer: cleanupObject(customer),
+            customer_billing_detail: cleanupObject(customerBillingDetail),
+          }) || {},
+      },
+      logTag: 'collectBillingRequestCustomerDetails',
+    })
+
+    return this.#unwrap(response, 'billing_requests')
+  }
+
+  /**
+   * @description Complete the bank-account step of a billing request from your own pages - submit the payer's bank details you collected yourself. Either provide an IBAN (most European accounts) OR account number + sort/branch/bank code for local schemes. GoCardless validates the account against the billing request's scheme (ACH accounts get a third-party validity check; UK accounts get Payer Name Verification) before attaching it. Next step: Confirm Payer Details. Requires a GoCardless Pro or Enterprise account with the custom payment pages upgrade.
+   * @route POST /collect-billing-request-bank-account
+   * @operationName Collect Bank Account (Own Pages)
+   * @category Billing Requests
+   * @appearanceColor #5e35b1 #311b92
+   * @paramDef {"type":"String","label":"Billing Request","name":"billingRequestId","required":true,"dictionary":"listBillingRequestsDict","description":"Billing request with a pending bank-account step."}
+   * @paramDef {"type":"String","label":"Account Holder Name","name":"accountHolderName","required":true,"description":"Name on the bank account as known by the bank (transliterated, upcased, and truncated to 18 characters by GoCardless)."}
+   * @paramDef {"type":"String","label":"Bank Country","name":"countryCode","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["United Kingdom","Germany","France","Netherlands","Spain","Italy","Ireland","Austria","Belgium","Portugal","Finland","Luxembourg","Sweden","Denmark","Australia","New Zealand","Canada","United States"]}},"description":"Country where the bank account is held. Inferred from the IBAN when one is supplied - otherwise required."}
+   * @paramDef {"type":"String","label":"Currency","name":"currency","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["British Pound","Euro","US Dollar","Swedish Krona","Australian Dollar","New Zealand Dollar","Canadian Dollar","Danish Krone"]}},"description":"Currency of the account. Usually inferred from the bank details - leave blank unless you need to override."}
+   * @paramDef {"type":"String","label":"IBAN","name":"iban","required":false,"description":"International bank account number - covers most European accounts in one field. Leave blank if using account number + sort code instead. Not accepted for Swedish SEK accounts (use local details)."}
+   * @paramDef {"type":"String","label":"Account Number","name":"accountNumber","required":false,"description":"Local account number. Pair with the sort/branch/bank code fields for non-IBAN schemes (UK, US, AU, NZ, CA, SE, DK)."}
+   * @paramDef {"type":"String","label":"Sort Code / Routing Number","name":"branchCode","required":false,"description":"The local routing code - sort code (UK), BSB (Australia), routing number (US), clearingnummer (Sweden). Pair with Account Number."}
+   * @paramDef {"type":"String","label":"Bank Code","name":"bankCode","required":false,"description":"Bank code used by Canada and New Zealand schemes. Only needed there."}
+   * @paramDef {"type":"String","label":"Account Type (US Only)","name":"accountType","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Checking","Savings"]}},"description":"Only fill for US dollar (ACH) accounts. Must be left blank for every other currency."}
+   * @paramDef {"type":"String","label":"Account Suffix (NZ Only)","name":"accountNumberSuffix","required":false,"description":"Account number suffix - only for New Zealand dollar accounts."}
+   * @paramDef {"type":"String","label":"PayID (PayTo Only)","name":"payId","required":false,"description":"For Australian PayTo only - a PayID such as an email address, mobile number, or company number the payer uses to accept payments (not a GoCardless resource ID - no dictionary applies). Provide together with Bank Country."}
+   * @paramDef {"type":"Object","label":"Metadata","name":"metadata","required":false,"description":"Optional notes - up to 3 key/value pairs."}
+   * @returns {Object}
+   * @sampleResult {"id":"BRQ000ABCDEF","created_at":"2026-05-16T10:00:00.000Z","status":"pending","fallback_enabled":true,"fallback_occurred":false,"mandate_request":{"scheme":"bacs","verify":"recommended","currency":"GBP"},"payment_request":null,"metadata":{},"links":{"customer":"CU000123456","customer_bank_account":"BA000123456","creditor":"CR000000000001"},"actions":[{"type":"collect_bank_account","required":true,"status":"completed"},{"type":"confirm_payer_details","required":true,"status":"pending"}]}
+   */
+  async collectBillingRequestBankAccount(
+    billingRequestId,
+    accountHolderName,
+    countryCode,
+    currency,
+    iban,
+    accountNumber,
+    branchCode,
+    bankCode,
+    accountType,
+    accountNumberSuffix,
+    payId,
+    metadata
+  ) {
+    if (!billingRequestId)
+      throw new Error('[GoCardless] billingRequestId is required')
+    if (!accountHolderName)
+      throw new Error('[GoCardless] accountHolderName is required')
+
+    const response = await this.#api({
+      path: `/billing_requests/${ billingRequestId }/actions/collect_bank_account`,
+      method: 'post',
+      body: {
+        data:
+          cleanupObject({
+            account_holder_name: accountHolderName,
+            country_code: resolveChoice(countryCode, COUNTRY_LABELS),
+            currency: resolveChoice(currency, CURRENCY_LABELS),
+            iban,
+            account_number: accountNumber,
+            branch_code: branchCode,
+            bank_code: bankCode,
+            account_type: resolveChoice(accountType, ACCOUNT_TYPE_LABELS),
+            account_number_suffix: accountNumberSuffix,
+            pay_id: payId,
+            metadata: cleanupObject(metadata),
+          }) || {},
+      },
+      logTag: 'collectBillingRequestBankAccount',
+    })
+
+    return this.#unwrap(response, 'billing_requests')
+  }
+
+  /**
+   * @description Record that the payer has reviewed and confirmed the details you collected - a Direct Debit scheme compliance step required for mandate requests. Only call this after the payer has actually seen and approved their details on your page. Once confirmed, the billing request becomes ready to finalise with Finalise Billing Request.
+   * @route POST /confirm-billing-request-payer-details
+   * @operationName Confirm Payer Details
+   * @category Billing Requests
+   * @appearanceColor #5e35b1 #311b92
+   * @paramDef {"type":"String","label":"Billing Request","name":"billingRequestId","required":true,"dictionary":"listBillingRequestsDict","description":"Billing request whose collected details the payer has confirmed."}
+   * @paramDef {"type":"Boolean","label":"Payer Requested Dual Signature","name":"payerRequestedDualSignature","required":false,"uiComponent":{"type":"TOGGLE"},"description":"Turn on if the payer said their mandate needs multiple signatures. GoCardless emails them instructions to complete the extra signature (that final step runs on GoCardless-branded pages)."}
+   * @paramDef {"type":"Object","label":"Metadata","name":"metadata","required":false,"description":"Optional notes - up to 3 key/value pairs."}
+   * @returns {Object}
+   * @sampleResult {"id":"BRQ000ABCDEF","created_at":"2026-05-16T10:00:00.000Z","status":"ready_to_fulfil","fallback_enabled":true,"fallback_occurred":false,"mandate_request":{"scheme":"bacs","verify":"recommended","currency":"GBP"},"payment_request":null,"metadata":{},"links":{"customer":"CU000123456","customer_bank_account":"BA000123456","creditor":"CR000000000001"}}
+   */
+  async confirmBillingRequestPayerDetails(
+    billingRequestId,
+    payerRequestedDualSignature,
+    metadata
+  ) {
+    if (!billingRequestId)
+      throw new Error('[GoCardless] billingRequestId is required')
+
+    const response = await this.#api({
+      path: `/billing_requests/${ billingRequestId }/actions/confirm_payer_details`,
+      method: 'post',
+      body: {
+        data:
+          cleanupObject({
+            payer_requested_dual_signature: payerRequestedDualSignature,
+            metadata: cleanupObject(metadata),
+          }) || {},
+      },
+      logTag: 'confirmBillingRequestPayerDetails',
     })
 
     return this.#unwrap(response, 'billing_requests')
@@ -2717,6 +3339,7 @@ class GoCardlessService {
    * @category Utility
    * @appearanceColor #757575 #424242
    * @returns {Object}
+   * @sampleResult {"ok":true,"environment":"sandbox","creditor":{"id":"CR000000000001","name":"Acme Ltd","verification_status":"successful"},"organisationId":"OR000123456"}
    */
   async testConnection() {
     const response = await this.#api({
@@ -2751,6 +3374,7 @@ class GoCardlessService {
    * @paramDef {"type":"String","label":"Bank Code","name":"bankCode","required":false,"description":"Bank code (Canada / New Zealand only)."}
    * @paramDef {"type":"String","label":"Bank Country","name":"countryCode","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["United Kingdom","Germany","France","Netherlands","Spain","Italy","Ireland","Austria","Belgium","Portugal","Finland","Luxembourg","Sweden","Denmark","Australia","New Zealand","Canada","United States"]}},"description":"Country where the bank is. Required when using account number (not needed for IBAN)."}
    * @returns {Object}
+   * @sampleResult {"available_debit_schemes":["bacs","faster_payments"],"bank_name":"MONZO BANK LIMITED","bic":"MONZGB2L"}
    */
   async lookupBankDetails(
     iban,
@@ -2795,6 +3419,7 @@ class GoCardlessService {
    * @paramDef {"type":"String","label":"Scenario","name":"scenario","required":true,"uiComponent":{"type":"DROPDOWN","options":{"values":["Payment Submitted","Payment Confirmed","Payment Paid Out","Payment Failed","Payment Late Failure","Payment Late Failure Settled","Payment Charged Back","Payment Chargeback Settled","Mandate Activated","Mandate Customer Approval Granted","Mandate Customer Approval Skipped","Mandate Failed","Mandate Expired","Mandate Transferred","Mandate Transferred With Resubmission","Mandate Suspended By Payer","Refund Paid","Refund Settled","Refund Bounced","Refund Returned","Payout Bounced","Creditor Verification Status Action Required","Creditor Verification Status In Review","Creditor Verification Status Successful","Billing Request Fulfilled","Billing Request Fulfilled And Payment Failed","Billing Request Fulfilled And Payment Confirmed To Failed","Billing Request Fulfilled And Payment Paid Out"]}},"description":"State change to simulate."}
    * @paramDef {"type":"String","label":"Resource ID","name":"resourceId","required":true,"description":"ID of the resource to transition. The resource type depends on the scenario, so there is no single pick-list - paste the matching ID (for example a payment ID for any 'payment_' scenario)."}
    * @returns {Object}
+   * @sampleResult {"scenario_simulators":{"id":"payment_confirmed"}}
    */
   async runScenarioSimulator(scenario, resourceId) {
     if (!scenario) throw new Error('[GoCardless] scenario is required')
@@ -2978,6 +3603,7 @@ class GoCardlessService {
    * @appearanceColor #ff7043 #d84315
    * @paramDef {"type":"String","label":"Only When Action Is","name":"action","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Created","Customer Approval Granted","Customer Approval Denied","Submitted","Confirmed","Failed","Cancelled","Paid Out","Late Failure Settled","Chargeback Cancelled","Chargeback Settled","Charged Back","Resubmission Requested"]}},"description":"Only fire on this action. Examples: 'confirmed' = bank has accepted the charge, 'paid_out' = money is in your account, 'failed' = bounced. Leave blank to fire on all payment events."}
    * @returns {Object}
+   * @sampleResult {"id":"EV000PAYMENT1","created_at":"2026-05-16T10:00:00.000Z","resource_type":"payments","action":"confirmed","details":{"origin":"gocardless","cause":"payment_confirmed","description":"Payment confirmed by the banks.","scheme":"bacs"},"metadata":{},"links":{"payment":"PM000123456","mandate":"MD000123456"},"resourceId":"PM000123456"}
    */
   async onPaymentEvent(invocation) {
     return this.#pollEvents({
@@ -2996,6 +3622,7 @@ class GoCardlessService {
    * @appearanceColor #1e88e5 #0d47a1
    * @paramDef {"type":"String","label":"Only When Action Is","name":"action","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Created","Customer Approval Granted","Customer Approval Skipped","Submitted","Active","Failed","Cancelled","Transferred","Expired","Resubmission Requested","Reinstated","Replaced","Consumed","Blocked","Suspended By Payer"]}},"description":"Only fire on this action. Examples: 'active' = customer is now chargeable, 'cancelled' = customer or you cancelled. Leave blank for all mandate events."}
    * @returns {Object}
+   * @sampleResult {"id":"EV000MANDATE1","created_at":"2026-05-16T10:00:00.000Z","resource_type":"mandates","action":"active","details":{"origin":"gocardless","cause":"mandate_activated","description":"Mandate has been successfully activated.","scheme":"bacs"},"metadata":{},"links":{"mandate":"MD000123456","customer":"CU000123456"},"resourceId":"MD000123456"}
    */
   async onMandateEvent(invocation) {
     return this.#pollEvents({
@@ -3014,6 +3641,7 @@ class GoCardlessService {
    * @appearanceColor #8e24aa #4a148c
    * @paramDef {"type":"String","label":"Only When Action Is","name":"action","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Created","Payment Created","Cancelled","Paused","Resumed","Finished","Customer Approval Granted","Customer Approval Denied","Scheduled Pause Started"]}},"description":"Only fire on this action. Examples: 'payment_created' = a charge for this cycle was just generated, 'cancelled' = subscription stopped. Leave blank for all."}
    * @returns {Object}
+   * @sampleResult {"id":"EV000SUBSCRIB1","created_at":"2026-05-16T10:00:00.000Z","resource_type":"subscriptions","action":"payment_created","details":{"origin":"gocardless","cause":"subscription_payment_created","description":"A payment was created for this subscription's billing cycle.","scheme":"bacs"},"metadata":{},"links":{"subscription":"SB000123456","mandate":"MD000123456"},"resourceId":"SB000123456"}
    */
   async onSubscriptionEvent(invocation) {
     return this.#pollEvents({
@@ -3032,6 +3660,7 @@ class GoCardlessService {
    * @appearanceColor #43a047 #1b5e20
    * @paramDef {"type":"String","label":"Only When Action Is","name":"action","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Created","Paid","Submitted","Cancelled","Failed","Bounced","Funds Returned","Refund Settled"]}},"description":"Only fire on this action. 'paid' = refund left your account, 'refund_settled' = customer received it. Leave blank for all."}
    * @returns {Object}
+   * @sampleResult {"id":"EV000REFUND1","created_at":"2026-05-16T10:00:00.000Z","resource_type":"refunds","action":"paid","details":{"origin":"gocardless","cause":"refund_paid","description":"Refund has been paid to the customer's bank.","scheme":"bacs"},"metadata":{},"links":{"refund":"RF000123456","payment":"PM000123456","mandate":"MD000123456"},"resourceId":"RF000123456"}
    */
   async onRefundEvent(invocation) {
     return this.#pollEvents({
@@ -3050,6 +3679,7 @@ class GoCardlessService {
    * @appearanceColor #00897b #004d40
    * @paramDef {"type":"String","label":"Only When Action Is","name":"action","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Paid","Bounced","Fx Rate Confirmed","Tax Updated"]}},"description":"Only fire on this action. 'paid' is the usual one - fires when the money lands in your bank account. Leave blank for all."}
    * @returns {Object}
+   * @sampleResult {"id":"EV000PAYOUT1","created_at":"2026-05-16T10:00:00.000Z","resource_type":"payouts","action":"paid","details":{"origin":"gocardless","cause":"payout_paid","description":"Payout has been paid to your bank account.","scheme":"bacs"},"metadata":{},"links":{"payout":"PO000123456","creditor":"CR000000000001"},"resourceId":"PO000123456"}
    */
   async onPayoutEvent(invocation) {
     return this.#pollEvents({
@@ -3068,6 +3698,7 @@ class GoCardlessService {
    * @appearanceColor #5e35b1 #311b92
    * @paramDef {"type":"String","label":"Only When Action Is","name":"action","required":false,"uiComponent":{"type":"DROPDOWN","options":{"values":["Created","Customer Details Confirmed","Bank Account Collected","Flow Created","Flow Initialised","Flow Completed","Flow Visited","Flow Exited","Payer Finalised Payment Details","Fulfilled","Cancelled","Failed"]}},"description":"Only fire on this action. Examples: 'fulfilled' = customer finished and mandate/payment is created, 'flow_exited' = customer left without finishing. Leave blank for all."}
    * @returns {Object}
+   * @sampleResult {"id":"EV000BILLREQ1","created_at":"2026-05-16T10:00:00.000Z","resource_type":"billing_requests","action":"fulfilled","details":{"origin":"gocardless","cause":"billing_request_fulfilled","description":"Billing request has been fulfilled.","scheme":"bacs"},"metadata":{},"links":{"billing_request":"BRQ000ABCDEF","customer":"CU000123456"},"resourceId":"BRQ000ABCDEF"}
    */
   async onBillingRequestEvent(invocation) {
     return this.#pollEvents({
@@ -3289,6 +3920,50 @@ class GoCardlessService {
     }
   }
 
+  /**
+   * @registerAs SAMPLE_RESULT_LOADER
+   * @route POST /sample/mandate-import
+   */
+  async getMandateImport_SampleResultLoader() {
+    return {
+      id: 'IM000010790WX1',
+      created_at: '2026-05-16T10:00:00.000Z',
+      scheme: 'bacs',
+      status: 'created',
+      links: { creditor: 'CR000000000001' },
+    }
+  }
+
+  /**
+   * @registerAs SAMPLE_RESULT_LOADER
+   * @route POST /sample/creditor
+   */
+  async getCreditor_SampleResultLoader() {
+    return {
+      id: 'CR000000000001',
+      created_at: '2026-05-16T10:00:00.000Z',
+      name: 'Acme Ltd',
+      address_line1: null,
+      address_line2: null,
+      address_line3: null,
+      city: null,
+      region: null,
+      postal_code: null,
+      country_code: 'GB',
+      creditor_type: 'company',
+      logo_url: null,
+      scheme_identifiers: [],
+      verification_status: 'successful',
+      can_create_refunds: false,
+      fx_payout_currency: null,
+      mandate_imports_enabled: false,
+      custom_payment_pages_enabled: true,
+      merchant_responsible_for_notifications: true,
+      bank_reference_prefix: 'ACME',
+      links: { default_gbp_payout_account: 'BA000ABCDEFGH' },
+    }
+  }
+
   // ===========================================================================
   // 16. PARAM SCHEMA LOADERS (sub-forms for Object params)
   // ===========================================================================
@@ -3328,6 +4003,115 @@ class GoCardlessService {
       { type: 'String', label: 'Branch Code', name: 'branch_code', required: false, description: 'Sort code (UK), routing number (US), BSB (AU). Pair with Account Number.' },
       { type: 'String', label: 'Country', name: 'country_code', required: false, description: 'ISO 3166-1 alpha-2 country code of the bank account.' },
       { type: 'String', label: 'Scheme', name: 'scheme', required: false, description: 'Direct Debit scheme (for example bacs, sepa_core, ach).' },
+    ]
+  }
+
+  /**
+   * @registerAs PARAM_SCHEMA_DEFINITION
+   * @route POST /mandate-import-entry-customer-schema
+   * @returns {Object}
+   */
+  async mandateImportEntryCustomerSchema() {
+    return [
+      { type: 'String', label: 'First Name', name: 'given_name', required: false, description: 'First name. Required unless a company name is provided.' },
+      { type: 'String', label: 'Last Name', name: 'family_name', required: false, description: 'Surname. Required unless a company name is provided.' },
+      { type: 'String', label: 'Company Name', name: 'company_name', required: false, description: 'Business name. Required unless first + last name are provided. For Canadian customers this makes the mandate a Business PAD.' },
+      { type: 'String', label: 'Email', name: 'email', required: false, description: 'Email address. Needed in most cases so GoCardless can send notifications.' },
+      { type: 'String', label: 'Phone Number', name: 'phone_number', required: false, description: 'Phone number in international format, including country code.' },
+      { type: 'String', label: 'Address Line 1', name: 'address_line1', required: false, description: 'Street address, first line. Required for Bacs and SEPA imports.' },
+      { type: 'String', label: 'Address Line 2', name: 'address_line2', required: false, description: 'Street address, second line.' },
+      { type: 'String', label: 'Address Line 3', name: 'address_line3', required: false, description: 'Street address, third line.' },
+      { type: 'String', label: 'City', name: 'city', required: false, description: 'City or town.' },
+      { type: 'String', label: 'Region', name: 'region', required: false, description: 'Region, county, or department. US customers need a 2-letter state code (e.g. CA).' },
+      { type: 'String', label: 'Postal Code', name: 'postal_code', required: false, description: 'Postal or ZIP code. Required for Bacs and SEPA imports.' },
+      { type: 'String', label: 'Country', name: 'country_code', required: false, description: 'ISO 3166-1 alpha-2 country code (for example GB, DE, US).' },
+      { type: 'String', label: 'Language', name: 'language', required: false, description: 'ISO 639-1 language for GoCardless notification emails (en, fr, de, pt, es, it, nl, da, nb, sl, sv).' },
+      { type: 'String', label: 'Swedish Identity Number', name: 'swedish_identity_number', required: false, description: 'Sweden only - personnummer, samordningsnummer, or organisationsnummer. Required for SEK accounts.' },
+      { type: 'String', label: 'Danish Identity Number', name: 'danish_identity_number', required: false, description: 'Denmark only - CPR or CVR number. Required for DKK accounts.' },
+    ]
+  }
+
+  /**
+   * @registerAs PARAM_SCHEMA_DEFINITION
+   * @route POST /mandate-import-entry-bank-account-schema
+   * @returns {Object}
+   */
+  async mandateImportEntryBankAccountSchema() {
+    return [
+      { type: 'String', label: 'Account Holder Name', name: 'account_holder_name', required: false, description: 'Name on the bank account (required). Transliterated, upcased, and truncated to 18 characters by GoCardless.' },
+      { type: 'String', label: 'IBAN', name: 'iban', required: false, description: 'International bank account number - use for most European accounts. Not accepted for Swedish SEK accounts. Leave blank if using local details.' },
+      { type: 'String', label: 'Account Number', name: 'account_number', required: false, description: 'Local account number. Pair with the sort/branch/bank code fields. Leave blank if using IBAN.' },
+      { type: 'String', label: 'Sort Code / Routing Number', name: 'branch_code', required: false, description: 'The local routing code - sort code (UK), BSB (Australia), routing number (US).' },
+      { type: 'String', label: 'Bank Code', name: 'bank_code', required: false, description: 'Bank code used by Canada and New Zealand schemes.' },
+      { type: 'String', label: 'Account Type (US Only)', name: 'account_type', required: false, description: 'US dollar (ACH) accounts only - checking or savings. Leave blank for every other currency.' },
+      { type: 'String', label: 'Country', name: 'country_code', required: false, description: 'ISO 3166-1 alpha-2 country of the account. Inferred from the IBAN when supplied - otherwise required.' },
+    ]
+  }
+
+  /**
+   * @registerAs PARAM_SCHEMA_DEFINITION
+   * @route POST /mandate-import-entry-amendment-schema
+   * @returns {Object}
+   */
+  async mandateImportEntryAmendmentSchema() {
+    return [
+      { type: 'String', label: 'Original Mandate Reference', name: 'original_mandate_reference', required: false, description: 'The unique SEPA reference of the mandate being moved. Required for SEPA imports.' },
+      { type: 'String', label: 'Original Creditor ID', name: 'original_creditor_id', required: false, description: 'The creditor identifier of the original Direct Debit originator. Required for SEPA imports.' },
+      { type: 'String', label: 'Original Creditor Name', name: 'original_creditor_name', required: false, description: 'Name of the previous Direct Debit provider the mandate is moving from.' },
+    ]
+  }
+
+  /**
+   * @registerAs PARAM_SCHEMA_DEFINITION
+   * @route POST /billing-request-customer-schema
+   * @returns {Object}
+   */
+  async billingRequestCustomerSchema() {
+    return [
+      { type: 'String', label: 'First Name', name: 'given_name', required: false, description: 'First name. Required unless a company name is provided.' },
+      { type: 'String', label: 'Last Name', name: 'family_name', required: false, description: 'Surname. Required unless a company name is provided.' },
+      { type: 'String', label: 'Company Name', name: 'company_name', required: false, description: 'Business name. Required unless first + last name are provided. For Canadian payers this makes the mandate a Business PAD.' },
+      { type: 'String', label: 'Email', name: 'email', required: false, description: 'Email address. Required in most cases so GoCardless can send notifications.' },
+      { type: 'String', label: 'Phone Number', name: 'phone_number', required: false, description: 'Phone number in international format, including country code.' },
+      { type: 'String', label: 'Language', name: 'language', required: false, description: 'ISO 639-1 language for GoCardless notification emails (en, fr, de, pt, es, it, nl, da, nb, sl, sv).' },
+    ]
+  }
+
+  /**
+   * @registerAs PARAM_SCHEMA_DEFINITION
+   * @route POST /billing-request-billing-detail-schema
+   * @returns {Object}
+   */
+  async billingRequestBillingDetailSchema() {
+    return [
+      { type: 'String', label: 'Address Line 1', name: 'address_line1', required: false, description: 'First line of the billing address.' },
+      { type: 'String', label: 'Address Line 2', name: 'address_line2', required: false, description: 'Second line of the billing address.' },
+      { type: 'String', label: 'Address Line 3', name: 'address_line3', required: false, description: 'Third line of the billing address.' },
+      { type: 'String', label: 'City', name: 'city', required: false, description: 'City or town.' },
+      { type: 'String', label: 'Region', name: 'region', required: false, description: 'Region, county, or department. US payers need a 2-letter state code (e.g. CA).' },
+      { type: 'String', label: 'Postal Code', name: 'postal_code', required: false, description: 'Postal or ZIP code.' },
+      { type: 'String', label: 'Country', name: 'country_code', required: false, description: 'ISO 3166-1 alpha-2 country code (for example GB, DE, US).' },
+      { type: 'String', label: 'IP Address (ACH Only)', name: 'ip_address', required: false, description: "US ACH only - the payer's IP address captured when they completed the mandate setup in their browser. Not needed for telephone or paper mandates." },
+      { type: 'String', label: 'Swedish Identity Number', name: 'swedish_identity_number', required: false, description: 'Sweden only - personnummer, samordningsnummer, or organisationsnummer. Required for SEK accounts. Cannot be changed once set.' },
+      { type: 'String', label: 'Danish Identity Number', name: 'danish_identity_number', required: false, description: 'Denmark only - CPR or CVR number. Required for DKK accounts.' },
+    ]
+  }
+
+  /**
+   * @registerAs PARAM_SCHEMA_DEFINITION
+   * @route POST /creditor-payout-accounts-schema
+   * @returns {Object}
+   */
+  async creditorPayoutAccountsSchema() {
+    return [
+      { type: 'String', label: 'GBP Payout Account', name: 'default_gbp_payout_account', required: false, description: 'Bank account ID (starts with BA) that receives payouts in British pounds.' },
+      { type: 'String', label: 'EUR Payout Account', name: 'default_eur_payout_account', required: false, description: 'Bank account ID that receives payouts in euros.' },
+      { type: 'String', label: 'USD Payout Account', name: 'default_usd_payout_account', required: false, description: 'Bank account ID that receives payouts in US dollars.' },
+      { type: 'String', label: 'AUD Payout Account', name: 'default_aud_payout_account', required: false, description: 'Bank account ID that receives payouts in Australian dollars.' },
+      { type: 'String', label: 'NZD Payout Account', name: 'default_nzd_payout_account', required: false, description: 'Bank account ID that receives payouts in New Zealand dollars.' },
+      { type: 'String', label: 'CAD Payout Account', name: 'default_cad_payout_account', required: false, description: 'Bank account ID that receives payouts in Canadian dollars.' },
+      { type: 'String', label: 'SEK Payout Account', name: 'default_sek_payout_account', required: false, description: 'Bank account ID that receives payouts in Swedish kronor.' },
+      { type: 'String', label: 'DKK Payout Account', name: 'default_dkk_payout_account', required: false, description: 'Bank account ID that receives payouts in Danish kroner.' },
     ]
   }
 

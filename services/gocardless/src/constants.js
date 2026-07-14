@@ -250,8 +250,14 @@ const SCHEME_LABELS = {
   'BECS (New Zealand)': 'becs_nz',
   'Autogiro (Sweden)': 'autogiro',
   'PAD (Canada)': 'pad',
+  'PayTo (Australia)': 'pay_to',
   'Betalingsservice (Denmark)': 'betalingsservice',
   'Faster Payments (UK)': 'faster_payments',
+}
+
+const MANDATE_IMPORT_ENTRY_STATUS_LABELS = {
+  'Successfully Processed': 'successfully_processed',
+  'Unsuccessfully Processed': 'unsuccessfully_processed',
 }
 
 const ACCOUNT_TYPE_LABELS = {
@@ -454,6 +460,7 @@ module.exports = {
   CURRENCY_LABELS,
   SCHEME_LABELS,
   ACCOUNT_TYPE_LABELS,
+  MANDATE_IMPORT_ENTRY_STATUS_LABELS,
   MANDATE_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
   SUBSCRIPTION_STATUS_LABELS,

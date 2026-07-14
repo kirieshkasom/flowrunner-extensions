@@ -1,6 +1,6 @@
 # GoCardless FlowRunner Extension
 
-Collect and manage bank-to-bank payments through GoCardless: set up Direct Debit mandates, take one-off, recurring, and instalment payments, issue refunds, and reconcile payouts. Includes hosted authorisation flows and polling triggers that react to account events.
+Collect and manage bank-to-bank payments through GoCardless: set up Direct Debit mandates, take one-off, recurring, and instalment payments, issue refunds, and reconcile payouts. Includes hosted and own-page authorisation flows, mandate migration, and polling triggers that react to account events.
 
 ## Ideal Use Cases
 
@@ -8,41 +8,52 @@ Collect and manage bank-to-bank payments through GoCardless: set up Direct Debit
 - Taking one-off, subscription, and instalment-plan payments
 - Automating recurring billing and retrying failed payments
 - Issuing refunds and reconciling payouts to your bank account
-- Collecting bank details through a hosted GoCardless page
+- Collecting bank details through a hosted or own-page flow
+- Migrating existing mandates from another provider in bulk
 - Reacting to payment, mandate, and payout events for automation
 
 ## List of Actions
 
+- Add Mandate Import Entry
 - Cancel Billing Request
 - Cancel Instalment Schedule
 - Cancel Mandate
+- Cancel Mandate Import
 - Cancel Payment
 - Cancel Subscription
+- Collect Bank Account (Own Pages)
+- Collect Customer Details (Own Pages)
+- Confirm Payer Details
 - Create Billing Request
 - Create Customer
 - Create Hosted Flow URL
 - Create Instalment Schedule
 - Create Mandate
+- Create Mandate Import
 - Create Payment
 - Create Refund
 - Create Subscription
 - Disable Customer Bank Account
 - Finalise Billing Request
 - Get Billing Request
+- Get Creditor
 - Get Customer
 - Get Customer Bank Account
 - Get Event
 - Get Instalment Schedule
 - Get Mandate
+- Get Mandate Import
 - Get Mandate PDF
 - Get Payment
 - Get Payout
 - Get Refund
 - Get Subscription
+- List Creditors
 - List Customer Bank Accounts
 - List Customers
 - List Events
 - List Instalment Schedules
+- List Mandate Import Entries
 - List Mandates
 - List Payments
 - List Payout Items
@@ -57,7 +68,9 @@ Collect and manage bank-to-bank payments through GoCardless: set up Direct Debit
 - Retry Payment
 - Run Test Scenario (Sandbox Only)
 - Save Customer Bank Account
+- Submit Mandate Import
 - Test Connection
+- Update Creditor
 - Update Customer
 - Update Mandate Notes
 - Update Payment
