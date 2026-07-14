@@ -1,6 +1,6 @@
 # Acuity Scheduling FlowRunner Extension
 
-Book, reschedule, and cancel appointments, look up open availability, and manage clients, appointment types, calendars, and intake forms through the Acuity Scheduling API (now part of Squarespace). Authenticates with HTTP Basic using your account's `userId:apiKey`.
+Book, reschedule, and cancel appointments, list appointments with date/type/client filtering and sort direction, look up open availability, and manage clients, appointment types, calendars, and intake forms through the Acuity Scheduling API (now part of Squarespace). Authenticates with HTTP Basic using your account's `userId:apiKey`.
 
 ## Ideal Use Cases
 

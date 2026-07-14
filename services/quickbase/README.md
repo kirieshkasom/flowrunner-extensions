@@ -34,7 +34,7 @@ Because of this you must know the fids of the fields you want to read or write:
 - **Data** in *Insert/Update Records* is an array of fid-keyed objects, e.g. `[{"6":{"value":"Task A"}}]`.
 - **Where** clauses reference fids, e.g. `{6.CT.'urgent'}`.
 
-To discover fids, use the **Get Fields Dictionary** (`getFieldsDictionary`) — it lists every field with its **label** and maps it to its **fid** (the item value). *List Fields* returns the same information as raw metadata. On *Query Records* you can also enable **Map Field Labels** to get a `fieldLabels` map (fid → label) back alongside the fid-keyed data for readability.
+To discover fids, use the **Get Fields Dictionary** — it lists every field with its **label** and maps it to its **fid** (the item value). *List Fields* returns the same information as raw metadata. On *Query Records* you can also enable **Map Field Labels** to get a `fieldLabels` map (fid → label) back alongside the fid-keyed data for readability.
 
 ## The Quick Base query language
 
@@ -85,14 +85,16 @@ Examples:
 
 ## Dictionaries
 
-- **Get Tables Dictionary** — tables for an app (depends on App ID).
-- **Get App Tables Dictionary** — same, exposed for app-scoped selection.
-- **Get Fields Dictionary** — fields for a table, label → fid (depends on Table ID). Use this to resolve every fid you need.
+Most operations take **Table ID** as a plain text field (with an inline hint pointing you to *List Tables* or the table URL) rather than a picker. Dictionaries are wired in only where a natural parent value exists to scope the choices:
+
+- **Get App Tables Dictionary** — backs the **Table ID** picker on *Get Table*, *Update Table*, and *Delete Table*, scoped by the **App ID** entered alongside it.
+- **Get Tables Dictionary** — lists the tables in an app (depends on App ID); an app-scoped alias of the above.
+- **Get Fields Dictionary** — lists a table's fields as label → fid (depends on Table ID). It is not attached to a record parameter, but you can call it directly to resolve every fid you need for Select, Where, and Data.
 
 ## Finding IDs
 
 - **App ID (dbid):** in the app URL, the segment after `/db/` (e.g. `https://yourcompany.quickbase.com/db/bqr5abcd1`).
-- **Table ID (dbid):** in a table's URL, or via *List Tables* / the tables dictionary.
+- **Table ID (dbid):** in a table's URL, or via *List Tables*.
 - **Field ID (fid):** via *List Fields* or the **Get Fields Dictionary**.
 
 ## Agent Ideas

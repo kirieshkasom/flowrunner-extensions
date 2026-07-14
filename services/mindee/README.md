@@ -61,8 +61,10 @@ The Mindee V2 API is **asynchronous only**. Every parse follows the same flow:
 **Extract Document** and **Get Inference Result** return:
 
 ```json
-{ "fields": { /* flattened values (simple, nested objects, and lists) */ }, "raw": { "inference": { /* full V2 inference */ } } }
+{ "status": "Processed", "inferenceId": "c0ffee00-...", "fields": { /* flattened values (simple, nested objects, and lists) */ }, "raw": { "inference": { /* full V2 inference */ } } }
 ```
+
+(**Get Inference Result** returns the same shape without the top-level `status`.)
 
 Each V2 result field is one of a simple value (`{ value }`), a list (`{ items: [...] }`), or a nested object (`{ fields: {...} }`). The service flattens these into plain values, nested objects, and arrays under `fields`, and returns the complete inference under `raw` so you can read confidence levels, polygons, and OCR text when enabled.
 

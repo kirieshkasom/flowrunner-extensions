@@ -50,8 +50,9 @@ This service does not define any triggers.
 
 ## Notes
 
-- Approval in Tapfiliate is per program: **Approve Affiliate** / **Disapprove Affiliate** operate on a `program_id` + `affiliate_id` pair.
-- **Create Conversion** requires at least one attribution identifier (click id, referral code, customer id or coupon).
+- Approval is per program: **Approve Affiliate** / **Disapprove Affiliate** operate on a `program_id` + `affiliate_id` pair via the `/approval/` sub-resource (PUT to approve, DELETE to disapprove).
+- **Approve Commission** / **Disapprove Commission** likewise act on the commission's `/approval/` sub-resource.
+- **Create Conversion** attributes the sale to a program via the `program_group` parameter and requires at least one tracking identifier (click id, referral code, customer id or coupon).
 - A **Get Programs Dictionary** picker backs program-id selection in other operations.
 
 ## Agent Ideas

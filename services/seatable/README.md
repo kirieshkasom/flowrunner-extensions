@@ -1,6 +1,6 @@
 # SeaTable FlowRunner Extension
 
-Connect FlowRunner to a [SeaTable](https://seatable.io) base to read, write, link, and query rows. SeaTable is a no-code, Airtable-style collaborative database with a REST API and a genuine SQL query engine over your base data. Works with both SeaTable Cloud and self-hosted servers. You configure a long-lived Base API Token, which the extension transparently exchanges for the short-lived base access token used against the dtable-server gateway (cached and re-exchanged automatically on expiry).
+Connect FlowRunner to a [SeaTable](https://seatable.io) base to read, write, link, and query rows. SeaTable is a no-code, Airtable-style collaborative database with a REST API and a genuine SQL query engine over your base data. Works with both SeaTable Cloud and self-hosted servers. You configure a long-lived Base API Token, which the extension transparently exchanges for the short-lived base access token used against the API gateway (cached and re-exchanged automatically on expiry).
 
 ## Ideal Use Cases
 
@@ -45,10 +45,12 @@ This service does not define any triggers.
 
 SeaTable uses a **two-tier token model**:
 
-1. **Base API Token (what you configure).** A long-lived token scoped to a single base. In SeaTable, open your base, click the **...** menu, choose **Advanced → API Tokens**, and create a Base API Token.
-2. **Base access token (handled automatically).** The extension exchanges your Base API Token for a short-lived base access token (valid ~3 days) via `GET {serverUrl}/api/v2.1/dtable/app-access-token/`. That exchange also returns the base's `dtable_uuid` and the `dtable_server` gateway URL used for all data operations. The context is cached and transparently re-exchanged if the token expires (401/403).
+1. **Base API Token (what you configure).** A long-lived token scoped to a single base. In SeaTable, open your base, click the **...** menu, choose **Advanced → API Tokens**, and create a Base API Token. It is sent as `Authorization: Token <token>` only during the exchange below.
+2. **Base access token (handled automatically).** The extension exchanges your Base API Token for a short-lived base access token (valid ~3 days) via `GET {serverUrl}/api/v2.1/dtable/app-access-token/`. That exchange also returns the base's `dtable_uuid` and the API gateway URL (`dtable_server`) used for all data operations. Every base/row/SQL/link call is then sent to `{gateway}api/v2/dtables/{dtable_uuid}/...` with `Authorization: Bearer <base access token>`. The context is cached and transparently re-exchanged if the token expires (401/403).
 
 You never manage the base access token yourself — only the Base API Token.
+
+> **SeaTable 5.3+ only.** All base operations route through the API gateway (`api-gateway/api/v2`). The legacy `dtable-server` / `dtable-db` v1 endpoints were removed in SeaTable 5.3 and are no longer used.
 
 ### Configuration
 
@@ -57,7 +59,7 @@ You never manage the base access token yourself — only the Base API Token.
 | **Server URL** | No | SeaTable server. Defaults to `https://cloud.seatable.io` for SeaTable Cloud. Self-hosters set their own server URL (trailing slashes are stripped). |
 | **API Token** | Yes | Your Base API Token (see above). Scoped to a single base. |
 
-**Cloud vs. self-hosted:** leave Server URL at the default for SeaTable Cloud. If you run your own SeaTable server, set Server URL to your instance (for example `https://seatable.example.com`).
+**Cloud vs. self-hosted:** leave Server URL at the default for SeaTable Cloud. If you run your own SeaTable server, set Server URL to your instance (for example `https://seatable.example.com`); if the token-exchange response omits a gateway URL, the extension falls back to `{serverUrl}/api-gateway/`.
 
 > A Base API Token is tied to a single base, so one connection maps to one base. Create a separate connection per base you want to automate.
 

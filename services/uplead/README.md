@@ -1,6 +1,6 @@
 # UpLead FlowRunner Extension
 
-Access UpLead's B2B contact and company database from FlowRunner. Enrich people and companies, search for contacts at a target company, and check your remaining API credits.
+Access UpLead's B2B contact and company database from FlowRunner. Enrich people and companies, search for contacts at a target company, and check your remaining API credits. Every successful response wraps its payload under `data`, alongside a `userInfo` object reporting `availableCredits`.
 
 ## Ideal Use Cases
 
@@ -29,31 +29,21 @@ This service does not define any triggers.
 
 ## Authentication
 
-UpLead uses an API key sent in the `Authorization` header (the raw key, with no `Bearer` prefix).
+UpLead uses an API key sent as the raw `Authorization` header (no `Bearer` prefix).
 
 | Config item | Required | Description |
 | ----------- | -------- | ----------- |
 | API Key     | Yes      | Your UpLead API key. Find it in UpLead under **Integrations / API**. |
 
-## Credit usage
+## Notes
 
-UpLead deducts credits per revealed record. Enrichment charges one credit per successful match with a `valid` or `accept_all` email status. Contact searches charge only when records are revealed. Use **Get Remaining Credits** to monitor your balance.
-
-## Verified against the UpLead API docs (docs.uplead.com)
-
-- Base URL: `https://api.uplead.com/v2`
-- Auth: `Authorization: <apiKey>` header (verified).
-- Endpoints (verified in the public API reference): `person-search`, `company-search`, `prospector-search`, `combined-search`, `credits`.
-- `management_level` codes (`M`, `D`, `VP`, `C`, `CX`) and the `job_function` enum are taken from the documented `prospector-search` parameter values; friendly labels are mapped to the API codes in the service.
-
-## Verify before production
-
-The UpLead public API surface is lightly documented. The endpoints, auth header, and parameter enums above were confirmed from the UpLead API reference, but exact response field names and error shapes should be validated against a live account with real credits before relying on this service in production. Sample results in the JSDoc are representative of the documented fields and may differ slightly from live payloads.
-
-Additional documented endpoints not built into this service (available if needed): `prospector-pro-search`, `company-name-to-domain`, `quick-search`, `industries`, and `lists`.
+- Successful responses return the payload under `data`, with credit status under `userInfo.availableCredits`.
+- UpLead deducts credits per revealed record: enrichment charges one credit per successful match with a valid or accept-all email, while Search Contacts charges only when contact records are revealed.
+- Search Contacts returns people under `data.results` with pagination details under `data.meta` (total, page, next_page, previous_page, first_page, last_page).
+- Management Level labels (Manager, Director, Vice President, C-Level (C), C-Level (CX)) map to UpLead codes M, D, VP, C, and CX.
 
 ## Agent Ideas
 
-- Use UpLead **Enrich Person and Company** on an inbound email, then call **HubSpot** "Create Contact" (and "Create Company") to auto-populate the CRM with a verified, enriched record.
-- Run UpLead **Search Contacts** against a target company domain, then use **HubSpot** "Create Contact" or **Pipedrive** "Get Persons"/CRM create actions to build a fresh prospect list.
-- After UpLead **Enrich Company** returns firmographics for a new domain, use **Slack** "Send Message To Channel" to notify the sales team of the account's size, revenue, and industry.
+- Use UpLead **Enrich Person and Company** on an inbound email, then call **HubSpot** "Create Contact" and "Create Company" to auto-populate the CRM with a verified, enriched record.
+- Run UpLead **Search Contacts** against a target company domain, then use **Google Sheets** "Add Rows" to build a fresh prospect list of names, titles, and verified emails.
+- After UpLead **Enrich Company** returns firmographics for a new domain, use **Pipedrive** "Create Deal" to open an opportunity pre-filled with the account's size, revenue, and industry.

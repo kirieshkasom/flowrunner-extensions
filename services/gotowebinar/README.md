@@ -5,8 +5,9 @@ analytics from FlowRunner. Schedule and update webinars, register attendees and 
 personal join URLs, and pull attendance, poll, question, and survey data for reporting.
 
 Authentication is OAuth 2.0 against the GoTo (LogMeIn) identity service. At connect time the service
-looks up the organizer's key (and, where available, the account key) from GoTo's identity API and
-stores it with the connection, so you never have to supply them per action.
+looks up the organizer's key (and, where available, the account key) from GoTo's SCIM
+`identity/v1/Users/me` endpoint and stores them with the connection, so you never have to supply them
+per action.
 
 ## Ideal Use Cases
 
@@ -41,8 +42,8 @@ Provide the two config values from your OAuth app:
 
 Start the OAuth connection in FlowRunner and sign in with the GoTo account that owns (or organizes)
 the webinars. During the callback the service exchanges the code for an access token and then calls
-GoTo's SCIM `/me` identity API to look up the organizer key and account key, storing them with the
-connection. GoTo Webinar API paths are scoped to the organizer
+GoTo's SCIM `identity/v1/Users/me` endpoint to look up the organizer key and account key, storing
+them with the connection. GoTo Webinar API paths are scoped to the organizer
 (e.g. `/organizers/{organizerKey}/webinars/...`), so this key is required for every action — if it
 could not be resolved, reconnect the account.
 
@@ -51,10 +52,12 @@ could not be resolved, reconnect the account.
 GoTo's current OAuth token response returns only an access token, refresh token, and scope — it no
 longer includes the `organizer_key` or `account_key` (these were removed in GoTo's New Token
 Retrieval migration; the old `api.getgo.com/oauth/v2` token host was decommissioned on 2025-09-30).
-The service therefore fetches the organizer and account keys from GoTo's SCIM `/me` identity API
-right after the token exchange and embeds them into the stored access token (the platform's
-composite-token pattern) so they are available on every call. Token refresh re-embeds the captured
-keys automatically.
+The service therefore fetches the organizer and account keys from GoTo's SCIM
+`identity/v1/Users/me` endpoint right after the token exchange and embeds them into the stored access
+token (the platform's composite-token pattern, using a `::gtw::` delimiter) so they are available on
+every call. The organizer key is required and the connection fails if it cannot be resolved; the
+account key is best-effort (only some accounts expose it). Token refresh re-embeds the captured keys
+automatically.
 
 ## Typical flow
 

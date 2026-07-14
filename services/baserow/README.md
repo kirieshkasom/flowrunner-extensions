@@ -1,6 +1,6 @@
 # Baserow FlowRunner Extension
 
-FlowRunner integration for [Baserow](https://baserow.io), the open-source no-code database. Read and write rows and manage databases, tables, and fields using a Baserow **database token**. Works with both Baserow Cloud and self-hosted instances.
+FlowRunner integration for [Baserow](https://baserow.io), the open-source no-code database. Read and write rows and manage databases, tables, and fields. Baserow uses two different credentials: a **database token** authenticates row-data operations, while a **JWT access token** is required for structure/metadata operations (databases, tables, and fields). Works with both Baserow Cloud and self-hosted instances.
 
 ## Ideal Use Cases
 
@@ -47,18 +47,34 @@ This service does not define any triggers.
 | Item | Required | Description |
 | --- | --- | --- |
 | **Base URL** | No | Baserow API base URL. Defaults to `https://api.baserow.io` for Baserow Cloud. Self-hosted instances set their own URL (e.g. `https://baserow.example.com`); strip any trailing slash. |
-| **API Token** | Yes | A Baserow database token (see below). |
+| **Database Token** | Yes | A Baserow database token, sent as `Authorization: Token <token>`. Powers all **row** operations. |
+| **JWT Access Token** | No | A Baserow JWT access token, sent as `Authorization: JWT <token>`. Required for all **structure/metadata** operations (databases, tables, fields). Leave blank if you only need row operations. |
 
-### Getting a database token
+## Authentication
 
-Database tokens grant programmatic access to specific databases and are distinct from your account login.
+Baserow uses two distinct credentials depending on the operation. Each request picks the right header automatically; supply whichever token(s) your workflow needs.
+
+### Database Token — row operations
+
+Used by every row operation: **List Rows**, **Get Row**, **Create Row**, **Update Row**, **Delete Row**, **Move Row**, **Create Rows (Batch)**, **Update Rows (Batch)**, and **Delete Rows (Batch)**. These send `Authorization: Token <databaseToken>`.
+
+Database tokens grant programmatic access to specific databases and are distinct from your account login. A database token **cannot** list or create tables/fields/databases.
 
 1. In Baserow, click your account name (top left) → **Settings**.
 2. Open the **Database tokens** tab.
 3. Create a token and grant it the create/read/update/delete permissions you need on the database(s) you want to reach.
-4. Copy the token into the **API Token** config item.
+4. Copy the token into the **Database Token** config item.
 
-All requests authenticate with the `Authorization: Token <apiToken>` header against `{baseUrl}/api`.
+### JWT Access Token — structure/metadata operations
+
+Required by every structure/metadata operation: **List Databases**, **List Tables**, **Get Table**, **Create Table**, **List Fields**, and **Create Field** (and the Databases/Tables/Fields dictionaries that back parameter dropdowns). These send `Authorization: JWT <jwtToken>`. Calling one of these without a JWT configured returns a clear error explaining that a database token alone cannot perform the operation.
+
+1. Obtain a JWT by calling `POST {baseUrl}/api/user/token-auth/` with your account email and password.
+2. Copy the returned `access_token` into the **JWT Access Token** config item.
+
+> **Note:** JWT access tokens are short-lived and must be refreshed periodically. If structure operations begin returning auth errors, generate a fresh JWT and update the config item.
+
+All requests are made against `{baseUrl}/api`.
 
 ## `user_field_names`
 
