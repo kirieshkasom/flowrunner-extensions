@@ -1,6 +1,6 @@
 'use strict'
 
-const API_BASE_URL = 'https://stackby.com/api/betav1'
+const API_BASE_URL = 'https://stackby.com/api/v1'
 
 const logger = {
   info: (...args) => console.log('[Stackby] info:', ...args),
@@ -39,7 +39,7 @@ class Stackby {
   }
 
   /**
-   * @description Retrieves rows from a Stackby table. Returns each row as an object with an "id" and a "field" object holding column-name/value pairs. Supports optional view filtering and a maximum record cap. The Stack ID comes from your Stackby stack URL and the table is referenced by its display name as shown in the Stackby UI.
+   * @description Retrieves rows from a Stackby table. Returns each row as an object with an "id" and a "field" object holding column-name/value pairs. Supports optional view filtering, a maximum record cap, and an offset for paging through large tables. The Stack ID comes from your Stackby stack URL and the table is referenced by its display name as shown in the Stackby UI.
    *
    * @route GET /list-rows
    * @operationName List Rows
@@ -48,12 +48,13 @@ class Stackby {
    * @paramDef {"type":"String","label":"Stack ID","name":"stackId","required":true,"description":"The unique identifier of the Stack (base). Find it in your Stackby stack URL, e.g. stackby.com/... /<stackId>."}
    * @paramDef {"type":"String","label":"Table Name","name":"tableName","required":true,"description":"The display name of the table exactly as it appears in the Stackby UI (case-sensitive)."}
    * @paramDef {"type":"String","label":"View","name":"view","description":"Optional view name to return only rows visible in that view, applying its filters and sort."}
-   * @paramDef {"type":"Number","label":"Max Records","name":"maxRecord","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of rows to return (default 100)."}
+   * @paramDef {"type":"Number","label":"Max Records","name":"maxRecord","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of rows to return per request (Stackby returns up to 100 at a time)."}
+   * @paramDef {"type":"Number","label":"Offset","name":"offset","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of rows to skip before returning results, used to page through tables larger than the per-request limit."}
    *
    * @returns {Array} Array of row objects, each with an id and a field object of column values.
-   * @sampleResult [{"id":"row123","field":{"Name":"Acme Corp","Status":"Active","Amount":1200}}]
+   * @sampleResult [{"id":"rw17054017479362efee7","field":{"Name":"Acme Corp","Status":"Active","Amount":1200}}]
    */
-  async listRows(stackId, tableName, view, maxRecord) {
+  async listRows(stackId, tableName, view, maxRecord, offset) {
     const query = {}
 
     if (view) {
@@ -62,6 +63,10 @@ class Stackby {
 
     if (maxRecord !== undefined && maxRecord !== null && maxRecord !== '') {
       query.maxrecord = maxRecord
+    }
+
+    if (offset !== undefined && offset !== null && offset !== '') {
+      query.offset = offset
     }
 
     const result = await this.#apiRequest({
@@ -74,7 +79,7 @@ class Stackby {
   }
 
   /**
-   * @description Retrieves a single row from a Stackby table by its unique row ID. Stackby's public API does not expose a dedicated single-row endpoint, so this fetches the table's rows and returns the one whose id matches. For large tables, prefer List Rows with a view that narrows the result set.
+   * @description Retrieves a single row from a Stackby table by its unique row ID. Uses the row-list endpoint's rowIds filter to fetch just the requested row, returning it as an object with an id and a field object of column values, or null when no row matches.
    *
    * @route GET /get-row
    * @operationName Get Row
@@ -82,19 +87,24 @@ class Stackby {
    *
    * @paramDef {"type":"String","label":"Stack ID","name":"stackId","required":true,"description":"The unique identifier of the Stack (base). Find it in your Stackby stack URL."}
    * @paramDef {"type":"String","label":"Table Name","name":"tableName","required":true,"description":"The display name of the table exactly as it appears in the Stackby UI (case-sensitive)."}
-   * @paramDef {"type":"String","label":"Row ID","name":"rowId","required":true,"description":"The unique identifier of the row to retrieve."}
+   * @paramDef {"type":"String","label":"Row ID","name":"rowId","required":true,"description":"The unique identifier of the row to retrieve, e.g. rw17054017479362efee7."}
    *
    * @returns {Object} The matching row object with its id and field values, or null if no row matches.
-   * @sampleResult {"id":"row123","field":{"Name":"Acme Corp","Status":"Active","Amount":1200}}
+   * @sampleResult {"id":"rw17054017479362efee7","field":{"Name":"Acme Corp","Status":"Active","Amount":1200}}
    */
   async getRow(stackId, tableName, rowId) {
-    const rows = await this.listRows(stackId, tableName)
+    const result = await this.#apiRequest({
+      logTag: 'getRow',
+      url: `${ API_BASE_URL }/rowlist/${ stackId }/${ encodeURIComponent(tableName) }?rowIds[]=${ encodeURIComponent(rowId) }`,
+    })
 
-    return rows.find(row => row.id === rowId) || null
+    const rows = Array.isArray(result) ? result : (result?.data || result?.rows || result || [])
+
+    return rows.find(row => row.id === rowId) || rows[0] || null
   }
 
   /**
-   * @description Creates one or more rows in a Stackby table. Provide an array of field objects — each object maps column names (as shown in the Stackby UI) to their values. Returns the created rows including their newly assigned row IDs.
+   * @description Creates one or more rows in a Stackby table. Provide an array of field objects — each object maps column names (as shown in the Stackby UI) to their values. Up to 10 rows can be created per request. Returns the created rows including their newly assigned row IDs.
    *
    * @route POST /create-rows
    * @operationName Create Rows
@@ -105,7 +115,7 @@ class Stackby {
    * @paramDef {"type":"Array<Object>","label":"Rows","name":"rows","required":true,"description":"Array of field objects to create. Each object maps column names to values, e.g. [{\"Name\":\"Acme Corp\",\"Status\":\"Active\"}]."}
    *
    * @returns {Array} Array of the created row objects, each including its new id and field values.
-   * @sampleResult [{"id":"row789","field":{"Name":"Acme Corp","Status":"Active"}}]
+   * @sampleResult [{"id":"rw17054017479362efee7","field":{"Name":"Acme Corp","Status":"Active"}}]
    */
   async createRows(stackId, tableName, rows) {
     if (!Array.isArray(rows)) {
@@ -129,7 +139,7 @@ class Stackby {
   }
 
   /**
-   * @description Updates one or more existing rows in a Stackby table. Provide an array of objects, each containing the row "id" and a "field" object with the columns to change. Only the supplied columns are modified; omitted columns keep their current values. Returns the updated rows.
+   * @description Updates one or more existing rows in a Stackby table. Provide an array of objects, each containing the row "id" and a "field" object with the columns to change. Only the supplied columns are modified; omitted columns keep their current values. Up to 10 rows can be updated per request. Returns the updated rows.
    *
    * @route PATCH /update-rows
    * @operationName Update Rows
@@ -137,10 +147,10 @@ class Stackby {
    *
    * @paramDef {"type":"String","label":"Stack ID","name":"stackId","required":true,"description":"The unique identifier of the Stack (base). Find it in your Stackby stack URL."}
    * @paramDef {"type":"String","label":"Table Name","name":"tableName","required":true,"description":"The display name of the table exactly as it appears in the Stackby UI (case-sensitive)."}
-   * @paramDef {"type":"Array<Object>","label":"Rows","name":"rows","required":true,"description":"Array of rows to update. Each item must include an id and a field object of columns to change, e.g. [{\"id\":\"row123\",\"field\":{\"Status\":\"Closed\"}}]."}
+   * @paramDef {"type":"Array<Object>","label":"Rows","name":"rows","required":true,"description":"Array of rows to update. Each item must include an id and a field object of columns to change, e.g. [{\"id\":\"rw17054017479362efee7\",\"field\":{\"Status\":\"Closed\"}}]."}
    *
    * @returns {Array} Array of the updated row objects with their id and field values.
-   * @sampleResult [{"id":"row123","field":{"Status":"Closed"}}]
+   * @sampleResult [{"id":"rw17054017479362efee7","field":{"Status":"Closed"}}]
    */
   async updateRows(stackId, tableName, rows) {
     if (!Array.isArray(rows)) {
@@ -167,7 +177,7 @@ class Stackby {
   }
 
   /**
-   * @description Deletes one or more rows from a Stackby table by their unique row IDs. Accepts an array of row IDs and removes each matching row. Returns the API response confirming the deletion.
+   * @description Deletes one or more rows from a Stackby table by their unique row IDs. Accepts an array of row IDs and removes each matching row. Up to 10 rows can be deleted per request. Returns the API response confirming the deletion.
    *
    * @route DELETE /delete-rows
    * @operationName Delete Rows
@@ -175,10 +185,10 @@ class Stackby {
    *
    * @paramDef {"type":"String","label":"Stack ID","name":"stackId","required":true,"description":"The unique identifier of the Stack (base). Find it in your Stackby stack URL."}
    * @paramDef {"type":"String","label":"Table Name","name":"tableName","required":true,"description":"The display name of the table exactly as it appears in the Stackby UI (case-sensitive)."}
-   * @paramDef {"type":"Array<String>","label":"Row IDs","name":"rowIds","required":true,"description":"Array of row IDs to delete, e.g. [\"row123\",\"row456\"]."}
+   * @paramDef {"type":"Array<String>","label":"Row IDs","name":"rowIds","required":true,"description":"Array of row IDs to delete, e.g. [\"rw17054017479362efee7\",\"rw17054017479362efef8\"]."}
    *
    * @returns {Object} The Stackby API response confirming the deleted rows.
-   * @sampleResult {"records":[{"id":"row123","deleted":true}]}
+   * @sampleResult {"records":[{"id":"rw17054017479362efee7","deleted":true}]}
    */
   async deleteRows(stackId, tableName, rowIds) {
     if (!Array.isArray(rowIds)) {

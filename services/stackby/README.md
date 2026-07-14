@@ -25,14 +25,15 @@ This service does not define any triggers.
 
 ## Configuration
 
-- **API Key** (required) — your Stackby API key from **Account/Profile → API key** (or your workspace API key). Sent as the `api-key` request header. Base URL: `https://stackby.com/api/betav1`.
+- **API Key** (required) — your Stackby API key from **Account/Profile → API key** (or your workspace API key). Sent as the `api-key` request header. Base URL: `https://stackby.com/api/v1`.
 
 ## Notes
 
 - **Stack ID** — the Stack (Stackby's equivalent of a base) is identified by the ID in its URL in the Stackby app; supply it as the **Stack ID** parameter.
 - **Table Name** — tables are referenced by their **display name** exactly as shown in the Stackby UI (case-sensitive), not by an ID.
 - **Row shape** — rows are returned as `{ "id": "<rowId>", "field": { "<Column Name>": <value>, ... } }`. When creating rows you pass field objects (column-name → value); when updating you pass `{ "id": "<rowId>", "field": { ... } }`.
-- **Row-CRUD only** — Stackby's public API does not expose endpoints to list a Stack's tables or columns, so **Stack ID** and **Table Name** are free-form text (no dropdown dictionaries) and there is no list-tables / list-columns action. **Get Row** fetches the table's rows and matches by id, since Stackby has no dedicated single-row endpoint.
+- **Row-CRUD scope** — this service covers row operations only; **Stack ID** and **Table Name** are free-form text (no dropdown dictionaries) and there are no table/column/view management actions. **Get Row** uses the row-list endpoint's `rowIds[]` filter to fetch just the requested row.
+- **Pagination** — **List Rows** returns up to 100 rows per request; use **Max Records** and **Offset** to page through larger tables. Create, Update, and Delete each accept up to 10 rows per request.
 
 ## Agent Ideas
 
