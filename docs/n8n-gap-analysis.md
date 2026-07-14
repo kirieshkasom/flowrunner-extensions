@@ -208,7 +208,7 @@ Solid demand; round out category coverage.
 - [x] Okta (`services/okta`)
 - [x] Microsoft Entra ID (`services/entra-id`)
 - [ ] Bitwarden
-- [ ] LDAP
+- [x] LDAP (`services/ldap`)
 - [x] npm registry (`services/npm`)
 - [ ] Git (raw operations)
 - [x] Nextcloud (`services/nextcloud`)
