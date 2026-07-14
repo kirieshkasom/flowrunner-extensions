@@ -81,23 +81,6 @@ class QuickBase {
     return Object.prototype.hasOwnProperty.call(mapping, value) ? mapping[value] : value
   }
 
-  // Builds a { fid: label } map from a table's field metadata for convenience fid->label mapping on reads.
-  async #getFieldMap(tableId) {
-    const fields = await this.#apiRequest({
-      logTag: 'getFieldMap',
-      url: `${ API_BASE_URL }/fields`,
-      query: { tableId },
-    })
-
-    const map = {}
-
-    for (const field of fields || []) {
-      map[String(field.id)] = field.label
-    }
-
-    return map
-  }
-
   // ========================================== DICTIONARIES ===========================================
 
   /**
@@ -251,7 +234,7 @@ class QuickBase {
    * @operationName Query Records
    * @category Records
    *
-   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"dictionary":"getFieldsDictionary","description":"The table ID (dbid) to query. Use the app dictionary or Quick Base app URL to find it."}
+   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"description":"The table ID (dbid) to query. Find it in the Quick Base table URL after /db/, or use the List Tables / Get Tables Dictionary operations."}
    * @paramDef {"type":"Array<String>","label":"Select (Field IDs)","name":"select","description":"Array of numeric field IDs (fids) to return, e.g. [\"3\",\"6\",\"7\"]. Omit to return the table's default report columns. Use Get Fields Dictionary to look up fids."}
    * @paramDef {"type":"String","label":"Where","name":"where","description":"Quick Base query, e.g. {6.CT.'urgent'}AND{7.GT.'100'}. Omit to return all records. Operators: EX, XEX, CT, XCT, SW, XSW, GT, GTE, LT, LTE, BF, OBF, AF, OAF, IR, XIR, HAS, XHAS, TV (uppercase)."}
    * @paramDef {"type":"Array<Object>","label":"Sort By","name":"sortBy","description":"Array of sort clauses, each {\"fieldId\":<fid>,\"order\":\"ASC\"|\"DESC\"}, e.g. [{\"fieldId\":6,\"order\":\"DESC\"}]."}
@@ -323,7 +306,7 @@ class QuickBase {
    * @operationName Insert/Update Records
    * @category Records
    *
-   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"dictionary":"getFieldsDictionary","description":"The table ID (dbid) to insert or update records in."}
+   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"description":"The table ID (dbid) to insert or update records in. Find it in the Quick Base table URL after /db/, or use the List Tables / Get Tables Dictionary operations."}
    * @paramDef {"type":"Array<Object>","label":"Data","name":"data","required":true,"description":"Array of fid-keyed records, e.g. [{\"6\":{\"value\":\"Task A\"},\"7\":{\"value\":100}}]. Use Get Fields Dictionary to look up fids."}
    * @paramDef {"type":"Number","label":"Merge Field ID","name":"mergeFieldId","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Field ID (fid) of a unique key field used to match existing records for upsert. Include this field's value in each record. Defaults to the built-in Record ID# field (fid 3) when omitted."}
    * @paramDef {"type":"Array<String>","label":"Fields To Return","name":"fieldsToReturn","description":"Array of numeric field IDs (fids) to return for each created or updated record, e.g. [\"3\",\"6\"]."}
@@ -360,7 +343,7 @@ class QuickBase {
    * @operationName Delete Records
    * @category Records
    *
-   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"dictionary":"getFieldsDictionary","description":"The table ID (dbid) to delete records from."}
+   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"description":"The table ID (dbid) to delete records from. Find it in the Quick Base table URL after /db/, or use the List Tables / Get Tables Dictionary operations."}
    * @paramDef {"type":"String","label":"Where","name":"where","required":true,"description":"Quick Base query selecting the records to delete, e.g. {3.EX.'42'}. Use {3.GT.'0'} to delete all records. Operators must be uppercase."}
    *
    * @returns {Object} Object with numberDeleted indicating how many records were removed.
@@ -554,7 +537,7 @@ class QuickBase {
    * @operationName Get Field
    * @category Fields
    *
-   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"dictionary":"getTablesDictionary","description":"The table ID (dbid) that owns the field."}
+   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"description":"The table ID (dbid) that owns the field. Find it in the Quick Base table URL after /db/, or use the List Tables / Get Tables Dictionary operations."}
    * @paramDef {"type":"Number","label":"Field ID","name":"fieldId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The numeric field ID (fid) to retrieve. Use Get Fields Dictionary or List Fields to look it up."}
    *
    * @returns {Object} Field metadata object.
@@ -575,7 +558,7 @@ class QuickBase {
    * @operationName Create Field
    * @category Fields
    *
-   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"dictionary":"getTablesDictionary","description":"The table ID (dbid) in which to create the field."}
+   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"description":"The table ID (dbid) in which to create the field. Find it in the Quick Base table URL after /db/, or use the List Tables / Get Tables Dictionary operations."}
    * @paramDef {"type":"String","label":"Label","name":"label","required":true,"description":"The label (display name) of the new field."}
    * @paramDef {"type":"String","label":"Field Type","name":"fieldType","required":true,"defaultValue":"Text","uiComponent":{"type":"DROPDOWN","options":{"values":["Text","Text - Multiple Choice","Rich Text","Numeric","Currency","Percent","Rating","Date","Date / Time","Time of Day","Duration","Checkbox","Phone Number","Email","URL","User","List - User","Address","File Attachment"]}},"description":"The type of field to create."}
    * @paramDef {"type":"Boolean","label":"Required","name":"required","uiComponent":{"type":"TOGGLE"},"description":"Whether a value is required for this field on every record."}
@@ -614,7 +597,7 @@ class QuickBase {
    * @operationName Delete Fields
    * @category Fields
    *
-   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"dictionary":"getTablesDictionary","description":"The table ID (dbid) whose fields should be deleted."}
+   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"description":"The table ID (dbid) whose fields should be deleted. Find it in the Quick Base table URL after /db/, or use the List Tables / Get Tables Dictionary operations."}
    * @paramDef {"type":"Array<String>","label":"Field IDs","name":"fieldIds","required":true,"description":"Array of numeric field IDs (fids) to delete, e.g. [\"10\",\"11\"]. Use Get Fields Dictionary to look them up."}
    *
    * @returns {Object} Object listing the deleted field IDs and any errors.
@@ -662,7 +645,7 @@ class QuickBase {
    * @operationName List Reports
    * @category Reports
    *
-   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"dictionary":"getTablesDictionary","description":"The table ID (dbid) whose reports should be listed."}
+   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"description":"The table ID (dbid) whose reports should be listed. Find it in the Quick Base table URL after /db/, or use the List Tables / Get Tables Dictionary operations."}
    *
    * @returns {Array<Object>} Array of report metadata objects.
    * @sampleResult [{"id":"1","name":"List All","type":"table","description":"Default list report"}]
@@ -682,7 +665,7 @@ class QuickBase {
    * @operationName Run Report
    * @category Reports
    *
-   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"dictionary":"getTablesDictionary","description":"The table ID (dbid) that owns the report."}
+   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"description":"The table ID (dbid) that owns the report. Find it in the Quick Base table URL after /db/, or use the List Tables / Get Tables Dictionary operations."}
    * @paramDef {"type":"String","label":"Report ID","name":"reportId","required":true,"description":"The ID of the report to run, as returned by List Reports."}
    * @paramDef {"type":"Number","label":"Skip","name":"skip","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of records to skip for pagination (default 0)."}
    * @paramDef {"type":"Number","label":"Top","name":"top","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of records to return in this page."}
@@ -718,7 +701,7 @@ class QuickBase {
    * @operationName Download File
    * @category Files
    *
-   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"dictionary":"getFieldsDictionary","description":"The table ID (dbid) containing the record and file field."}
+   * @paramDef {"type":"String","label":"Table ID","name":"tableId","required":true,"description":"The table ID (dbid) containing the record and file field. Find it in the Quick Base table URL after /db/, or use the List Tables / Get Tables Dictionary operations."}
    * @paramDef {"type":"Number","label":"Record ID","name":"recordId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The Record ID# (fid 3 value) of the record holding the file."}
    * @paramDef {"type":"Number","label":"Field ID","name":"fieldId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The numeric field ID (fid) of the File Attachment field. Use Get Fields Dictionary to find it."}
    * @paramDef {"type":"Number","label":"Version Number","name":"versionNumber","required":true,"defaultValue":0,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The file version to download. Use 0 for the most recent version."}
