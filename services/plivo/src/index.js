@@ -10,7 +10,7 @@ const logger = {
 
 /**
  * @integrationName Plivo
- * @integrationIcon /icon.svg
+ * @integrationIcon /logo.png
  */
 class Plivo {
   /**
