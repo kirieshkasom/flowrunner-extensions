@@ -183,7 +183,7 @@ Solid demand; round out category coverage.
 - [x] SyncroMSP (`services/syncromsp`)
 
 ### Databases / low-code data
-- [ ] Oracle Database
+- [x] Oracle Database (`services/oracle-database`)
 - [x] Databricks (`services/databricks`)
 - [x] Azure Cosmos DB (`services/azure-cosmos-db`)
 - [x] Azure Storage (Blob/Table) (`services/azure-blob-storage`, `services/azure-table-storage`)
