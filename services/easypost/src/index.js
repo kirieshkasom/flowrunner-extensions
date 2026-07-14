@@ -28,6 +28,7 @@ const ERROR_HINTS = {
 /**
  * @integrationName EasyPost
  * @integrationIcon /icon.png
+ * @integrationTriggersScope SINGLE_APP
  **/
 class EasyPost {
   constructor(config) {
@@ -138,6 +139,12 @@ class EasyPost {
    * @typedef {Object} getInsurancesDictionary__payload
    * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter insurance policies by tracking code or reference."}
    * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor (before_id) for retrieving the next page of results."}
+   */
+
+  /**
+   * @typedef {Object} getWebhooksDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter webhooks by URL."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Unused - the webhook list is not paginated."}
    */
 
   // ─── Dictionary Methods ──────────────────────────────────────────────────
@@ -509,6 +516,152 @@ class EasyPost {
     return { items, cursor: nextCursor }
   }
 
+  /**
+   * @operationName Get Contents Types Dictionary
+   * @description Provides the customs contents-type categories accepted by EasyPost customs declarations.
+   * @route POST /get-contents-types-dictionary
+   *
+   * @registerAs DICTIONARY
+   *
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Merchandise","value":"merchandise","note":"Commercial goods for sale"}]}
+   */
+  getContentsTypesDictionary() {
+    return {
+      items: [
+        { label: 'Documents', value: 'documents', note: 'Printed documents only' },
+        { label: 'Gift', value: 'gift', note: 'Non-commercial gift' },
+        { label: 'Merchandise', value: 'merchandise', note: 'Commercial goods for sale' },
+        { label: 'Returned Goods', value: 'returned_goods', note: 'Items being returned to sender' },
+        { label: 'Sample', value: 'sample', note: 'Product samples, not for sale' },
+        { label: 'Dangerous Goods', value: 'dangerous_goods', note: 'Hazardous materials' },
+        { label: 'Humanitarian Donation', value: 'humanitarian_donation', note: 'Donated relief goods' },
+        { label: 'Other', value: 'other', note: 'Describe in Contents Explanation' },
+      ],
+    }
+  }
+
+  /**
+   * @operationName Get Restriction Types Dictionary
+   * @description Provides the customs restriction-type categories accepted by EasyPost customs declarations.
+   * @route POST /get-restriction-types-dictionary
+   *
+   * @registerAs DICTIONARY
+   *
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"None","value":"none","note":"No restrictions"}]}
+   */
+  getRestrictionTypesDictionary() {
+    return {
+      items: [
+        { label: 'None', value: 'none', note: 'No restrictions' },
+        { label: 'Other', value: 'other', note: 'Describe in Restriction Comments' },
+        { label: 'Quarantine', value: 'quarantine', note: 'Subject to quarantine' },
+        { label: 'Sanitary / Phytosanitary Inspection', value: 'sanitary_phytosanitary_inspection', note: 'Subject to health inspection' },
+      ],
+    }
+  }
+
+  /**
+   * @operationName Get Non-Delivery Options Dictionary
+   * @description Provides the options for what a carrier should do with an undeliverable international shipment.
+   * @route POST /get-non-delivery-options-dictionary
+   *
+   * @registerAs DICTIONARY
+   *
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Return to Sender","value":"return","note":"Default"}]}
+   */
+  getNonDeliveryOptionsDictionary() {
+    return {
+      items: [
+        { label: 'Return to Sender', value: 'return', note: 'Default' },
+        { label: 'Abandon the Shipment', value: 'abandon', note: 'Carrier disposes of the package' },
+      ],
+    }
+  }
+
+  /**
+   * @operationName Get Webhooks Dictionary
+   * @description Retrieves configured EasyPost webhook endpoints for use in dynamic selection fields.
+   * @route POST /get-webhooks-dictionary
+   *
+   * @registerAs DICTIONARY
+   *
+   * @paramDef {"type":"getWebhooksDictionary__payload","label":"Payload","name":"payload","description":"Contains an optional search string to filter webhooks by URL."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"https://example.com/easypost","value":"hook_d393bda62d1511f09d140fc7cf06773a","note":"active"}],"cursor":null}
+   */
+  async getWebhooksDictionary(payload) {
+    const { search } = payload || {}
+
+    const response = await this.#apiRequest({
+      url: `${ BASE_URL }/webhooks`,
+      method: 'get',
+      logTag: 'getWebhooksDictionary',
+    })
+
+    const webhooks = response.webhooks || []
+
+    let items = webhooks.map(hook => ({
+      label: hook.url,
+      value: hook.id,
+      note: hook.disabled_at ? 'disabled' : 'active',
+    }))
+
+    if (search) {
+      const term = search.toLowerCase()
+      items = items.filter(item => item.label.toLowerCase().includes(term))
+    }
+
+    return { items, cursor: null }
+  }
+
+  // ─── Schema Loaders ──────────────────────────────────────────────────────
+
+  /**
+   * @operationName Customs Item Schema
+   * @description Sub-form fields for one customs line item.
+   * @route POST /customs-item-schema
+   *
+   * @registerAs PARAM_SCHEMA_DEFINITION
+   *
+   * @paramDef {"type":"Object","label":"Criteria","name":"criteria"}
+   * @returns {Object}
+   */
+  customsItemSchema() {
+    return [
+      { type: 'String', label: 'Description', name: 'description', required: true, description: 'What the item is (e.g. T-shirt).' },
+      { type: 'Number', label: 'Quantity', name: 'quantity', required: true, uiComponent: { type: 'NUMERIC_STEPPER' }, description: 'How many units of this item are in the package.' },
+      { type: 'Number', label: 'Weight (oz)', name: 'weight', required: true, uiComponent: { type: 'NUMERIC_STEPPER' }, description: 'Total weight of this line item in ounces.' },
+      { type: 'Number', label: 'Value (USD)', name: 'value', required: true, uiComponent: { type: 'NUMERIC_STEPPER' }, description: 'Total declared value of this line item in US dollars.' },
+      { type: 'String', label: 'HS Tariff Number', name: 'hs_tariff_number', required: true, description: 'Harmonized System tariff code for customs classification (e.g. 123456).' },
+      { type: 'String', label: 'Origin Country', name: 'origin_country', required: true, description: 'Two-letter ISO code of the country where the item was made (e.g. US).' },
+      { type: 'String', label: 'Currency', name: 'currency', required: false, description: 'Currency of the declared value. Defaults to USD.' },
+      { type: 'String', label: 'Manufacturer', name: 'manufacturer', required: false, description: "Name of the item's manufacturer." },
+      { type: 'String', label: 'Code', name: 'code', required: false, description: 'Your internal SKU or product code for this item.' },
+      { type: 'String', label: 'ECCN', name: 'eccn', required: false, description: 'Export Control Classification Number, if the item is export-controlled.' },
+      { type: 'String', label: 'Commodity Identifier', name: 'printed_commodity_identifier', required: false, description: 'Identifier printed on the customs form for this commodity.' },
+    ]
+  }
+
+  /**
+   * @operationName Webhook Custom Header Schema
+   * @description Sub-form fields for one custom HTTP header sent with webhook deliveries.
+   * @route POST /webhook-custom-header-schema
+   *
+   * @registerAs PARAM_SCHEMA_DEFINITION
+   *
+   * @paramDef {"type":"Object","label":"Criteria","name":"criteria"}
+   * @returns {Object}
+   */
+  webhookCustomHeaderSchema() {
+    return [
+      { type: 'String', label: 'Header Name', name: 'name', required: true, description: 'HTTP header name to send with each webhook delivery (e.g. X-Header-Name).' },
+      { type: 'String', label: 'Header Value', name: 'value', required: true, description: 'Value to send for this header.' },
+    ]
+  }
+
   // ─── Actions: Addresses ──────────────────────────────────────────────────
 
   /**
@@ -683,6 +836,136 @@ class EasyPost {
     })
   }
 
+  // ─── Actions: Customs ────────────────────────────────────────────────────
+
+  /**
+   * @operationName Create Customs Info
+   * @description Creates a customs declaration (with its line items) required for international shipments. Attach the returned ID when creating a shipment that crosses a border.
+   * @route POST /create-customs-info
+   * @category Customs
+   *
+   * @paramDef {"type":"String","label":"Contents Type","name":"contentsType","required":true,"dictionary":"getContentsTypesDictionary","description":"The category of the package contents for customs (e.g. merchandise, gift, documents)."}
+   * @paramDef {"type":"String","label":"Customs Signer","name":"customsSigner","required":true,"description":"Full name of the person certifying that the customs information is accurate."}
+   * @paramDef {"type":"Boolean","label":"Certify Accuracy","name":"customsCertify","required":true,"uiComponent":{"type":"TOGGLE"},"description":"Confirms the customs information provided is accurate. Must be enabled for the signer name to be used on the customs form."}
+   * @paramDef {"type":"String","label":"EEL / PFC Code","name":"eelPfc","required":true,"description":"Export code for US customs. Use \"NOEEI 30.37(a)\" for shipments valued under $2,500; higher-value shipments need the code from your AES filing."}
+   * @paramDef {"type":"String","label":"Restriction Type","name":"restrictionType","required":true,"dictionary":"getRestrictionTypesDictionary","description":"Whether the contents are subject to any import restrictions (quarantine, inspection)."}
+   * @paramDef {"type":"Array.<Object>","label":"Customs Items","name":"customsItems","required":true,"schemaLoader":"customsItemSchema","description":"The line items being declared - one entry per distinct product in the package, with description, quantity, weight, value, tariff code, and origin country."}
+   * @paramDef {"type":"String","label":"Contents Explanation","name":"contentsExplanation","description":"Human-readable explanation of the contents. Set this when Contents Type is \"other\"."}
+   * @paramDef {"type":"String","label":"If Undeliverable","name":"nonDeliveryOption","dictionary":"getNonDeliveryOptionsDictionary","description":"What the carrier should do if the shipment cannot be delivered. Defaults to returning it to the sender."}
+   * @paramDef {"type":"String","label":"Restriction Comments","name":"restrictionComments","description":"Details about the restriction. Set this when Restriction Type is \"other\"."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":"cstinfo_400bef43bd354af1a1bcb3f9e8922ee5","object":"CustomsInfo","created_at":"2025-05-09T20:39:15Z","contents_explanation":"","contents_type":"merchandise","customs_certify":true,"customs_signer":"Steve Brule","eel_pfc":"NOEEI 30.37(a)","non_delivery_option":"return","restriction_comments":null,"restriction_type":"none","mode":"test","declaration":null,"customs_items":[{"id":"cstitem_4e7df04b42fa4ad4a2212620e0d8b78f","object":"CustomsItem","description":"T-shirt","hs_tariff_number":"123456","origin_country":"US","quantity":1,"value":"10.0","weight":5.0}]}
+   */
+  async createCustomsInfo(contentsType, customsSigner, customsCertify, eelPfc, restrictionType, customsItems, contentsExplanation, nonDeliveryOption, restrictionComments) {
+    if (!Array.isArray(customsItems) || !customsItems.length) {
+      throw new Error('At least one customs item is required.')
+    }
+
+    const customsInfoData = cleanupObject({
+      customs_signer: customsSigner,
+      contents_type: contentsType,
+      contents_explanation: contentsExplanation,
+      restriction_type: restrictionType,
+      restriction_comments: restrictionComments,
+      eel_pfc: eelPfc,
+      non_delivery_option: nonDeliveryOption,
+      customs_items: customsItems,
+    })
+
+    // customs_certify is a required boolean - set it after cleanup so "false" always survives.
+    customsInfoData.customs_certify = customsCertify
+
+    return await this.#apiRequest({
+      url: `${ BASE_URL }/customs_infos`,
+      method: 'post',
+      body: { customs_info: customsInfoData },
+      logTag: 'createCustomsInfo',
+    })
+  }
+
+  /**
+   * @operationName Get Customs Info
+   * @description Retrieves an existing customs declaration by its ID, including its line items.
+   * @route POST /get-customs-info
+   * @category Customs
+   *
+   * @paramDef {"type":"String","label":"Customs Info ID","name":"customsInfoId","required":true,"freeform":true,"description":"The ID of the customs declaration to retrieve (e.g. cstinfo_abc123). EasyPost has no list-customs-infos endpoint, so paste the ID returned by Create Customs Info."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":"cstinfo_400bef43bd354af1a1bcb3f9e8922ee5","object":"CustomsInfo","contents_type":"merchandise","customs_certify":true,"customs_signer":"Steve Brule","eel_pfc":"NOEEI 30.37(a)","non_delivery_option":"return","restriction_type":"none","mode":"test","customs_items":[{"id":"cstitem_4e7df04b42fa4ad4a2212620e0d8b78f","description":"T-shirt","quantity":1,"value":"10.0","weight":5.0}]}
+   */
+  async getCustomsInfo(customsInfoId) {
+    return await this.#apiRequest({
+      url: `${ BASE_URL }/customs_infos/${ customsInfoId }`,
+      method: 'get',
+      logTag: 'getCustomsInfo',
+    })
+  }
+
+  /**
+   * @operationName Create Customs Item
+   * @description Creates a standalone customs line item describing one product for international shipping. Items are immutable once created. To include items in a customs declaration, add them directly in Create Customs Info instead - this standalone object is retrievable by ID only.
+   * @route POST /create-customs-item
+   * @category Customs
+   *
+   * @paramDef {"type":"String","label":"Description","name":"description","required":true,"description":"What the item is (e.g. T-shirt)."}
+   * @paramDef {"type":"Number","label":"Quantity","name":"quantity","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"How many units of this item are in the package."}
+   * @paramDef {"type":"Number","label":"Weight (oz)","name":"weight","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Total weight of this line item in ounces."}
+   * @paramDef {"type":"Number","label":"Value (USD)","name":"value","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Total declared value of this line item in US dollars."}
+   * @paramDef {"type":"String","label":"HS Tariff Number","name":"hsTariffNumber","required":true,"description":"Harmonized System tariff code for customs classification (e.g. 123456)."}
+   * @paramDef {"type":"String","label":"Origin Country","name":"originCountry","required":true,"description":"Two-letter ISO code of the country where the item was made (e.g. US)."}
+   * @paramDef {"type":"String","label":"Currency","name":"currency","description":"Currency of the declared value. Defaults to USD."}
+   * @paramDef {"type":"String","label":"Manufacturer","name":"manufacturer","description":"Name of the item's manufacturer."}
+   * @paramDef {"type":"String","label":"Code","name":"code","description":"Your internal SKU or product code for this item."}
+   * @paramDef {"type":"String","label":"ECCN","name":"eccn","description":"Export Control Classification Number, if the item is export-controlled."}
+   * @paramDef {"type":"String","label":"Commodity Identifier","name":"printedCommodityIdentifier","description":"Identifier printed on the customs form for this commodity."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":"cstitem_4e7df04b42fa4ad4a2212620e0d8b78f","object":"CustomsItem","created_at":"2025-05-09T20:39:16Z","description":"T-shirt","hs_tariff_number":"123456","origin_country":"US","quantity":1,"value":"10.0","weight":5.0,"code":"123","mode":"test"}
+   */
+  async createCustomsItem(description, quantity, weight, value, hsTariffNumber, originCountry, currency, manufacturer, code, eccn, printedCommodityIdentifier) {
+    const customsItemData = cleanupObject({
+      description,
+      quantity,
+      weight,
+      value,
+      hs_tariff_number: hsTariffNumber,
+      origin_country: originCountry,
+      currency,
+      manufacturer,
+      code,
+      eccn,
+      printed_commodity_identifier: printedCommodityIdentifier,
+    })
+
+    return await this.#apiRequest({
+      url: `${ BASE_URL }/customs_items`,
+      method: 'post',
+      body: { customs_item: customsItemData },
+      logTag: 'createCustomsItem',
+    })
+  }
+
+  /**
+   * @operationName Get Customs Item
+   * @description Retrieves an existing customs line item by its ID.
+   * @route POST /get-customs-item
+   * @category Customs
+   *
+   * @paramDef {"type":"String","label":"Customs Item ID","name":"customsItemId","required":true,"freeform":true,"description":"The ID of the customs item to retrieve (e.g. cstitem_abc123). EasyPost has no list-customs-items endpoint, so paste the ID returned by Create Customs Item."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":"cstitem_4e7df04b42fa4ad4a2212620e0d8b78f","object":"CustomsItem","description":"T-shirt","hs_tariff_number":"123456","origin_country":"US","quantity":1,"value":"10.0","weight":5.0,"mode":"test"}
+   */
+  async getCustomsItem(customsItemId) {
+    return await this.#apiRequest({
+      url: `${ BASE_URL }/customs_items/${ customsItemId }`,
+      method: 'get',
+      logTag: 'getCustomsItem',
+    })
+  }
+
   // ─── Actions: Shipments ──────────────────────────────────────────────────
 
   /**
@@ -710,11 +993,12 @@ class EasyPost {
    * @paramDef {"type":"String","label":"Predefined Package","name":"predefinedPackage","description":"Predefined carrier package type (e.g. FlatRateEnvelope). Overrides dimensions."}
    * @paramDef {"type":"String","label":"Label Format","name":"labelFormat","dictionary":"getLabelFormatsDictionary","description":"Preferred label file format for the label produced when this shipment is bought. Defaults to the carrier's format (usually PNG)."}
    * @paramDef {"type":"String","label":"Restrict to Carrier Account","name":"carrierAccountId","dictionary":"getCarrierAccountsDictionary","description":"Optional carrier account to limit which carriers are rated. Leave empty to rate against all connected carriers."}
+   * @paramDef {"type":"String","label":"Customs Info ID","name":"customsInfoId","freeform":true,"description":"For international shipments: the customs declaration to attach (e.g. cstinfo_abc123). Paste the ID returned by Create Customs Info."}
    *
    * @returns {Object}
-   * @sampleResult {"id":"shp_abc123","object":"Shipment","status":"unknown","to_address":{"id":"adr_to123","name":"Jane Doe","street1":"456 Oak Ave","city":"Los Angeles","state":"CA","zip":"90001","country":"US"},"from_address":{"id":"adr_from123","name":"John Smith","street1":"123 Main St","city":"New York","state":"NY","zip":"10001","country":"US"},"parcel":{"id":"prcl_abc123","weight":16.0},"options":{"label_format":"PDF"},"rates":[{"id":"rate_abc123","carrier":"USPS","service":"Priority","rate":"7.58","delivery_days":2}]}
+   * @sampleResult {"id":"shp_abc123","object":"Shipment","status":"unknown","to_address":{"id":"adr_to123","name":"Jane Doe","street1":"456 Oak Ave","city":"Los Angeles","state":"CA","zip":"90001","country":"US"},"from_address":{"id":"adr_from123","name":"John Smith","street1":"123 Main St","city":"New York","state":"NY","zip":"10001","country":"US"},"parcel":{"id":"prcl_abc123","weight":16.0},"options":{"label_format":"PDF"},"customs_info":{"id":"cstinfo_400bef43bd354af1a1bcb3f9e8922ee5"},"rates":[{"id":"rate_abc123","carrier":"USPS","service":"Priority","rate":"7.58","delivery_days":2}]}
    */
-  async createShipment(fromName, fromStreet1, fromCity, fromState, fromZip, fromCountry, toName, toStreet1, toCity, toState, toZip, toCountry, weight, length, width, height, predefinedPackage, labelFormat, carrierAccountId) {
+  async createShipment(fromName, fromStreet1, fromCity, fromState, fromZip, fromCountry, toName, toStreet1, toCity, toState, toZip, toCountry, weight, length, width, height, predefinedPackage, labelFormat, carrierAccountId, customsInfoId) {
     const shipmentData = {
       from_address: cleanupObject({
         name: fromName,
@@ -746,7 +1030,11 @@ class EasyPost {
     }
 
     if (carrierAccountId) {
-      shipmentData.carrier_accounts = [{ id: carrierAccountId }]
+      shipmentData.carrier_accounts = [carrierAccountId]
+    }
+
+    if (customsInfoId) {
+      shipmentData.customs_info = { id: customsInfoId }
     }
 
     return await this.#apiRequest({
@@ -768,11 +1056,12 @@ class EasyPost {
    * @paramDef {"type":"String","label":"Parcel ID","name":"parcelId","required":true,"description":"The ID of a previously created parcel to use (e.g. prcl_abc123). EasyPost has no list-parcels endpoint, so paste the ID returned by Create Parcel."}
    * @paramDef {"type":"String","label":"Label Format","name":"labelFormat","dictionary":"getLabelFormatsDictionary","description":"Preferred label file format for the label produced when this shipment is bought. Defaults to the carrier's format (usually PNG)."}
    * @paramDef {"type":"String","label":"Restrict to Carrier Account","name":"carrierAccountId","dictionary":"getCarrierAccountsDictionary","description":"Optional carrier account to limit which carriers are rated. Leave empty to rate against all connected carriers."}
+   * @paramDef {"type":"String","label":"Customs Info ID","name":"customsInfoId","freeform":true,"description":"For international shipments: the customs declaration to attach (e.g. cstinfo_abc123). Paste the ID returned by Create Customs Info."}
    *
    * @returns {Object}
-   * @sampleResult {"id":"shp_abc123","object":"Shipment","status":"unknown","to_address":{"id":"adr_to123","name":"Jane Doe"},"from_address":{"id":"adr_from123","name":"John Smith"},"parcel":{"id":"prcl_abc123","weight":16.0},"rates":[{"id":"rate_abc123","carrier":"USPS","service":"Priority","rate":"7.58","delivery_days":2}]}
+   * @sampleResult {"id":"shp_abc123","object":"Shipment","status":"unknown","to_address":{"id":"adr_to123","name":"Jane Doe"},"from_address":{"id":"adr_from123","name":"John Smith"},"parcel":{"id":"prcl_abc123","weight":16.0},"customs_info":{"id":"cstinfo_400bef43bd354af1a1bcb3f9e8922ee5"},"rates":[{"id":"rate_abc123","carrier":"USPS","service":"Priority","rate":"7.58","delivery_days":2}]}
    */
-  async createShipmentFromSaved(fromAddressId, toAddressId, parcelId, labelFormat, carrierAccountId) {
+  async createShipmentFromSaved(fromAddressId, toAddressId, parcelId, labelFormat, carrierAccountId, customsInfoId) {
     const shipmentData = {
       from_address: { id: fromAddressId },
       to_address: { id: toAddressId },
@@ -784,7 +1073,11 @@ class EasyPost {
     }
 
     if (carrierAccountId) {
-      shipmentData.carrier_accounts = [{ id: carrierAccountId }]
+      shipmentData.carrier_accounts = [carrierAccountId]
+    }
+
+    if (customsInfoId) {
+      shipmentData.customs_info = { id: customsInfoId }
     }
 
     return await this.#apiRequest({
@@ -792,6 +1085,75 @@ class EasyPost {
       method: 'post',
       body: { shipment: shipmentData },
       logTag: 'createShipmentFromSaved',
+    })
+  }
+
+  /**
+   * @operationName Create and Buy Shipment
+   * @description Creates a shipment and purchases the label in a single step by naming the carrier service directly (e.g. NextDayAir, Priority) - no separate rate-selection step. Returns the shipment with tracking code and label already attached. Use the two-step Create Shipment + Buy Shipment when you want to compare rates first.
+   * @route POST /create-and-buy-shipment
+   * @category Shipments
+   *
+   * @paramDef {"type":"String","label":"From Name","name":"fromName","required":true,"description":"Full name of the sender."}
+   * @paramDef {"type":"String","label":"From Street","name":"fromStreet1","required":true,"description":"Sender's primary street address."}
+   * @paramDef {"type":"String","label":"From City","name":"fromCity","required":true,"description":"Sender's city."}
+   * @paramDef {"type":"String","label":"From State","name":"fromState","required":true,"description":"Sender's state or province code."}
+   * @paramDef {"type":"String","label":"From ZIP","name":"fromZip","required":true,"description":"Sender's postal or ZIP code."}
+   * @paramDef {"type":"String","label":"From Country","name":"fromCountry","description":"Sender's two-letter ISO country code. Defaults to US."}
+   * @paramDef {"type":"String","label":"To Name","name":"toName","required":true,"description":"Full name of the recipient."}
+   * @paramDef {"type":"String","label":"To Street","name":"toStreet1","required":true,"description":"Recipient's primary street address."}
+   * @paramDef {"type":"String","label":"To City","name":"toCity","required":true,"description":"Recipient's city."}
+   * @paramDef {"type":"String","label":"To State","name":"toState","required":true,"description":"Recipient's state or province code."}
+   * @paramDef {"type":"String","label":"To ZIP","name":"toZip","required":true,"description":"Recipient's postal or ZIP code."}
+   * @paramDef {"type":"String","label":"To Country","name":"toCountry","description":"Recipient's two-letter ISO country code. Defaults to US."}
+   * @paramDef {"type":"Number","label":"Weight (oz)","name":"weight","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Parcel weight in ounces."}
+   * @paramDef {"type":"Number","label":"Length (in)","name":"length","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Parcel length in inches."}
+   * @paramDef {"type":"Number","label":"Width (in)","name":"width","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Parcel width in inches."}
+   * @paramDef {"type":"Number","label":"Height (in)","name":"height","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Parcel height in inches."}
+   * @paramDef {"type":"String","label":"Carrier Service","name":"service","required":true,"description":"The exact carrier service to buy (e.g. Priority for USPS, NextDayAir for UPS). Must be a service the selected carrier account offers - carrier-specific, so entered as text."}
+   * @paramDef {"type":"String","label":"Carrier Account","name":"carrierAccountId","required":true,"dictionary":"getCarrierAccountsDictionary","description":"The carrier account to purchase from. Required so EasyPost knows which carrier's service to buy."}
+   * @paramDef {"type":"String","label":"Customs Info ID","name":"customsInfoId","freeform":true,"description":"For international shipments: the customs declaration to attach (e.g. cstinfo_abc123). Paste the ID returned by Create Customs Info; EasyPost has no list endpoint for these."}
+   * @paramDef {"type":"String","label":"Label Format","name":"labelFormat","dictionary":"getLabelFormatsDictionary","description":"Preferred label file format for the purchased label. Defaults to the carrier's format (usually PNG)."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":"shp_abc123","object":"Shipment","status":"unknown","tracking_code":"9405500208303109884175","postage_label":{"id":"pl_abc123","label_url":"https://easypost-files.s3.amazonaws.com/files/postage_label/label.png","label_file_type":"image/png","label_date":"2025-05-09T20:39:15Z"},"selected_rate":{"id":"rate_abc123","carrier":"UPS","service":"NextDayAir","rate":"31.25"},"customs_info":{"id":"cstinfo_400bef43bd354af1a1bcb3f9e8922ee5"},"tracker":{"id":"trk_abc123","status":"pre_transit"}}
+   */
+  async createAndBuyShipment(fromName, fromStreet1, fromCity, fromState, fromZip, fromCountry, toName, toStreet1, toCity, toState, toZip, toCountry, weight, length, width, height, service, carrierAccountId, customsInfoId, labelFormat) {
+    const shipmentData = {
+      from_address: cleanupObject({
+        name: fromName,
+        street1: fromStreet1,
+        city: fromCity,
+        state: fromState,
+        zip: fromZip,
+        country: fromCountry || 'US',
+      }),
+      to_address: cleanupObject({
+        name: toName,
+        street1: toStreet1,
+        city: toCity,
+        state: toState,
+        zip: toZip,
+        country: toCountry || 'US',
+      }),
+      parcel: cleanupObject({ weight, length, width, height }),
+      service,
+      carrier_accounts: [carrierAccountId],
+    }
+
+    if (customsInfoId) {
+      shipmentData.customs_info = { id: customsInfoId }
+    }
+
+    if (labelFormat) {
+      shipmentData.options = { label_format: labelFormat }
+    }
+
+    return await this.#apiRequest({
+      url: `${ BASE_URL }/shipments`,
+      method: 'post',
+      body: { shipment: shipmentData },
+      logTag: 'createAndBuyShipment',
     })
   }
 
@@ -890,6 +1252,26 @@ class EasyPost {
       method: 'get',
       query: { file_format: labelFormat },
       logTag: 'convertLabelFormat',
+    })
+  }
+
+  /**
+   * @operationName Refund Shipment
+   * @description Requests a postage refund for a purchased shipment by its ID. USPS labels are refundable within 30 days if unscanned; UPS and FedEx within 90 days. The refund starts as "submitted" and the carrier confirms it asynchronously. Distinct from Create Refund, which refunds by carrier and tracking codes instead of a shipment ID.
+   * @route POST /refund-shipment
+   * @category Shipments
+   *
+   * @paramDef {"type":"String","label":"Shipment","name":"shipmentId","required":true,"dictionary":"getShipmentsDictionary","description":"The purchased shipment to refund."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":"shp_abc123","object":"Shipment","status":"delivered","tracking_code":"9400111899223456789012","refund_status":"submitted","selected_rate":{"id":"rate_abc123","carrier":"USPS","service":"Priority","rate":"7.58"}}
+   */
+  async refundShipment(shipmentId) {
+    return await this.#apiRequest({
+      url: `${ BASE_URL }/shipments/${ shipmentId }/refund`,
+      method: 'post',
+      body: {},
+      logTag: 'refundShipment',
     })
   }
 
@@ -1375,6 +1757,122 @@ class EasyPost {
         },
       },
       logTag: 'createRefund',
+    })
+  }
+
+  // ─── Actions: Webhooks ───────────────────────────────────────────────────
+
+  /**
+   * @operationName List Webhooks
+   * @description Retrieves all webhook endpoints configured on the EasyPost account, including whether each is active or disabled.
+   * @route POST /list-webhooks
+   * @category Webhooks
+   *
+   * @returns {Object}
+   * @sampleResult {"webhooks":[{"id":"hook_d393bda62d1511f09d140fc7cf06773a","object":"Webhook","mode":"test","url":"http://example.com","created_at":"2025-05-09T20:40:22Z","disabled_at":null,"custom_headers":[{"name":"X-Header-Name","value":"header_value"}]}]}
+   */
+  async listWebhooks() {
+    return await this.#apiRequest({
+      url: `${ BASE_URL }/webhooks`,
+      method: 'get',
+      logTag: 'listWebhooks',
+    })
+  }
+
+  /**
+   * @operationName Create Webhook
+   * @description Registers a URL to receive EasyPost event notifications (tracking updates, batch state changes, etc.). This manages the account's webhook endpoints; it does not create a FlowRunner trigger.
+   * @route POST /create-webhook
+   * @category Webhooks
+   *
+   * @paramDef {"type":"String","label":"Webhook URL","name":"url","required":true,"description":"The publicly reachable URL EasyPost should send event notifications to."}
+   * @paramDef {"type":"String","label":"Webhook Secret","name":"webhookSecret","description":"Optional secret EasyPost uses to sign deliveries so your endpoint can verify they are authentic. Never logged."}
+   * @paramDef {"type":"Array.<Object>","label":"Custom Headers","name":"customHeaders","schemaLoader":"webhookCustomHeaderSchema","description":"Optional HTTP headers (name and value) EasyPost includes with every delivery to this URL."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":"hook_d31edbc62d1511f0a15761d2f710980c","object":"Webhook","mode":"test","url":"https://example.com/easypost","created_at":"2025-05-09T20:40:21Z","disabled_at":null,"custom_headers":[{"name":"X-Header-Name","value":"header_value"}]}
+   */
+  async createWebhook(url, webhookSecret, customHeaders) {
+    const webhookData = cleanupObject({
+      url,
+      webhook_secret: webhookSecret,
+      custom_headers: customHeaders,
+    })
+
+    return await this.#apiRequest({
+      url: `${ BASE_URL }/webhooks`,
+      method: 'post',
+      body: { webhook: webhookData },
+      logTag: 'createWebhook',
+    })
+  }
+
+  /**
+   * @operationName Get Webhook
+   * @description Retrieves the details of a specific webhook endpoint, including whether it has been disabled.
+   * @route POST /get-webhook
+   * @category Webhooks
+   *
+   * @paramDef {"type":"String","label":"Webhook","name":"webhookId","required":true,"dictionary":"getWebhooksDictionary","description":"The webhook endpoint to retrieve."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":"hook_d393bda62d1511f09d140fc7cf06773a","object":"Webhook","mode":"test","url":"http://example.com","created_at":"2025-05-09T20:40:22Z","disabled_at":null,"custom_headers":[]}
+   */
+  async getWebhook(webhookId) {
+    return await this.#apiRequest({
+      url: `${ BASE_URL }/webhooks/${ webhookId }`,
+      method: 'get',
+      logTag: 'getWebhook',
+    })
+  }
+
+  /**
+   * @operationName Update Webhook
+   * @description Updates a webhook endpoint's signing secret or custom delivery headers. The URL itself cannot be changed - delete and recreate the webhook to point elsewhere. Updating a disabled webhook re-enables it.
+   * @route POST /update-webhook
+   * @category Webhooks
+   *
+   * @paramDef {"type":"String","label":"Webhook","name":"webhookId","required":true,"dictionary":"getWebhooksDictionary","description":"The webhook endpoint to update."}
+   * @paramDef {"type":"String","label":"Webhook Secret","name":"webhookSecret","description":"New signing secret for delivery verification. Never logged."}
+   * @paramDef {"type":"Array.<Object>","label":"Custom Headers","name":"customHeaders","schemaLoader":"webhookCustomHeaderSchema","description":"Replacement set of HTTP headers (name and value) to include with every delivery."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":"hook_d393bda62d1511f09d140fc7cf06773a","object":"Webhook","mode":"test","url":"http://example.com","created_at":"2025-05-09T20:40:22Z","disabled_at":null,"custom_headers":[{"name":"X-Header-Name","value":"header_value"}]}
+   */
+  async updateWebhook(webhookId, webhookSecret, customHeaders) {
+    const body = cleanupObject({
+      webhook_secret: webhookSecret,
+      custom_headers: customHeaders,
+    })
+
+    if (!Object.keys(body).length) {
+      throw new Error('Provide a webhook secret or custom headers to update.')
+    }
+
+    return await this.#apiRequest({
+      url: `${ BASE_URL }/webhooks/${ webhookId }`,
+      method: 'patch',
+      body,
+      logTag: 'updateWebhook',
+    })
+  }
+
+  /**
+   * @operationName Delete Webhook
+   * @description Permanently removes a webhook endpoint. EasyPost stops sending event notifications to its URL immediately.
+   * @route POST /delete-webhook
+   * @category Webhooks
+   *
+   * @paramDef {"type":"String","label":"Webhook","name":"webhookId","required":true,"dictionary":"getWebhooksDictionary","description":"The webhook endpoint to delete."}
+   *
+   * @returns {Object}
+   * @sampleResult {}
+   */
+  async deleteWebhook(webhookId) {
+    return await this.#apiRequest({
+      url: `${ BASE_URL }/webhooks/${ webhookId }`,
+      method: 'delete',
+      logTag: 'deleteWebhook',
     })
   }
 
