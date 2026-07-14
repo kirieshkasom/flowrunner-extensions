@@ -185,8 +185,8 @@ Solid demand; round out category coverage.
 ### Databases / low-code data
 - [ ] Oracle Database
 - [x] Databricks (`services/databricks`)
-- [ ] Azure Cosmos DB
-- [ ] Azure Storage (Blob/Table)
+- [x] Azure Cosmos DB (`services/azure-cosmos-db`)
+- [x] Azure Storage (Blob/Table) (`services/azure-blob-storage`, `services/azure-table-storage`)
 - [x] TimescaleDB (`services/timescaledb`)
 - [ ] MQTT
 - [ ] AMQP
