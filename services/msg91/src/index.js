@@ -96,6 +96,7 @@ class MSG91Service {
 
     const body = clean({
       template_id: templateId,
+      flow_id: templateId,
       sender,
       short_url: shortUrl ? '1' : undefined,
       recipients: Array.isArray(recipients) ? recipients : [recipients],
@@ -103,7 +104,7 @@ class MSG91Service {
 
     return await this.#apiRequest({
       logTag,
-      url: `${ API_BASE_URL }/flow`,
+      url: `${ API_BASE_URL }/flow/`,
       method: 'post',
       body,
     })
@@ -282,26 +283,28 @@ class MSG91Service {
   /**
    * @operationName Get Balance
    * @category Account
-   * @description Retrieves the remaining balance on your MSG91 account for a given product type (for example SMS, WhatsApp, or Email). Balances are tracked per product, so specify which product's balance to return. Useful for monitoring credits and triggering low-balance alerts.
+   * @description Retrieves the remaining SMS credit balance on your MSG91 account for a given route. MSG91 tracks credits per route, so choose Transactional (route 4, used for OTP/DLT template traffic) or Promotional (route 1). Uses the MSG91 balance API, which requires your Auth Key and only works when IP security is disabled or the caller IP is whitelisted in the MSG91 panel. Returns the numeric balance for the selected route. Useful for monitoring credits and triggering low-balance alerts.
    * @route GET /get-balance
-   * @paramDef {"type":"String","label":"Product Type","name":"productType","uiComponent":{"type":"DROPDOWN","options":{"values":["SMS","WhatsApp","Email","Voice"]}},"description":"Product whose balance to retrieve. Defaults to SMS."}
+   * @paramDef {"type":"String","label":"Route","name":"route","uiComponent":{"type":"DROPDOWN","options":{"values":["Transactional","Promotional"]}},"description":"Which route's SMS credit balance to retrieve. Transactional (route 4) covers OTP and DLT template traffic; Promotional (route 1) covers promotional traffic. Defaults to Transactional."}
    * @returns {Object}
-   * @sampleResult {"type":"success","data":{"balance":1250.5}}
+   * @sampleResult {"type":"success","balance":"1250.50"}
    */
-  async getBalance(productType) {
+  async getBalance(route) {
     const logTag = '[getBalance]'
 
-    const type = this.#resolveChoice(productType, {
-      SMS: 'sms',
-      WhatsApp: 'wa',
-      Email: 'email',
-      Voice: 'voice',
-    }) || 'sms'
+    const type = this.#resolveChoice(route, {
+      Transactional: '4',
+      Promotional: '1',
+    }) || '4'
 
     return await this.#apiRequest({
       logTag,
-      url: `${ API_BASE_URL }/report/balances/${ type }`,
+      url: 'https://control.msg91.com/api/balance.php',
       method: 'get',
+      query: {
+        authkey: this.authKey,
+        type,
+      },
     })
   }
 }

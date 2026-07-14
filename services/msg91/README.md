@@ -92,7 +92,9 @@ A typical OTP flow: **Send OTP** → user receives and enters the code → **Ver
   domain, with a key/value map of template variables.
 
 ### Account
-- **Get Balance** — Returns remaining credits for a given product (SMS, WhatsApp, Email, Voice).
+- **Get Balance** — Returns remaining SMS credits for a given route (Transactional or
+  Promotional). This uses the MSG91 balance API, which only works when IP security is disabled or
+  the caller IP is whitelisted in the MSG91 panel.
 
 ## Notes
 
