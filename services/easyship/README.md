@@ -10,6 +10,8 @@ Global shipping and fulfillment integration that connects your workflows to 250+
 - Generating end-of-day manifests for courier handover
 - Reacting to delivery status changes as parcels move through transit
 - Maintaining a centralized product catalog with customs (HS code) data for international shipping
+- Looking up customs HS codes and item categories to classify products for cross-border shipments
+- Tracking asynchronous batch label jobs and inspecting their per-shipment results
 - Managing a library of saved sender, return, and billing addresses
 - Storing reusable custom packaging dimensions for consistent rate calculations
 
@@ -27,11 +29,17 @@ Global shipping and fulfillment integration that connects your workflows to 250+
 - Delete Product
 - Generate Labels
 - Get Account
+- Get Batch Status
 - Get Shipment
 - List Addresses
+- List Batch Items
+- List Batches
 - List Boxes
 - List Couriers
+- List HS Codes
+- List Item Categories
 - List Manifests
+- List Pickup Slots
 - List Pickups
 - List Products
 - List Shipment Documents

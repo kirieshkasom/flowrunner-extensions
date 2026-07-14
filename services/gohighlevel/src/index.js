@@ -23,6 +23,7 @@ const DEFAULT_SCOPES = [
   'calendars.readonly', 'calendars.write',
   'calendars/events.readonly', 'calendars/events.write',
   'workflows.readonly', 'users.readonly', 'locations.readonly',
+  'locations/customFields.readonly',
   'businesses.readonly', 'businesses.write',
   'workflows.write',
   'forms.readonly', 'forms.write',
@@ -30,6 +31,16 @@ const DEFAULT_SCOPES = [
   'products.readonly', 'products.write',
   'tags.readonly', 'tags.write',
 ].join(' ')
+
+// Polling-trigger tuning: overlap windows absorb provider indexing lag, seen-id lists dedupe
+// events across cycles, and the page cap bounds how much a single cycle walks (excess pages
+// resume on the next cycle via a carried cursor instead of being dropped).
+const OPP_POLL_OVERLAP_MS = 15 * 60 * 1000 // 15 min
+const OPP_LEARNING_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000 // 30 days, preview-only
+const FORM_POLL_LOOKBACK_DAYS = 1 // query-level day buffer (startAt/endAt are date-only)
+const FORM_LEARNING_LOOKBACK_DAYS = 7 // preview-only window
+const MAX_SEEN_IDS = 5000
+const MAX_PAGES_PER_CYCLE = 20 // 20 x limit(100) = 2000 records/cycle cap
 
 // Friendly dropdown labels -> API wire values. The @paramDef DROPDOWNs expose the labels; methods
 // resolve them back to the values GoHighLevel expects via #resolveChoice right before the API call.
@@ -49,6 +60,7 @@ const PRODUCT_TYPE_MAP = {
   Physical: 'PHYSICAL', Digital: 'DIGITAL', Service: 'SERVICE', 'Physical and Digital': 'PHYSICAL/DIGITAL',
 }
 const BILLING_TYPE_MAP = { 'One Time': 'one_time', Recurring: 'recurring' }
+const MODEL_MAP = { Contact: 'contact', Opportunity: 'opportunity', All: 'all' }
 
 const logger = {
   info: (...args) => console.log('[GoHighLevel Service] info:', ...args),
@@ -73,6 +85,11 @@ function cleanupObject(obj) {
   return Object.keys(cleaned).length > 0 ? cleaned : undefined
 }
 
+// YYYY-MM-DD, matching the forms/submissions endpoint's date-only query params.
+function toDateStr(ms) {
+  return new Date(ms).toISOString().slice(0, 10)
+}
+
 function searchFilter(items, fields, search) {
   if (!search || !items) {
     return items
@@ -93,6 +110,7 @@ function searchFilter(items, fields, search) {
  * @requireOAuth
  * @integrationName GoHighLevel
  * @integrationIcon /icon.png
+ * @integrationTriggersScope SINGLE_APP
  */
 class GoHighLevelService {
   constructor(config) {
@@ -1041,6 +1059,110 @@ class GoHighLevelService {
     }
   }
 
+  // ----- Custom Fields Dictionary -----
+
+  /**
+   * @typedef {Object} getCustomFieldsDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter custom fields by name, field key, or ID. Filtering is performed locally on retrieved results."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for retrieving the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Custom Fields
+   * @category Custom Fields
+   * @description Retrieves the contact custom fields defined in your GoHighLevel location for use in parameter selection dropdowns.
+   *
+   * @route POST /get-custom-fields-dictionary
+   *
+   * @paramDef {"type":"getCustomFieldsDictionary__payload","label":"Payload","name":"payload","description":"Contains optional search string and pagination cursor for retrieving and filtering custom fields."}
+   *
+   * @returns {DictionaryResponse}
+   * @sampleResult {"items":[{"label":"pincode (contact.pincode)","value":"3sv6UEo51C9Bmpo1cKTq","note":"ID: 3sv6UEo51C9Bmpo1cKTq"}],"cursor":null}
+   */
+  async getCustomFieldsDictionary(payload) {
+    const { search } = payload || {}
+    const locationId = this.#getLocationId()
+
+    if (!locationId) {
+      return { items: [], cursor: null }
+    }
+
+    try {
+      const response = await this.#apiRequest({
+        url: `${ API_BASE_URL }/locations/${ locationId }/customFields`,
+        query: cleanupObject({ model: 'contact' }),
+        logTag: 'getCustomFieldsDictionary',
+      })
+
+      let customFields = response.customFields || []
+
+      if (search) {
+        customFields = searchFilter(customFields, ['name', 'fieldKey', 'id'], search)
+      }
+
+      return {
+        items: customFields.map(field => ({
+          label: `${ field.name } (${ field.fieldKey })`,
+          value: field.id,
+          note: `ID: ${ field.id }`,
+        })),
+        cursor: null,
+      }
+    } catch (error) {
+      logger.error(`getCustomFieldsDictionary - Error: ${ error.message || error }`)
+
+      return { items: [], cursor: null }
+    }
+  }
+
+  // ========================================== CUSTOM FIELDS ==========================================
+
+  /**
+   * @typedef {Object} GHLCustomField
+   * @property {String} id
+   * @property {String} name
+   * @property {String} fieldKey
+   * @property {String} placeholder
+   * @property {String} dataType
+   * @property {Number} position
+   * @property {Array<String>} picklistOptions
+   * @property {Array<String>} picklistImageOptions
+   * @property {Boolean} isAllowedCustomOption
+   * @property {Boolean} isMultiFileAllowed
+   * @property {Number} maxFileLimit
+   * @property {String} locationId
+   * @property {String} model
+   */
+
+  /**
+   * @typedef {Object} ListCustomFieldsResult
+   * @property {Array<GHLCustomField>} customFields
+   */
+
+  /**
+   * @description Lists the custom fields defined in your GoHighLevel location. Custom fields let you store extra data on contacts or opportunities beyond the standard fields. Use this to find a field's ID and data type before setting its value with Upsert Contact.
+   *
+   * @route POST /list-custom-fields
+   * @operationName List Custom Fields
+   * @category Custom Fields
+   *
+   * @appearanceColor #FF6B35 #FF8C5A
+   *
+   * @paramDef {"type":"String","label":"Model","name":"model","uiComponent":{"type":"DROPDOWN","options":{"values":["Contact","Opportunity","All"]}},"description":"Filter to custom fields for Contacts, Opportunities, or both. Leave blank to retrieve all custom fields for the location."}
+   * @paramDef {"type":"String","label":"Location ID","name":"locationId","description":"The GoHighLevel location ID. Usually inferred from your connected account, but can be provided explicitly if needed."}
+   *
+   * @returns {ListCustomFieldsResult}
+   * @sampleResult {"customFields":[{"id":"3sv6UEo51C9Bmpo1cKTq","name":"pincode","fieldKey":"contact.pincode","placeholder":"Pin code","dataType":"TEXT","position":0,"picklistOptions":["first option"],"picklistImageOptions":[],"isAllowedCustomOption":false,"isMultiFileAllowed":false,"maxFileLimit":0,"locationId":"loc_123","model":"contact"}]}
+   */
+  async listCustomFields(model, locationId) {
+    return await this.#apiRequest({
+      url: `${ API_BASE_URL }/locations/${ this.#getLocationId(locationId) }/customFields`,
+      query: cleanupObject({ model: this.#resolveChoice(model, MODEL_MAP) }),
+      logTag: 'listCustomFields',
+    })
+  }
+
   // ========================================== CONTACTS ==========================================
 
   /**
@@ -1204,6 +1326,84 @@ class GoHighLevelService {
       method: 'put',
       body,
       logTag: 'updateContact',
+    })
+  }
+
+  /**
+   * @typedef {Object} ContactCustomField
+   * @property {String} id - The custom field's ID (from "List Custom Fields" / its dictionary). Required.
+   * @property {String} field_value - The value to set. For most field types (TEXT, LARGE_TEXT,
+   *   SINGLE_OPTIONS, RADIO) this is a plain string. Fields with a different dataType (CHECKBOX,
+   *   MULTIPLE_OPTIONS, FILE) accept an array or object instead of a string per the provider's docs -
+   *   check the field's dataType (from "List Custom Fields") before setting field_value for those types.
+   */
+
+  /**
+   * @description Creates a new contact or updates an existing one, matched by email or phone according to your location's Allow Duplicate Contact setting. Use this instead of Create Contact when you are not sure whether the contact already exists.
+   *
+   * @route POST /upsert-contact
+   * @operationName Upsert Contact
+   * @category Contacts
+   *
+   * @appearanceColor #FF6B35 #FF8C5A
+   *
+   * @paramDef {"type":"String","label":"Location ID","name":"locationId","description":"The GoHighLevel location ID. Usually inferred from your connected account, but can be provided explicitly if needed."}
+   * @paramDef {"type":"String","label":"First Name","name":"firstName","description":"The first name of the contact."}
+   * @paramDef {"type":"String","label":"Last Name","name":"lastName","description":"The last name of the contact."}
+   * @paramDef {"type":"String","label":"Full Name","name":"name","description":"The full name of the contact. If both this and First/Last Name are provided, GoHighLevel treats them independently - prefer setting First Name and Last Name unless you only have a single combined name string."}
+   * @paramDef {"type":"String","label":"Email","name":"email","description":"The email address used to identify an existing contact for update (per the location's Allow Duplicate Contact setting), or to create a new one."}
+   * @paramDef {"type":"String","label":"Phone","name":"phone","description":"The phone number used to identify an existing contact for update (per the location's Allow Duplicate Contact setting), or to create a new one. Use E.164 format (e.g., +15551234567)."}
+   * @paramDef {"type":"String","label":"Address","name":"address1","description":"The street address of the contact."}
+   * @paramDef {"type":"String","label":"City","name":"city","description":"The city of the contact's address."}
+   * @paramDef {"type":"String","label":"State","name":"state","description":"The state or province of the contact's address."}
+   * @paramDef {"type":"String","label":"Postal Code","name":"postalCode","description":"The postal or ZIP code of the contact's address."}
+   * @paramDef {"type":"String","label":"Country","name":"country","description":"The two-letter country code of the contact's address (e.g. US). See the provider's country list documentation for accepted values."}
+   * @paramDef {"type":"String","label":"Website","name":"website","description":"The website URL of the contact."}
+   * @paramDef {"type":"String","label":"Company Name","name":"companyName","description":"The name of the company the contact belongs to."}
+   * @paramDef {"type":"String","label":"Timezone","name":"timezone","description":"The IANA timezone of the contact (e.g. America/Chihuahua)."}
+   * @paramDef {"type":"String","label":"Gender","name":"gender","description":"The gender of the contact (e.g. male, female)."}
+   * @paramDef {"type":"String","label":"Date of Birth","name":"dateOfBirth","uiComponent":{"type":"DATE_PICKER"},"description":"The contact's date of birth. Accepted formats: YYYY/MM/DD, MM/DD/YYYY, YYYY-MM-DD, MM-DD-YYYY, YYYY.MM.DD, MM.DD.YYYY, YYYY_MM_DD, MM_DD_YYYY."}
+   * @paramDef {"type":"Boolean","label":"Do Not Disturb","name":"dnd","uiComponent":{"type":"TOGGLE"},"description":"When enabled, marks the contact as globally do-not-disturb across all channels."}
+   * @paramDef {"type":"String","label":"Tags","name":"tags","description":"Comma-separated list of tags to set on the contact (e.g., lead, vip, newsletter). This OVERWRITES all of the contact's current tags - to add or remove individual tags without overwriting, use the existing Add Tags To Contact / Remove Tags From Contact actions instead."}
+   * @paramDef {"type":"Array<ContactCustomField>","label":"Custom Fields","name":"customFields","description":"Custom field values to set on the contact. Use the \"List Custom Fields\" action (or its dictionary) to find valid custom field IDs for this location."}
+   * @paramDef {"type":"String","label":"Source","name":"source","description":"The source or origin of the contact (e.g., website, referral, advertisement, public api)."}
+   * @paramDef {"type":"String","label":"Assigned To","name":"assignedTo","dictionary":"getUsersDictionary","description":"The team member this contact is assigned to."}
+   * @paramDef {"type":"Boolean","label":"Always Create New (When Duplicates Allowed)","name":"createNewIfDuplicateAllowed","uiComponent":{"type":"TOGGLE"},"description":"When enabled AND the location's \"Allow Duplicate Contact\" setting permits duplicates, creates a new contact immediately without searching for an existing match. When the location does NOT allow duplicates, this is ignored and normal upsert matching applies. Defaults to false (normal upsert-or-create behavior)."}
+   *
+   * @returns {Object}
+   * @sampleResult {"new":true,"contact":{"id":"abc123def456","name":"Jane Smith","locationId":"loc_123","firstName":"Jane","lastName":"Smith","email":"jane@example.com","phone":"+15559876543","address1":"456 Oak Ave","city":"Austin","state":"TX","country":"US","postalCode":"78702","tags":["lead"],"customFields":[{"id":"3sv6UEo51C9Bmpo1cKTq","value":"Enterprise"}],"dateAdded":"2025-03-25T09:00:00.000Z","dateUpdated":"2025-03-25T09:00:00.000Z"},"traceId":"trace_abc123"}
+   */
+  async upsertContact(locationId, firstName, lastName, name, email, phone, address1, city, state, postalCode, country, website, companyName, timezone, gender, dateOfBirth, dnd, tags, customFields, source, assignedTo, createNewIfDuplicateAllowed) {
+    const body = cleanupObject({
+      locationId: this.#getLocationId(locationId),
+      firstName,
+      lastName,
+      name,
+      email,
+      phone,
+      address1,
+      city,
+      state,
+      postalCode,
+      country,
+      website,
+      companyName,
+      timezone,
+      gender,
+      dateOfBirth,
+      dnd,
+      tags: tags ? tags.split(',').map(t => t.trim()) : undefined,
+      customFields,
+      source,
+      assignedTo,
+      createNewIfDuplicateAllowed,
+    })
+
+    return await this.#apiRequest({
+      url: `${ API_BASE_URL }/contacts/upsert`,
+      method: 'post',
+      body,
+      logTag: 'upsertContact',
     })
   }
 
@@ -1598,6 +1798,33 @@ class GoHighLevelService {
   }
 
   /**
+   * @description Retrieves the free time slots for a calendar within a date range (maximum 31 days). Returns an availability map keyed by date, with each date listing the open slot start times. Use this before Create Appointment to offer a contact real open times.
+   *
+   * @route POST /get-calendar-free-slots
+   * @operationName Get Calendar Free Slots
+   * @category Calendar
+   *
+   * @appearanceColor #FF6B35 #FF8C5A
+   *
+   * @paramDef {"type":"String","label":"Calendar ID","name":"calendarId","required":true,"dictionary":"getCalendarsDictionary","description":"The calendar to check for free slots."}
+   * @paramDef {"type":"Number","label":"Start Date","name":"startDate","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The start of the date range to check, as a Unix timestamp in milliseconds. The range cannot span more than 31 days."}
+   * @paramDef {"type":"Number","label":"End Date","name":"endDate","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"The end of the date range to check, as a Unix timestamp in milliseconds. The range cannot span more than 31 days."}
+   * @paramDef {"type":"String","label":"Timezone","name":"timezone","description":"The IANA timezone the free slots should be returned in (e.g. America/Chihuahua). Defaults to the calendar's own timezone if omitted."}
+   * @paramDef {"type":"String","label":"User","name":"userId","dictionary":"getUsersDictionary","description":"Limit free slots to a single specific team member."}
+   * @paramDef {"type":"Array<String>","label":"Users","name":"userIds","description":"Limit free slots to multiple specific team members. Use this instead of \"User\" when more than one team member should be checked."}
+   *
+   * @returns {Object}
+   * @sampleResult {"2024-10-28":{"slots":["2024-10-28T10:00:00-05:00","2024-10-28T11:00:00-05:00"]},"2024-10-29":{"slots":["2024-10-29T10:00:00-05:00","2024-10-29T14:30:00-05:00"]}}
+   */
+  async getCalendarFreeSlots(calendarId, startDate, endDate, timezone, userId, userIds) {
+    return await this.#apiRequest({
+      url: `${ API_BASE_URL }/calendars/${ calendarId }/free-slots`,
+      query: cleanupObject({ startDate, endDate, timezone, userId, userIds }),
+      logTag: 'getCalendarFreeSlots',
+    })
+  }
+
+  /**
    * @typedef {Object} GHLAppointment
    * @property {String} id
    * @property {String} calendarId
@@ -1703,6 +1930,32 @@ class GoHighLevelService {
       method: 'put',
       body,
       logTag: 'updateAppointment',
+    })
+  }
+
+  /**
+   * @description Permanently deletes an appointment or blocked time slot from a GoHighLevel calendar. This action cannot be undone.
+   *
+   * @route POST /delete-appointment
+   * @operationName Delete Appointment
+   * @category Calendar
+   *
+   * @appearanceColor #FF6B35 #FF8C5A
+   *
+   * @paramDef {"type":"String","label":"Appointment / Event ID","name":"eventId","required":true,"description":"The unique identifier of the appointment or blocked time slot to delete. For a recurring appointment instance, send the specific instance ID (or the master event ID to affect the whole series)."}
+   *
+   * @returns {Object}
+   * @sampleResult {"succeeded":true}
+   */
+  async deleteAppointment(eventId) {
+    // The provider requires a request body on this DELETE, even though its schema has zero
+    // fields - an explicit {} (not cleanupObject, which would collapse it to undefined and skip
+    // sending a body).
+    return await this.#apiRequest({
+      url: `${ API_BASE_URL }/calendars/events/${ eventId }`,
+      method: 'delete',
+      body: {},
+      logTag: 'deleteAppointment',
     })
   }
 
@@ -2783,6 +3036,187 @@ class GoHighLevelService {
       query: cleanupObject({ locationId: this.#getLocationId(locationId) }),
       logTag: 'deleteProduct',
     })
+  }
+
+  // ========================================== POLLING TRIGGERS ==========================================
+
+  /**
+   * @registerAs SYSTEM
+   * @paramDef {"type":"Object","label":"invocation","name":"invocation"}
+   * @returns {Object}
+   */
+  async handleTriggerPollingForEvent(invocation) {
+    return this[invocation.eventName](invocation)
+  }
+
+  /**
+   * @description Polls GoHighLevel for newly created opportunities (checked on your configured polling interval, minimum 30 seconds - not instant). Optionally scoped to a single pipeline.
+   *
+   * @route POST /on-new-opportunity
+   * @operationName On New Opportunity
+   * @category Opportunities
+   * @registerAs POLLING_TRIGGER
+   *
+   * @appearanceColor #FF6B35 #FF8C5A
+   * @executionTimeoutInSeconds 120
+   *
+   * @paramDef {"type":"String","label":"Pipeline","name":"pipelineId","dictionary":"getPipelinesDictionary","description":"Only trigger for opportunities created in this pipeline. Leave blank to monitor every pipeline in the location."}
+   * @paramDef {"type":"String","label":"Location ID","name":"locationId","description":"The GoHighLevel location ID. Usually inferred from your connected account, but can be provided explicitly if needed."}
+   *
+   * @returns {Object} A newly created opportunity.
+   * @sampleResult {"id":"opp_abc123","name":"Website Redesign","monetaryValue":5000,"pipelineId":"pipe_abc123","pipelineStageId":"stage_abc123","assignedTo":"usr_abc123","status":"open","contactId":"abc123def456","locationId":"loc_123","createdAt":"2025-02-01T10:00:00.000Z","updatedAt":"2025-02-01T10:00:00.000Z"}
+   */
+  async onNewOpportunity(invocation) {
+    const { pipelineId, locationId } = invocation.triggerData
+    const state = invocation.state || {}
+    const baseQuery = cleanupObject({
+      location_id: this.#getLocationId(locationId),
+      pipeline_id: pipelineId,
+      order: 'added_asc',
+    })
+
+    // Preview only: not a resumable watermark seed - state stays null so the next real cycle
+    // still seeds itself below. "added_desc" is not documented anywhere in the primary spec, so
+    // this deliberately does not guess a descending sort - it takes the oldest match within the
+    // last 30 days as a representative sample instead.
+    if (invocation.learningMode) {
+      const sample = await this.#apiRequest({
+        url: `${ API_BASE_URL }/opportunities/search`,
+        query: { ...baseQuery, startAfter: Date.now() - OPP_LEARNING_LOOKBACK_MS, limit: 1 },
+        logTag: 'onNewOpportunity_learning',
+      })
+      const opp = (sample.opportunities || [])[0]
+
+      return { events: opp ? [opp] : [], state: null }
+    }
+
+    // First real cycle: seed the watermark and emit nothing - no backlog replay. No API call
+    // needed, since "added_desc" cannot be cited to fetch a true single newest record to seed from.
+    if (state.since == null) {
+      return { events: [], state: { since: Date.now(), seenIds: [], resumeCursor: null } }
+    }
+
+    const now = Date.now()
+    let cursorStartAfter = state.resumeCursor ? state.resumeCursor.startAfter : state.since - OPP_POLL_OVERLAP_MS
+    let cursorStartAfterId = state.resumeCursor ? state.resumeCursor.startAfterId : undefined
+    const collected = []
+    let resumeCursor = null
+
+    for (let page = 0; page < MAX_PAGES_PER_CYCLE; page++) {
+      const result = await this.#apiRequest({
+        url: `${ API_BASE_URL }/opportunities/search`,
+        query: { ...baseQuery, startAfter: cursorStartAfter, startAfterId: cursorStartAfterId, limit: 100 },
+        logTag: 'onNewOpportunity_poll',
+      })
+      const batch = result.opportunities || []
+
+      collected.push(...batch)
+
+      if (batch.length < 100) {
+        resumeCursor = null // fully drained
+        break
+      }
+
+      // Carry the cursor forward for the next iteration of this same loop.
+      cursorStartAfter = result.meta?.startAfter
+      cursorStartAfterId = result.meta?.startAfterId
+      // Hit the per-cycle page cap with more pages left - carry the cursor into state so next
+      // cycle resumes the drain instead of silently dropping the remainder.
+      resumeCursor = { startAfter: cursorStartAfter, startAfterId: cursorStartAfterId }
+    }
+
+    const seen = new Set(state.seenIds || [])
+    const events = collected.filter(o => !seen.has(o.id)).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
+    const seenIds = [...collected.map(o => o.id), ...(state.seenIds || [])].slice(0, MAX_SEEN_IDS)
+    // Do NOT advance the watermark past an undrained page cap - only advance once fully drained.
+    const since = resumeCursor ? state.since : now
+
+    return { events, state: { since, seenIds, resumeCursor } }
+  }
+
+  /**
+   * @description Polls GoHighLevel for newly submitted forms (checked on your configured polling interval, minimum 30 seconds - not instant). Optionally scoped to a single form.
+   *
+   * @route POST /on-new-form-submission
+   * @operationName On New Form Submission
+   * @category Forms
+   * @registerAs POLLING_TRIGGER
+   *
+   * @appearanceColor #FF6B35 #FF8C5A
+   * @executionTimeoutInSeconds 120
+   *
+   * @paramDef {"type":"String","label":"Form","name":"formId","dictionary":"getFormsDictionary","description":"Only trigger for submissions to this form. Leave blank to monitor every form in the location."}
+   * @paramDef {"type":"String","label":"Location ID","name":"locationId","description":"The GoHighLevel location ID. Usually inferred from your connected account, but can be provided explicitly if needed."}
+   *
+   * @returns {Object} A newly submitted form entry.
+   * @sampleResult {"id":"38303ec7-629a-49e2-888a-cf8bf0b1f97e","contactId":"DWQ45t2IPVxi9LDu1wBl","createdAt":"2021-06-23T06:07:04.000Z","formId":"YSWdvS4Is98wtIDGnpmI","name":"test","email":"test@test.com"}
+   */
+  async onNewFormSubmission(invocation) {
+    const { formId, locationId } = invocation.triggerData
+    const state = invocation.state || {}
+    const resolvedLocationId = this.#getLocationId(locationId)
+
+    // Preview only: does not touch state.
+    if (invocation.learningMode) {
+      const sample = await this.#apiRequest({
+        url: `${ API_BASE_URL }/forms/submissions`,
+        query: cleanupObject({
+          locationId: resolvedLocationId,
+          formId,
+          startAt: toDateStr(Date.now() - FORM_LEARNING_LOOKBACK_DAYS * 86400000),
+          endAt: toDateStr(Date.now()),
+          limit: 1,
+          page: 1,
+        }),
+        logTag: 'onNewFormSubmission_learning',
+      })
+      const submission = (sample.submissions || [])[0]
+
+      return { events: submission ? [submission] : [], state: null }
+    }
+
+    // First real cycle: seed the watermark and emit nothing - no backlog replay, no API call needed.
+    if (state.since == null) {
+      return { events: [], state: { since: new Date().toISOString(), seenIds: [], resumePage: null } }
+    }
+
+    const now = new Date().toISOString()
+    const sinceMs = Date.parse(state.since)
+    const startAt = toDateStr(sinceMs - FORM_POLL_LOOKBACK_DAYS * 86400000) // over-fetch by whole days
+    const endAt = toDateStr(Date.now())
+    const collected = []
+    let page = state.resumePage || 1
+    let resumePage = null
+
+    for (let i = 0; i < MAX_PAGES_PER_CYCLE; i++) {
+      const result = await this.#apiRequest({
+        url: `${ API_BASE_URL }/forms/submissions`,
+        query: cleanupObject({ locationId: resolvedLocationId, formId, startAt, endAt, page, limit: 100 }),
+        logTag: 'onNewFormSubmission_poll',
+      })
+
+      collected.push(...(result.submissions || []))
+
+      if (result.meta?.nextPage == null) {
+        resumePage = null // fully drained
+        break
+      }
+
+      page = result.meta.nextPage
+      // Hit the per-cycle page cap with pages left - carry the exact page number so next cycle
+      // resumes the drain instead of dropping the remainder.
+      resumePage = page
+    }
+
+    // Fine-grained filter: the query window is day-wide, so filter/sort by the real ISO createdAt,
+    // not the date-only query bounds, before applying the overlap watermark.
+    const seen = new Set(state.seenIds || [])
+    const fresh = collected.filter(s => Date.parse(s.createdAt) > sinceMs && !seen.has(s.id))
+    const events = fresh.sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
+    const seenIds = [...collected.map(s => s.id), ...(state.seenIds || [])].slice(0, MAX_SEEN_IDS)
+    const since = resumePage ? state.since : now
+
+    return { events, state: { since, seenIds, resumePage } }
   }
 }
 

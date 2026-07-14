@@ -1,5 +1,7 @@
 'use strict'
 
+const crypto = require('crypto')
+
 const OAUTH_BASE_URL = 'https://app.clickup.com/api'
 const API_BASE_URL = 'https://api.clickup.com/api/v2'
 
@@ -71,10 +73,32 @@ function searchFilter(list, props, searchString) {
   }))
 }
 
+// Lowercase every header key so inbound webhook lookups are case-insensitive.
+function lowerKeys(headers) {
+  const out = {}
+
+  for (const key of Object.keys(headers || {})) {
+    out[String(key).toLowerCase()] = headers[key]
+  }
+
+  return out
+}
+
+// Constant-time comparison of two hex signature strings (length mismatch fails fast).
+function safeEqual(a, b) {
+  const bufA = Buffer.from(String(a))
+  const bufB = Buffer.from(String(b))
+
+  if (bufA.length !== bufB.length) return false
+
+  return crypto.timingSafeEqual(bufA, bufB)
+}
+
 /**
  * @requireOAuth
  * @integrationName ClickUp
  * @integrationIcon /icon.png
+ * @integrationTriggersScope SINGLE_APP
  */
 class ClickUp {
   constructor(config) {
@@ -99,27 +123,33 @@ class ClickUp {
 
       return await request
     } catch (error) {
-      const errBody = error.body
-      const status = error.status
-      let apiMessage = error.message
-      let ecode
-
-      if (errBody) {
-        if (typeof errBody === 'object') {
-          ecode = errBody.ECODE
-          apiMessage = errBody.err || errBody.error || ecode || JSON.stringify(errBody)
-        } else {
-          apiMessage = String(errBody)
-        }
-      }
-
-      logger.error(`${ logTag } - error [status=${ status }${ ecode ? ` ecode=${ ecode }` : '' }]: ${ apiMessage }`)
-
-      const hint = ERROR_HINTS[status] || (status >= 500 ? SERVER_ERROR_HINT : null)
-      const userMessage = hint ? `${ hint } (${ apiMessage })` : apiMessage
-
-      throw new ResponseError(`[ClickUpError]: ${ userMessage }`, status, errBody)
+      throw this.#toResponseError(error, logTag)
     }
+  }
+
+  // Shared with requests that can't go through #apiRequest (e.g. the multipart attachment
+  // upload, which needs .form() instead of .send()) so every call maps errors the same way.
+  #toResponseError(error, logTag) {
+    const errBody = error.body
+    const status = error.status
+    let apiMessage = error.message
+    let ecode
+
+    if (errBody) {
+      if (typeof errBody === 'object') {
+        ecode = errBody.ECODE
+        apiMessage = errBody.err || errBody.error || ecode || JSON.stringify(errBody)
+      } else {
+        apiMessage = String(errBody)
+      }
+    }
+
+    logger.error(`${ logTag } - error [status=${ status }${ ecode ? ` ecode=${ ecode }` : '' }]: ${ apiMessage }`)
+
+    const hint = ERROR_HINTS[status] || (status >= 500 ? SERVER_ERROR_HINT : null)
+    const userMessage = hint ? `${ hint } (${ apiMessage })` : apiMessage
+
+    return new ResponseError(`[ClickUpError]: ${ userMessage }`, status, errBody)
   }
 
   #getAccessTokenHeader(accessToken) {
@@ -176,7 +206,7 @@ class ClickUp {
     try {
       codeExchangeResponse = await Flowrunner.Request.post(`${ API_BASE_URL }/oauth/token`)
         .set({ 'Content-Type': 'application/json' })
-        .query({
+        .send({
           client_id: this.clientId,
           client_secret: this.clientSecret,
           code: callbackObject.code,
@@ -606,6 +636,82 @@ class ClickUp {
     }
   }
 
+  /**
+   * @typedef {Object} getCustomFieldsDictionary__payloadCriteria
+   * @paramDef {"type":"String","label":"List ID","name":"listId","required":true,"description":"Identifier of the ClickUp list whose custom fields will be listed."}
+   */
+
+  /**
+   * @typedef {Object} getCustomFieldsDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter custom fields by name. Filtering is performed locally on retrieved results."}
+   * @paramDef {"type":"getCustomFieldsDictionary__payloadCriteria","label":"Criteria","name":"criteria","required":true,"description":"Required list identifier used to load the list's custom fields."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Custom Fields Dictionary
+   * @description Provides a searchable list of the custom fields configured on a given ClickUp list. Used for dynamic field selection when setting or clearing a task's custom field value.
+   * @route POST /get-custom-fields-dictionary
+   * @paramDef {"type":"getCustomFieldsDictionary__payload","label":"Payload","name":"payload","description":"Contains list identifier and optional search string for retrieving and filtering the list's custom fields."}
+   * @returns {DictionaryResponse}
+   * @sampleResult {"items":[{"label":"Text Field","value":"5dc86497-098d-4bb0-87d6-cf28e43812e7","note":"Type: text"}]}
+   */
+  async getCustomFieldsDictionary(payload) {
+    const { search, criteria } = payload || {}
+    const listId = criteria?.listId
+
+    const fields = await this.#fetchListCustomFields(listId)
+    const filtered = search ? searchFilter(fields, ['name', 'id'], search) : fields
+
+    return {
+      items: filtered.map(({ id, name, type }) => ({
+        label: name || '[empty]',
+        value: id,
+        note: `Type: ${ type }`,
+      })),
+    }
+  }
+
+  /**
+   * @typedef {Object} getSpaceTagsDictionary__payloadCriteria
+   * @paramDef {"type":"String","label":"Space ID","name":"spaceId","required":true,"description":"Identifier of the ClickUp space whose tags will be listed."}
+   */
+
+  /**
+   * @typedef {Object} getSpaceTagsDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter tags by name. Filtering is performed locally on retrieved results."}
+   * @paramDef {"type":"getSpaceTagsDictionary__payloadCriteria","label":"Criteria","name":"criteria","required":true,"description":"Required space identifier used to load the space's tags."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Space Tags Dictionary
+   * @description Provides a searchable list of the tags available in a given ClickUp space. Used for dynamic tag selection when adding or removing a task tag.
+   * @route POST /get-space-tags-dictionary
+   * @paramDef {"type":"getSpaceTagsDictionary__payload","label":"Payload","name":"payload","description":"Contains space identifier and optional search string for retrieving and filtering the space's tags."}
+   * @returns {DictionaryResponse}
+   * @sampleResult {"items":[{"label":"urgent","value":"urgent","note":"Tag"}]}
+   */
+  async getSpaceTagsDictionary(payload) {
+    const { search, criteria } = payload || {}
+    const spaceId = criteria?.spaceId
+
+    const { tags } = await this.#apiRequest({
+      logTag: 'getSpaceTagsDictionary',
+      url: `${ API_BASE_URL }/space/${ spaceId }/tag`,
+    })
+
+    const filtered = search ? searchFilter(tags || [], ['name'], search) : (tags || [])
+
+    return {
+      items: filtered.map(({ name }) => ({
+        label: name,
+        value: name,
+        note: 'Tag',
+      })),
+    }
+  }
+
   // ============================== WORKSPACES ==============================
 
   /**
@@ -903,10 +1009,11 @@ class ClickUp {
    * @paramDef {"type":"Boolean","label":"Archived","name":"archived","uiComponent":{"type":"TOGGLE"},"description":"When enabled, returns archived tasks instead of active ones. Defaults to false."}
    * @paramDef {"type":"Boolean","label":"Include Closed","name":"includeClosed","uiComponent":{"type":"TOGGLE"},"description":"When enabled, includes tasks in closed statuses. Defaults to false."}
    * @paramDef {"type":"String","label":"Order By","name":"orderBy","uiComponent":{"type":"DROPDOWN","options":{"values":["Date Created","Date Updated","Due Date","Task ID"]}},"description":"Field used to sort the returned tasks."}
+   * @paramDef {"type":"Boolean","label":"Include Subtasks","name":"subtasks","uiComponent":{"type":"TOGGLE"},"description":"When enabled, includes subtasks in the returned list alongside their parent tasks. Defaults to false (ClickUp's own default)."}
    * @returns {Object} An object containing an array of tasks and pagination metadata.
-   * @sampleResult {"tasks":[{"id":"abc123","name":"Write product spec","status":{"status":"in progress","color":"#4286f4","type":"custom"},"date_created":"1700000000000","date_updated":"1700001000000","creator":{"id":81234,"username":"Jane Doe"},"assignees":[],"list":{"id":"901234"}}],"last_page":true}
+   * @sampleResult {"tasks":[{"id":"abc123","name":"Write product spec","status":{"status":"in progress","color":"#4286f4","type":"custom"},"date_created":"1700000000000","date_updated":"1700001000000","creator":{"id":81234,"username":"Jane Doe"},"assignees":[],"list":{"id":"901234"},"parent":null}],"last_page":true}
    */
-  async getTasks(workspaceId, spaceId, listId, page, archived, includeClosed, orderBy) {
+  async getTasks(workspaceId, spaceId, listId, page, archived, includeClosed, orderBy, subtasks) {
     const query = {
       page: Number(page) || 0,
       archived: Boolean(archived),
@@ -914,6 +1021,7 @@ class ClickUp {
     }
 
     if (orderBy) query.order_by = this.#resolveChoice(orderBy, TASK_ORDER_BY_MAP)
+    if (subtasks != null) query.subtasks = Boolean(subtasks)
 
     return this.#apiRequest({
       logTag: 'getTasks',
@@ -951,7 +1059,7 @@ class ClickUp {
 
   /**
    * @operationName Create Task
-   * @description Creates a new task inside a ClickUp list with optional description, status, priority, due date, assignees, and tags. Returns the full created task object including its generated ID and URL.
+   * @description Creates a new task inside a ClickUp list with optional description, status, priority, due date, assignees, and tags. Set Parent Task ID to create this as a subtask of an existing task in the same list. Returns the full created task object including its generated ID and URL.
    * @category Tasks
    * @route POST /createTask
    * @appearanceColor #7B68EE #4DC3FF
@@ -966,11 +1074,12 @@ class ClickUp {
    * @paramDef {"type":"Number","label":"Due Date","name":"dueDate","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Optional due date as a Unix timestamp in milliseconds."}
    * @paramDef {"type":"Array<String>","label":"Assignees","name":"assignees","description":"Optional array of ClickUp user IDs to assign to the task. Each entry must be a member of the workspace."}
    * @paramDef {"type":"Array<String>","label":"Tags","name":"tags","description":"Optional array of tag names to attach to the task."}
+   * @paramDef {"type":"String","label":"Parent Task ID","name":"parent","dictionary":"getTasksDictionary","dependsOn":["listId"],"description":"Optional identifier of an existing task in the SAME list to create this task as a subtask of. Leave empty to create a top-level task."}
    * @paramDef {"type":"Boolean","label":"Notify All","name":"notifyAll","uiComponent":{"type":"TOGGLE"},"description":"When enabled, notifies all task watchers about the creation. Defaults to false."}
    * @returns {Object} The newly created task object.
    * @sampleResult {"id":"abc123","name":"Write product spec","status":{"status":"to do","color":"#d3d3d3","type":"open"},"date_created":"1700000000000","creator":{"id":81234,"username":"Jane Doe"},"assignees":[],"tags":[],"priority":null,"due_date":null,"list":{"id":"901234"},"url":"https://app.clickup.com/t/abc123"}
    */
-  async createTask(workspaceId, spaceId, listId, name, description, status, priority, dueDate, assignees, tags, notifyAll) {
+  async createTask(workspaceId, spaceId, listId, name, description, status, priority, dueDate, assignees, tags, parent, notifyAll) {
     const body = { name }
 
     if (description) body.description = description
@@ -979,6 +1088,7 @@ class ClickUp {
     if (dueDate != null && dueDate !== '') body.due_date = Number(dueDate)
     if (Array.isArray(assignees) && assignees.length) body.assignees = assignees.map(Number)
     if (Array.isArray(tags) && tags.length) body.tags = tags
+    if (parent) body.parent = parent
     if (notifyAll != null) body.notify_all = Boolean(notifyAll)
 
     return this.#apiRequest({
@@ -1236,6 +1346,567 @@ class ClickUp {
       method: 'post',
       body,
     })
+  }
+
+  // ============================== CUSTOM FIELDS ==============================
+  // Custom field DEFINITIONS are authored in ClickUp's own UI - this extension reads them and
+  // sets/clears VALUES on tasks, which is the full documented third-party surface.
+
+  // Shared read used by getListCustomFields, getCustomFieldsDictionary, and the value schema
+  // loader below. ClickUp's exact response wrapper is not confirmed by its docs, so this reads
+  // defensively: a bare array of fields, or an object with a top-level "fields" array.
+  async #fetchListCustomFields(listId) {
+    const response = await this.#apiRequest({
+      logTag: 'getListCustomFields',
+      url: `${ API_BASE_URL }/list/${ listId }/field`,
+    })
+
+    return Array.isArray(response) ? response : (response?.fields || [])
+  }
+
+  /**
+   * @operationName Get List Custom Fields
+   * @description Retrieves the custom fields configured on a ClickUp list, including each field's ID, name, type, and type-specific configuration (such as dropdown options). Use this to see which fields are available before setting a task's custom field value.
+   * @category Custom Fields
+   * @route POST /getListCustomFields
+   * @appearanceColor #7B68EE #4DC3FF
+   * @executionTimeoutInSeconds 60
+   * @paramDef {"type":"String","label":"Workspace ID","name":"workspaceId","required":true,"dictionary":"getWorkspacesDictionary","description":"Identifier of the ClickUp workspace that contains the list."}
+   * @paramDef {"type":"String","label":"Space ID","name":"spaceId","required":true,"dictionary":"getSpacesDictionary","dependsOn":["workspaceId"],"description":"Identifier of the space that contains the list."}
+   * @paramDef {"type":"String","label":"List ID","name":"listId","required":true,"dictionary":"getListsDictionary","dependsOn":["spaceId"],"description":"Identifier of the list whose custom fields will be retrieved."}
+   * @returns {Object} An object containing an array of the list's custom field definitions.
+   * @sampleResult {"fields":[{"id":"5dc86497-098d-4bb0-87d6-cf28e43812e7","name":"Text Field","type":"text","type_config":{},"date_created":"1577378759142","hide_from_guests":false}]}
+   */
+  async getListCustomFields(workspaceId, spaceId, listId) {
+    const fields = await this.#fetchListCustomFields(listId)
+
+    return { fields }
+  }
+
+  /**
+   * @operationName Set Task Custom Field Value
+   * @description Sets or replaces the value of a custom field on a ClickUp task. Pick a Field ID first - the Value form below adapts to that field's type (text, number, dropdown, date, and so on).
+   * @category Custom Fields
+   * @route POST /setTaskCustomFieldValue
+   * @appearanceColor #7B68EE #4DC3FF
+   * @executionTimeoutInSeconds 60
+   * @paramDef {"type":"String","label":"Workspace ID","name":"workspaceId","required":true,"dictionary":"getWorkspacesDictionary","description":"Identifier of the ClickUp workspace that contains the task."}
+   * @paramDef {"type":"String","label":"Space ID","name":"spaceId","required":true,"dictionary":"getSpacesDictionary","dependsOn":["workspaceId"],"description":"Identifier of the space that contains the task."}
+   * @paramDef {"type":"String","label":"List ID","name":"listId","required":true,"dictionary":"getListsDictionary","dependsOn":["spaceId"],"description":"Identifier of the list that contains the task and owns the custom field being set."}
+   * @paramDef {"type":"String","label":"Task ID","name":"taskId","required":true,"dictionary":"getTasksDictionary","dependsOn":["listId"],"description":"Identifier of the task whose custom field value will be set."}
+   * @paramDef {"type":"String","label":"Field ID","name":"fieldId","required":true,"dictionary":"getCustomFieldsDictionary","dependsOn":["listId"],"description":"Identifier (UUID) of the custom field to set. Pick from the list's available custom fields."}
+   * @paramDef {"type":"Object","label":"Value","name":"value","required":true,"schemaLoader":"createCustomFieldValueSchema","dependsOn":["listId","fieldId"],"description":"The value to set. Its shape depends on the selected field's type (text, number, dropdown option, date, currency, checkbox, URL, email, phone, or assignee add/remove) - the form below adapts automatically once a Field ID is chosen."}
+   * @returns {Object} An empty object on success (ClickUp does not document a response body for this call).
+   * @sampleResult {}
+   */
+  async setTaskCustomFieldValue(workspaceId, spaceId, listId, taskId, fieldId, value) {
+    const picked = value || {}
+
+    // Every field type but "users" nests the picked value under a "value" sub-field (see the
+    // schema loader below); "users" instead picks "add"/"rem" directly, matching ClickUp's own
+    // {"value":{"add":[...],"rem":[...]}} body shape for that type.
+    let body
+
+    if ('value' in picked) {
+      let fieldValue = picked.value
+
+      // The dropdown option schema-loads plain option NAMES (schema-loaded dropdowns submit the
+      // displayed string verbatim - there is no label->value resolution step downstream), but
+      // ClickUp's API expects the option's id as the value, so resolve name -> id here.
+      const field = (await this.#fetchListCustomFields(listId)).find(f => f.id === fieldId)
+
+      if (field?.type === 'drop_down' && typeof fieldValue === 'string') {
+        const option = (field.type_config?.options || []).find(o => o.name === fieldValue)
+
+        if (option) fieldValue = option.id
+      }
+
+      body = { value: fieldValue }
+    } else {
+      body = { value: { add: picked.add || [], rem: picked.rem || [] } }
+    }
+
+    return this.#apiRequest({
+      logTag: 'setTaskCustomFieldValue',
+      url: `${ API_BASE_URL }/task/${ taskId }/field/${ fieldId }`,
+      method: 'post',
+      body,
+    })
+  }
+
+  /**
+   * @registerAs PARAM_SCHEMA_DEFINITION
+   * @paramDef {"type":"Object","name":"criteria","required":true}
+   * @returns {Array}
+   */
+  async createCustomFieldValueSchema({ criteria }) {
+    const { listId, fieldId } = criteria || {}
+
+    if (!listId || !fieldId) {
+      return null
+    }
+
+    let field
+
+    try {
+      const fields = await this.#fetchListCustomFields(listId)
+
+      field = fields.find(f => f.id === fieldId)
+    } catch (error) {
+      logger.error(`[createCustomFieldValueSchema] Error: ${ error.message }`)
+
+      return null
+    }
+
+    if (!field) {
+      return null
+    }
+
+    switch (field.type) {
+      case 'text':
+      case 'short_text':
+      case 'url':
+      case 'email':
+      case 'phone':
+        return [
+          { type: 'String', label: 'Value', name: 'value', required: true, description: 'The value to set.' },
+        ]
+
+      case 'number':
+      case 'currency':
+      case 'emoji':
+        return [
+          { type: 'Number', label: 'Value', name: 'value', required: true, uiComponent: { type: 'NUMERIC_STEPPER' }, description: 'The numeric value to set.' },
+        ]
+
+      case 'checkbox':
+        return [
+          { type: 'Boolean', label: 'Value', name: 'value', required: true, uiComponent: { type: 'TOGGLE' }, description: 'Checked (true) or unchecked (false).' },
+        ]
+
+      case 'date':
+        // Matches this extension's existing convention for every other date param (dueDate,
+        // startDate, etc.): Number + NUMERIC_STEPPER, never DATE_PICKER.
+        return [
+          { type: 'Number', label: 'Value', name: 'value', required: true, uiComponent: { type: 'NUMERIC_STEPPER' }, description: 'Unix timestamp in milliseconds.' },
+        ]
+
+      case 'drop_down': {
+        // Schema-loaded dropdowns submit the displayed string verbatim (no label->value
+        // resolution step downstream), so this emits plain option names; setTaskCustomFieldValue
+        // resolves the chosen name back to ClickUp's option id before sending the request.
+        const labels = (field.type_config?.options || []).map(o => o.name)
+
+        return [
+          { type: 'String', label: 'Value', name: 'value', required: true, uiComponent: { type: 'DROPDOWN', options: { values: labels } }, description: 'Selected option.' },
+        ]
+      }
+
+      case 'labels':
+        return [
+          { type: 'Array<String>', label: 'Value', name: 'value', required: true, description: 'Label option IDs to set (replaces the full set). Pick from the field\'s configured label options.' },
+        ]
+
+      case 'users':
+        // Mirrors updateTask's existing addAssignees/removeAssignees precedent.
+        return [
+          { type: 'Array<String>', label: 'Add User IDs', name: 'add', description: 'ClickUp user IDs to add to this field.' },
+          { type: 'Array<String>', label: 'Remove User IDs', name: 'rem', description: 'ClickUp user IDs to remove from this field.' },
+        ]
+
+      default:
+        // tasks (relationship), manual_progress, automatic_progress, location, and any
+        // unrecognized type: ClickUp's docs show no value shape for these, so this field renders
+        // no writable sub-form. Still readable via Get List Custom Fields.
+        return null
+    }
+  }
+
+  /**
+   * @operationName Remove Task Custom Field Value
+   * @description Clears the value of a custom field on a ClickUp task. This does not delete the field itself, only the value stored on this task.
+   * @category Custom Fields
+   * @route POST /removeTaskCustomFieldValue
+   * @appearanceColor #7B68EE #4DC3FF
+   * @executionTimeoutInSeconds 60
+   * @paramDef {"type":"String","label":"Workspace ID","name":"workspaceId","required":true,"dictionary":"getWorkspacesDictionary","description":"Identifier of the ClickUp workspace that contains the task."}
+   * @paramDef {"type":"String","label":"Space ID","name":"spaceId","required":true,"dictionary":"getSpacesDictionary","dependsOn":["workspaceId"],"description":"Identifier of the space that contains the task."}
+   * @paramDef {"type":"String","label":"List ID","name":"listId","required":true,"dictionary":"getListsDictionary","dependsOn":["spaceId"],"description":"Identifier of the list that contains the task."}
+   * @paramDef {"type":"String","label":"Task ID","name":"taskId","required":true,"dictionary":"getTasksDictionary","dependsOn":["listId"],"description":"Identifier of the task whose custom field value will be cleared."}
+   * @paramDef {"type":"String","label":"Field ID","name":"fieldId","required":true,"dictionary":"getCustomFieldsDictionary","dependsOn":["listId"],"description":"Identifier (UUID) of the custom field to clear."}
+   * @returns {Object} An empty object on success.
+   * @sampleResult {}
+   */
+  async removeTaskCustomFieldValue(workspaceId, spaceId, listId, taskId, fieldId) {
+    return this.#apiRequest({
+      logTag: 'removeTaskCustomFieldValue',
+      url: `${ API_BASE_URL }/task/${ taskId }/field/${ fieldId }`,
+      method: 'delete',
+    })
+  }
+
+  // ============================== ATTACHMENTS ==============================
+
+  /**
+   * @operationName Create Task Attachment
+   * @description Uploads a file to a ClickUp task as an attachment. The file is downloaded from FlowRunner file storage and re-uploaded to ClickUp server-side, since ClickUp cannot fetch cloud-hosted files directly.
+   * @category Attachments
+   * @route POST /createTaskAttachment
+   * @appearanceColor #7B68EE #4DC3FF
+   * @executionTimeoutInSeconds 120
+   * @paramDef {"type":"String","label":"Workspace ID","name":"workspaceId","required":true,"dictionary":"getWorkspacesDictionary","description":"Identifier of the ClickUp workspace that contains the task."}
+   * @paramDef {"type":"String","label":"Space ID","name":"spaceId","required":true,"dictionary":"getSpacesDictionary","dependsOn":["workspaceId"],"description":"Identifier of the space that contains the task."}
+   * @paramDef {"type":"String","label":"List ID","name":"listId","required":true,"dictionary":"getListsDictionary","dependsOn":["spaceId"],"description":"Identifier of the list that contains the task."}
+   * @paramDef {"type":"String","label":"Task ID","name":"taskId","required":true,"dictionary":"getTasksDictionary","dependsOn":["listId"],"description":"Identifier of the task that will receive the attachment."}
+   * @paramDef {"type":"String","label":"File","name":"fileUrl","required":true,"uiComponent":{"type":"FILE_SELECTOR"},"description":"URL of the file to upload from FlowRunner file storage. ClickUp cannot fetch cloud-hosted files directly, so this URL is downloaded server-side and re-uploaded."}
+   * @paramDef {"type":"String","label":"File Name","name":"fileName","required":true,"uiComponent":{"type":"SINGLE_LINE_TEXT"},"description":"Display name for the uploaded attachment."}
+   * @returns {Object} ClickUp's response for the created attachment.
+   * @sampleResult {}
+   */
+  async createTaskAttachment(workspaceId, spaceId, listId, taskId, fileUrl, fileName) {
+    try {
+      const fileData = await Flowrunner.Request.get(fileUrl).setEncoding(null)
+
+      // Platform-native multipart upload: .form() drives its own getHeaders()/getLength() -
+      // never set Content-Type manually.
+      const formData = new Flowrunner.Request.FormData()
+
+      formData.append('attachment', fileData, { filename: fileName })
+
+      return await Flowrunner.Request.post(`${ API_BASE_URL }/task/${ taskId }/attachment`)
+        .set(this.#getAccessTokenHeader())
+        .form(formData)
+    } catch (error) {
+      throw this.#toResponseError(error, 'createTaskAttachment')
+    }
+  }
+
+  // ============================== TAGS ==============================
+
+  /**
+   * @operationName Get Space Tags
+   * @description Retrieves the tags available in a ClickUp space. Use this to see which tag names can be attached to or removed from a task.
+   * @category Tags
+   * @route POST /getSpaceTags
+   * @appearanceColor #7B68EE #4DC3FF
+   * @executionTimeoutInSeconds 60
+   * @paramDef {"type":"String","label":"Workspace ID","name":"workspaceId","required":true,"dictionary":"getWorkspacesDictionary","description":"Identifier of the ClickUp workspace that contains the space."}
+   * @paramDef {"type":"String","label":"Space ID","name":"spaceId","required":true,"dictionary":"getSpacesDictionary","dependsOn":["workspaceId"],"description":"Identifier of the space whose tags will be retrieved."}
+   * @returns {Object} An object containing an array of the space's tags.
+   * @sampleResult {"tags":[{"name":"urgent"}]}
+   */
+  async getSpaceTags(workspaceId, spaceId) {
+    return this.#apiRequest({
+      logTag: 'getSpaceTags',
+      url: `${ API_BASE_URL }/space/${ spaceId }/tag`,
+    })
+  }
+
+  /**
+   * @operationName Add Task Tag
+   * @description Attaches an existing space tag to a ClickUp task. The tag must already exist in the task's space; use Get Space Tags to see what's available.
+   * @category Tags
+   * @route POST /addTaskTag
+   * @appearanceColor #7B68EE #4DC3FF
+   * @executionTimeoutInSeconds 60
+   * @paramDef {"type":"String","label":"Workspace ID","name":"workspaceId","required":true,"dictionary":"getWorkspacesDictionary","description":"Identifier of the ClickUp workspace that contains the task."}
+   * @paramDef {"type":"String","label":"Space ID","name":"spaceId","required":true,"dictionary":"getSpacesDictionary","dependsOn":["workspaceId"],"description":"Identifier of the space that contains the task and owns the tag."}
+   * @paramDef {"type":"String","label":"List ID","name":"listId","required":true,"dictionary":"getListsDictionary","dependsOn":["spaceId"],"description":"Identifier of the list that contains the task."}
+   * @paramDef {"type":"String","label":"Task ID","name":"taskId","required":true,"dictionary":"getTasksDictionary","dependsOn":["listId"],"description":"Identifier of the task that will receive the tag."}
+   * @paramDef {"type":"String","label":"Tag Name","name":"tagName","required":true,"dictionary":"getSpaceTagsDictionary","dependsOn":["spaceId"],"description":"Name of the existing space tag to attach to the task. Pick from the space's tags."}
+   * @returns {Object} An empty object on success.
+   * @sampleResult {}
+   */
+  async addTaskTag(workspaceId, spaceId, listId, taskId, tagName) {
+    return this.#apiRequest({
+      logTag: 'addTaskTag',
+      url: `${ API_BASE_URL }/task/${ taskId }/tag/${ encodeURIComponent(tagName) }`,
+      method: 'post',
+    })
+  }
+
+  /**
+   * @operationName Remove Task Tag
+   * @description Removes a tag from a ClickUp task. This does not delete the tag from the space, only its attachment to this task.
+   * @category Tags
+   * @route POST /removeTaskTag
+   * @appearanceColor #7B68EE #4DC3FF
+   * @executionTimeoutInSeconds 60
+   * @paramDef {"type":"String","label":"Workspace ID","name":"workspaceId","required":true,"dictionary":"getWorkspacesDictionary","description":"Identifier of the ClickUp workspace that contains the task."}
+   * @paramDef {"type":"String","label":"Space ID","name":"spaceId","required":true,"dictionary":"getSpacesDictionary","dependsOn":["workspaceId"],"description":"Identifier of the space that contains the task."}
+   * @paramDef {"type":"String","label":"List ID","name":"listId","required":true,"dictionary":"getListsDictionary","dependsOn":["spaceId"],"description":"Identifier of the list that contains the task."}
+   * @paramDef {"type":"String","label":"Task ID","name":"taskId","required":true,"dictionary":"getTasksDictionary","dependsOn":["listId"],"description":"Identifier of the task to remove the tag from."}
+   * @paramDef {"type":"String","label":"Tag Name","name":"tagName","required":true,"dictionary":"getSpaceTagsDictionary","dependsOn":["spaceId"],"description":"Name of the tag to remove from the task."}
+   * @returns {Object} An empty object on success.
+   * @sampleResult {}
+   */
+  async removeTaskTag(workspaceId, spaceId, listId, taskId, tagName) {
+    return this.#apiRequest({
+      logTag: 'removeTaskTag',
+      url: `${ API_BASE_URL }/task/${ taskId }/tag/${ encodeURIComponent(tagName) }`,
+      method: 'delete',
+    })
+  }
+
+  // ============================== REALTIME TRIGGERS ==============================
+  // Native ClickUp webhooks - a near-instant alternative to the polling triggers below. Both
+  // kinds coexist on this service; onTaskDeleted has no polling counterpart at all since a
+  // deleted task simply disappears from every list query.
+
+  /**
+   * @operationName On Task Created
+   * @description Fires the moment a task is created in a ClickUp list, delivered by a native ClickUp webhook (near-instant, unlike the polling "On New Task" trigger which checks on an interval).
+   * @category Tasks
+   * @registerAs REALTIME_TRIGGER
+   * @route POST /onTaskCreated
+   * @appearanceColor #7B68EE #4DC3FF
+   * @executionTimeoutInSeconds 60
+   * @paramDef {"type":"String","label":"Workspace ID","name":"workspaceId","required":true,"dictionary":"getWorkspacesDictionary","description":"Identifier of the ClickUp workspace that contains the list."}
+   * @paramDef {"type":"String","label":"Space ID","name":"spaceId","required":true,"dictionary":"getSpacesDictionary","dependsOn":["workspaceId"],"description":"Identifier of the space that contains the list to monitor."}
+   * @paramDef {"type":"String","label":"List ID","name":"listId","required":true,"dictionary":"getListsDictionary","dependsOn":["spaceId"],"description":"Identifier of the list to monitor for newly created tasks (via a native ClickUp webhook - near-instant, unlike the polling \"On New Task\" trigger)."}
+   * @returns {Object} The full created task object.
+   * @sampleResult {"id":"abc123","name":"Write product spec","status":{"status":"to do","color":"#d3d3d3","type":"open"},"date_created":"1700000000000","creator":{"id":81234,"username":"Jane Doe"},"assignees":[],"list":{"id":"901234"},"url":"https://app.clickup.com/t/abc123"}
+   */
+  async onTaskCreated() {}
+
+  /**
+   * @operationName On Task Updated
+   * @description Fires the moment a task is updated in a ClickUp list, delivered by a native ClickUp webhook (near-instant, unlike the polling "On Updated Task" trigger which checks on an interval). Carries ClickUp's own raw change history for the update, unmodified, so a flow can branch on the before/after values itself.
+   * @category Tasks
+   * @registerAs REALTIME_TRIGGER
+   * @route POST /onTaskUpdated
+   * @appearanceColor #7B68EE #4DC3FF
+   * @executionTimeoutInSeconds 60
+   * @paramDef {"type":"String","label":"Workspace ID","name":"workspaceId","required":true,"dictionary":"getWorkspacesDictionary","description":"Identifier of the ClickUp workspace that contains the list."}
+   * @paramDef {"type":"String","label":"Space ID","name":"spaceId","required":true,"dictionary":"getSpacesDictionary","dependsOn":["workspaceId"],"description":"Identifier of the space that contains the list to monitor."}
+   * @paramDef {"type":"String","label":"List ID","name":"listId","required":true,"dictionary":"getListsDictionary","dependsOn":["spaceId"],"description":"Identifier of the list to monitor for task updates (via a native ClickUp webhook - near-instant, unlike the polling \"On Updated Task\" trigger)."}
+   * @returns {Object} The full updated task object plus the raw change history for this update.
+   * @sampleResult {"id":"abc123","name":"Write product spec","status":{"status":"in progress","color":"#4286f4","type":"custom"},"date_updated":"1700002000000","url":"https://app.clickup.com/t/abc123","historyItems":[{"id":"8a2f82db-7718-4fdb-9493-4849e67f009d","type":6,"date":"1642740510345","before":"old value","after":"new value"}]}
+   */
+  async onTaskUpdated() {}
+
+  /**
+   * @operationName On Task Deleted
+   * @description Fires the moment a task is deleted from a ClickUp list, delivered by a native ClickUp webhook. Polling cannot detect deletions - a deleted task no longer appears in any list query - so this trigger exists only as a webhook.
+   * @category Tasks
+   * @registerAs REALTIME_TRIGGER
+   * @route POST /onTaskDeleted
+   * @appearanceColor #7B68EE #4DC3FF
+   * @executionTimeoutInSeconds 60
+   * @paramDef {"type":"String","label":"Workspace ID","name":"workspaceId","required":true,"dictionary":"getWorkspacesDictionary","description":"Identifier of the ClickUp workspace that contains the list."}
+   * @paramDef {"type":"String","label":"Space ID","name":"spaceId","required":true,"dictionary":"getSpacesDictionary","dependsOn":["workspaceId"],"description":"Identifier of the space that contains the list to monitor."}
+   * @paramDef {"type":"String","label":"List ID","name":"listId","required":true,"dictionary":"getListsDictionary","dependsOn":["spaceId"],"description":"Identifier of the list to monitor for task deletions. Polling cannot detect deletions, so this trigger exists only as a native webhook."}
+   * @returns {Object} The ID of the deleted task and when the deletion was received.
+   * @sampleResult {"taskId":"abc123","deletedAt":"2024-03-15T14:30:00.000Z"}
+   */
+  async onTaskDeleted() {}
+
+  // Resolves which subscribed list a webhook delivery belongs to by matching the delivered
+  // webhook_id against the stored {listId: {webhookId, secret}} map. Called independently from
+  // both handleTriggerResolveEvents (to find the right secret) and handleTriggerSelectMatched (to
+  // know which list-scoped subscribers this delivery is for), instead of passing it between them.
+  #resolveWebhookListId(invocation) {
+    const body = this.#parseWebhookBody(invocation)
+    const webhookId = body?.webhook_id
+    const webhookData = invocation.webhookData || {}
+
+    const entry = Object.entries(webhookData).find(([, v]) => v?.webhookId === webhookId)
+
+    return entry ? entry[0] : null
+  }
+
+  #parseWebhookBody(invocation) {
+    if (invocation.body && typeof invocation.body === 'object') {
+      return invocation.body
+    }
+
+    if (typeof invocation.body === 'string') {
+      try {
+        return JSON.parse(invocation.body)
+      } catch (error) {
+        return null
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * @registerAs SYSTEM
+   * @paramDef {"type":"Object","label":"invocation","name":"invocation"}
+   * @returns {Object}
+   */
+  async handleTriggerUpsertWebhook(invocation) {
+    const stored = invocation.webhookData || {}
+    const callbackUrl = invocation.callbackUrl || invocation.callbackURL
+
+    // ClickUp requires one location specifier per webhook (list_id here), unlike a single global
+    // webhook - so this tracks a {listId: {webhookId, secret}} map, one webhook per subscribed list.
+    const requested = new Map()
+
+    for (const event of (invocation.events || [])) {
+      const { listId, workspaceId } = event.triggerData || {}
+
+      if (listId) requested.set(listId, workspaceId)
+    }
+
+    const webhookData = {}
+
+    for (const [listId, workspaceId] of requested) {
+      if (stored[listId]) {
+        webhookData[listId] = stored[listId]
+        continue
+      }
+
+      const created = await this.#apiRequest({
+        logTag: 'handleTriggerUpsertWebhook',
+        url: `${ API_BASE_URL }/team/${ workspaceId }/webhook`,
+        method: 'post',
+        body: {
+          endpoint: callbackUrl,
+          events: ['taskCreated', 'taskUpdated', 'taskDeleted'],
+          list_id: listId,
+        },
+      })
+
+      webhookData[listId] = { webhookId: created?.id, secret: created?.secret }
+    }
+
+    // A list no longer requested lost its last subscriber - best-effort remove its webhook.
+    for (const [listId, entry] of Object.entries(stored)) {
+      if (!requested.has(listId) && entry?.webhookId) {
+        try {
+          await this.#apiRequest({
+            logTag: 'handleTriggerUpsertWebhook.cleanup',
+            url: `${ API_BASE_URL }/webhook/${ entry.webhookId }`,
+            method: 'delete',
+          })
+        } catch (error) {
+          logger.warn(`[handleTriggerUpsertWebhook] cleanup failed, leaving webhook ${ entry.webhookId }: ${ error.message }`)
+        }
+      }
+    }
+
+    return { webhookData }
+  }
+
+  /**
+   * @registerAs SYSTEM
+   * @paramDef {"type":"Object","label":"invocation","name":"invocation"}
+   * @returns {Object}
+   */
+  async handleTriggerResolveEvents(invocation) {
+    const headers = lowerKeys(invocation.headers || invocation.httpHeaders || {})
+    const signature = headers['x-signature']
+    const rawBody =
+      invocation.rawBody ||
+      invocation.bodyString ||
+      (typeof invocation.body === 'string' ? invocation.body : null)
+
+    const listId = this.#resolveWebhookListId(invocation)
+    const secret = listId ? invocation.webhookData?.[listId]?.secret : null
+
+    // A delivery MUST prove itself: HMAC-SHA256 over the raw body string (never a re-stringified
+    // parsed object), keyed with the webhook's own secret, compared in constant time.
+    if (!listId || !secret || !signature || !rawBody) {
+      logger.warn('[handleTriggerResolveEvents] missing signature, body, or unknown webhook - rejecting')
+
+      return { events: [] }
+    }
+
+    const expected = crypto.createHmac('sha256', secret).update(rawBody, 'utf8').digest('hex')
+
+    if (!safeEqual(expected, signature)) {
+      logger.warn('[handleTriggerResolveEvents] signature mismatch - rejecting')
+
+      return { events: [] }
+    }
+
+    const body = this.#parseWebhookBody(invocation) || {}
+
+    if (body.event === 'taskDeleted') {
+      return {
+        events: [{
+          name: 'onTaskDeleted',
+          data: { taskId: body.task_id, deletedAt: new Date().toISOString() },
+        }],
+      }
+    }
+
+    if (body.event === 'taskCreated' || body.event === 'taskUpdated') {
+      let task
+
+      try {
+        task = await this.#apiRequest({
+          logTag: 'handleTriggerResolveEvents',
+          url: `${ API_BASE_URL }/task/${ body.task_id }`,
+        })
+      } catch (error) {
+        logger.error(`[handleTriggerResolveEvents] failed to fetch task ${ body.task_id }: ${ error.message }`)
+
+        return { events: [] }
+      }
+
+      if (body.event === 'taskCreated') {
+        return { events: [{ name: 'onTaskCreated', data: task }] }
+      }
+
+      // history_items has no documented type-code legend - pass it through verbatim rather than
+      // inventing a "changed field" interpretation.
+      return {
+        events: [{
+          name: 'onTaskUpdated',
+          data: { ...task, historyItems: body.history_items || [] },
+        }],
+      }
+    }
+
+    // This webhook only ever subscribes to the 3 events above; any other name is defensive.
+    return { events: [] }
+  }
+
+  /**
+   * @registerAs SYSTEM
+   * @paramDef {"type":"Object","label":"invocation","name":"invocation"}
+   * @returns {Object}
+   */
+  async handleTriggerSelectMatched(invocation) {
+    const listId = this.#resolveWebhookListId(invocation)
+
+    if (!listId) {
+      return { ids: [] }
+    }
+
+    const ids = (invocation.triggers || [])
+      .filter(t => t.data?.listId === listId)
+      .map(t => t.id)
+
+    return { ids }
+  }
+
+  /**
+   * @registerAs SYSTEM
+   * @paramDef {"type":"Object","label":"invocation","name":"invocation"}
+   * @returns {Object}
+   */
+  async handleTriggerDeleteWebhook(invocation) {
+    const webhookData = invocation.webhookData || {}
+
+    for (const entry of Object.values(webhookData)) {
+      if (!entry?.webhookId) continue
+
+      try {
+        await this.#apiRequest({
+          logTag: 'handleTriggerDeleteWebhook',
+          url: `${ API_BASE_URL }/webhook/${ entry.webhookId }`,
+          method: 'delete',
+        })
+      } catch (error) {
+        logger.warn(`[handleTriggerDeleteWebhook] cleanup failed, leaving webhook ${ entry.webhookId }: ${ error.message }`)
+      }
+    }
+
+    return {}
   }
 
   // ============================== POLLING TRIGGERS ==============================
