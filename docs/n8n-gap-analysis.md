@@ -55,10 +55,10 @@ Highest usage in n8n / broadest customer demand.
 - [x] Mailgun (`services/mailgun`)
 - [x] Postmark (`services/postmark`)
 - [x] Mailjet (`services/mailjet`)
-- [ ] ActiveCampaign
-- [ ] MailerLite
-- [ ] Kit (ConvertKit)
-- [ ] Customer.io
+- [x] ActiveCampaign (`services/activecampaign`)
+- [x] MailerLite (`services/mailerlite`)
+- [x] Kit (ConvertKit) (`services/kit`)
+- [x] Customer.io (`services/customerio`)
 
 ### Google suite (missing pieces)
 - [ ] Google Docs
