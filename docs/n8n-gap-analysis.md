@@ -215,15 +215,15 @@ Solid demand; round out category coverage.
 - [ ] Home Assistant
 
 ### AWS (missing pieces)
-- [ ] AWS Bedrock
-- [ ] AWS Cognito
-- [ ] AWS Rekognition
-- [ ] AWS Textract
-- [ ] AWS Transcribe
-- [ ] AWS Comprehend
-- [ ] AWS IAM
-- [ ] AWS ELB
-- [ ] AWS Certificate Manager
+- [x] AWS Bedrock (`services/aws-bedrock`)
+- [x] AWS Cognito (`services/aws-cognito`)
+- [x] AWS Rekognition (`services/aws-rekognition`)
+- [x] AWS Textract (`services/aws-textract`)
+- [x] AWS Transcribe (`services/aws-transcribe`)
+- [x] AWS Comprehend (`services/aws-comprehend`)
+- [x] AWS IAM (`services/aws-iam`)
+- [x] AWS ELB (`services/aws-elb`)
+- [x] AWS Certificate Manager (`services/aws-acm`)
 
 ### ERP / accounting / e-commerce
 - [ ] Odoo
