@@ -4,9 +4,9 @@ Manage GoTo Webinar (formerly GoToWebinar) webinars, registrants, attendees, and
 analytics from FlowRunner. Schedule and update webinars, register attendees and hand them their
 personal join URLs, and pull attendance, poll, question, and survey data for reporting.
 
-Authentication is OAuth 2.0 against the GoTo (LogMeIn) identity service. The connection captures the
-organizer's `organizer_key` (and, where available, the `account_key`) at connect time, so you never
-have to supply them per action.
+Authentication is OAuth 2.0 against the GoTo (LogMeIn) identity service. At connect time the service
+looks up the organizer's key (and, where available, the account key) from GoTo's identity API and
+stores it with the connection, so you never have to supply them per action.
 
 ## Ideal Use Cases
 
@@ -40,18 +40,21 @@ Provide the two config values from your OAuth app:
 ### 3. Connect an account
 
 Start the OAuth connection in FlowRunner and sign in with the GoTo account that owns (or organizes)
-the webinars. During the callback the service reads the `organizer_key` and `account_key` returned
-by GoTo and stores them with the connection. GoTo Webinar API paths are scoped to the organizer
+the webinars. During the callback the service exchanges the code for an access token and then calls
+GoTo's SCIM `/me` identity API to look up the organizer key and account key, storing them with the
+connection. GoTo Webinar API paths are scoped to the organizer
 (e.g. `/organizers/{organizerKey}/webinars/...`), so this key is required for every action — if it
-was not captured, reconnect the account.
+could not be resolved, reconnect the account.
 
 ## How it works
 
-The GoTo OAuth token response returns an access token plus the connected user's `organizer_key` and
-`account_key`. Because those identifiers are not reliably passed back to the service on later
-invocations, they are embedded into the stored access token (the platform's composite-token pattern)
-so the organizer and account keys are available on every call. Token refresh re-embeds them
-automatically.
+GoTo's current OAuth token response returns only an access token, refresh token, and scope — it no
+longer includes the `organizer_key` or `account_key` (these were removed in GoTo's New Token
+Retrieval migration; the old `api.getgo.com/oauth/v2` token host was decommissioned on 2025-09-30).
+The service therefore fetches the organizer and account keys from GoTo's SCIM `/me` identity API
+right after the token exchange and embeds them into the stored access token (the platform's
+composite-token pattern) so they are available on every call. Token refresh re-embeds the captured
+keys automatically.
 
 ## Typical flow
 

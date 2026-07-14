@@ -6,13 +6,22 @@
 // ============================================================================
 const API_BASE = 'https://api.getgo.com/G2W/rest/v2'
 
-// GoTo (formerly LogMeIn) OAuth 2.0 endpoints. The authentication.logmeininc.com host is the
-// canonical, still-current authorization server for GoTo products (the identity.goto.com host is
-// an alias). Token exchange authenticates the client with HTTP Basic auth (base64 clientId:secret)
-// and a form-urlencoded body; the token response carries organizer_key + account_key, which the
-// GoTo Webinar API paths require.
+// GoTo (formerly LogMeIn) OAuth 2.0 endpoints. authentication.logmeininc.com is the current
+// authorization server for GoTo products; the older api.getgo.com/oauth/v2 host was decommissioned
+// on 2025-09-30. Token exchange authenticates the client with HTTP Basic auth (base64
+// clientId:secret) and a form-urlencoded body.
+//
+// IMPORTANT: the current token response returns ONLY access_token, token_type, refresh_token,
+// expires_in, scope, and principal. It NO LONGER returns organizer_key / account_key / user
+// details (those were removed in the New Token Retrieval migration). The organizer key required by
+// every GoTo Webinar path must now be fetched separately from the SCIM /me identity API below.
 const OAUTH_AUTHORIZE_URL = 'https://authentication.logmeininc.com/oauth/authorize'
 const OAUTH_TOKEN_URL = 'https://authentication.logmeininc.com/oauth/token'
+
+// SCIM /me identity endpoint — returns the authenticated user, including the organizer key and the
+// accounts they belong to (each with its account key). Called right after the token exchange to
+// capture the keys the token response no longer provides.
+const IDENTITY_ME_URL = 'https://api.getgo.com/identity/v1/Users/me'
 
 // GoTo Webinar paths are scoped to organizerKey (and, for account reads, accountKey), both of
 // which arrive in the token response but are NOT reliably passed back on later invocations.
@@ -165,6 +174,31 @@ class GoToWebinar {
     return [accessToken, organizerKey || '', accountKey || ''].join(TOKEN_DELIMITER)
   }
 
+  // The token response no longer carries organizer_key/account_key, so we resolve them from the
+  // SCIM /me identity API using the freshly issued access token. The response exposes a top-level
+  // `key` (the organizer key) and an `accounts` array whose entries each carry an account `key`.
+  async #fetchIdentityKeys(accessToken) {
+    try {
+      const me = await Flowrunner.Request.get(IDENTITY_ME_URL)
+        .set({ Authorization: `Bearer ${ accessToken }`, Accept: 'application/json' })
+
+      const organizerKey = me?.key || me?.id || null
+      const accounts = Array.isArray(me?.accounts) ? me.accounts : []
+      const accountKey = accounts[0]?.key || me?.accountKey || null
+      const email = me?.email || (Array.isArray(me?.emails) ? me.emails[0]?.value : null) || null
+      const fullName =
+        me?.displayName ||
+        [me?.name?.givenName, me?.name?.familyName].filter(Boolean).join(' ').trim() ||
+        null
+
+      return { organizerKey, accountKey, email, fullName }
+    } catch (error) {
+      logger.warn(`fetchIdentityKeys failed: ${ error?.body?.message || error?.message }`)
+
+      return { organizerKey: null, accountKey: null, email: null, fullName: null }
+    }
+  }
+
   // ==========================================================================
   //  OAUTH2 SYSTEM METHODS
   // ==========================================================================
@@ -189,9 +223,10 @@ class GoToWebinar {
    */
   async executeCallback(callbackObject) {
     // GoTo authenticates the client at the token endpoint with HTTP Basic auth (base64 of
-    // clientId:clientSecret) and a form-urlencoded body. The token response also returns
-    // organizer_key + account_key and the connected user's name/email, which we persist on the
-    // connection identity so operations can build the /organizers/{organizerKey}/... paths.
+    // clientId:clientSecret) and a form-urlencoded body. The current token response returns only
+    // access_token/refresh_token/expires_in/scope/principal — it no longer includes organizer_key
+    // or account_key — so we fetch those from the SCIM /me identity API and embed them into the
+    // stored token so operations can build the /organizers/{organizerKey}/... paths.
     const basic = Buffer.from(`${ this.clientId }:${ this.clientSecret }`).toString('base64')
 
     const tokenResponse = await Flowrunner.Request.post(OAUTH_TOKEN_URL)
@@ -204,17 +239,22 @@ class GoToWebinar {
         }).toString()
       )
 
-    const fullName = [tokenResponse.firstName, tokenResponse.lastName].filter(Boolean).join(' ').trim()
-    const organizerKey = tokenResponse.organizer_key
-    const accountKey = tokenResponse.account_key
+    const identity = await this.#fetchIdentityKeys(tokenResponse.access_token)
+    const organizerKey = identity.organizerKey
+    const accountKey = identity.accountKey
+    const email = identity.email || tokenResponse.principal || null
+
+    if (!organizerKey) {
+      throw new Error('Could not determine the organizer key from the GoTo identity API. Ensure the connected account is a GoTo Webinar organizer and try reconnecting.')
+    }
 
     return {
       token: this.#buildCompositeToken(tokenResponse.access_token, organizerKey, accountKey),
       expirationInSeconds: tokenResponse.expires_in,
       refreshToken: tokenResponse.refresh_token,
-      connectionIdentityName: fullName || tokenResponse.email || organizerKey || null,
+      connectionIdentityName: identity.fullName || email || organizerKey || null,
       connectionIdentityImageURL: null,
-      userData: { organizerKey, accountKey, email: tokenResponse.email || null },
+      userData: { organizerKey, accountKey, email },
       overwrite: true,
     }
   }
@@ -236,10 +276,11 @@ class GoToWebinar {
         }).toString()
       )
 
-    // GoTo returns organizer_key/account_key on refresh too; fall back to the values already
-    // embedded in the current composite token if the refresh response omits them.
-    const organizerKey = tokenResponse.organizer_key || this.#getCompositeToken().split(TOKEN_DELIMITER)[1]
-    const accountKey = tokenResponse.account_key || this.#getCompositeToken().split(TOKEN_DELIMITER)[2]
+    // The refresh response does not carry organizer_key/account_key (the token endpoint no longer
+    // returns them), so re-embed the values already captured in the current composite token.
+    const composite = this.#getCompositeToken().split(TOKEN_DELIMITER)
+    const organizerKey = composite[1]
+    const accountKey = composite[2]
 
     return {
       token: this.#buildCompositeToken(tokenResponse.access_token, organizerKey, accountKey),
