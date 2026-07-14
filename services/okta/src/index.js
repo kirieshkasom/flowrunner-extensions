@@ -6756,6 +6756,7 @@ class Okta {
   // ==========================================================================
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Users Dictionary
    * @description Provides a searchable list of users for dropdown selection in other actions.
    * @route POST /get-users-dictionary
@@ -6790,6 +6791,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Groups Dictionary
    * @description Provides a searchable list of groups for dropdown selection in other actions.
    * @route POST /get-groups-dictionary
@@ -6824,6 +6826,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Applications Dictionary
    * @description Provides a searchable list of applications for dropdown selection in other actions.
    * @route POST /get-applications-dictionary
@@ -6858,6 +6861,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Group Rules Dictionary
    * @description Provides a searchable list of group rules for dropdown selection in other actions.
    * @route POST /get-group-rules-dictionary
@@ -6893,6 +6897,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get User Factors Dictionary
    * @description Provides the enrolled MFA factors of a given user for dropdown selection in Activate Factor and Reset Factor.
    * @route POST /get-user-factors-dictionary
@@ -6931,6 +6936,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get User Role Assignments Dictionary
    * @description Provides the admin-role assignments of a given user for dropdown selection in Remove Role from User.
    * @route POST /get-user-role-assignments-dictionary
@@ -6969,6 +6975,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Network Zones Dictionary
    * @description Provides a searchable list of network zones for dropdown selection in other actions.
    * @route POST /get-network-zones-dictionary
@@ -7004,6 +7011,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Trusted Origins Dictionary
    * @description Provides a searchable list of trusted origins for dropdown selection in other actions.
    * @route POST /get-trusted-origins-dictionary
@@ -7038,6 +7046,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Event Hooks Dictionary
    * @description Provides a searchable list of event hooks for dropdown selection in other actions.
    * @route POST /get-event-hooks-dictionary
@@ -7067,6 +7076,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Inline Hooks Dictionary
    * @description Provides a searchable list of inline hooks for dropdown selection in other actions.
    * @route POST /get-inline-hooks-dictionary
@@ -7096,6 +7106,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Behavior Rules Dictionary
    * @description Provides a searchable list of behavior detection rules for dropdown selection in other actions.
    * @route POST /get-behavior-rules-dictionary
@@ -7131,6 +7142,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get User Types Dictionary
    * @description Provides a searchable list of user types for dropdown selection in other actions.
    * @route POST /get-user-types-dictionary
@@ -7160,6 +7172,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Devices Dictionary
    * @description Provides a searchable list of managed devices for dropdown selection in other actions.
    * @route POST /get-devices-dictionary
@@ -7194,6 +7207,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Event Types Dictionary
    * @description Provides a curated, searchable list of common Okta System Log event types for selecting which events an event hook fires on. Sourced from the Okta event-types catalog.
    * @route POST /get-event-types-dictionary
@@ -7224,6 +7238,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Linked Objects Dictionary
    * @description Provides a searchable list of linked-object relationship definitions for dropdown selection in other actions. The value is the relationship name (definitions are name-keyed, not id-keyed).
    * @route POST /get-linked-objects-dictionary
@@ -7257,6 +7272,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Policies Dictionary
    * @description Provides a searchable list of policies for dropdown selection in other actions. Okta requires a policy type - defaults to Global Session (OKTA_SIGN_ON) when none is supplied.
    * @route POST /get-policies-dictionary
@@ -7292,6 +7308,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Policy Rules Dictionary
    * @description Provides the rules of a selected policy for dropdown selection in the policy-rule actions.
    * @route POST /get-policy-rules-dictionary
@@ -7330,6 +7347,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Authorization Servers Dictionary
    * @description Provides a searchable list of custom authorization servers for dropdown selection in other actions.
    * @route POST /get-auth-servers-dictionary
@@ -7364,6 +7382,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Token Scopes Dictionary
    * @description Provides the custom OAuth scopes of a selected authorization server for dropdown selection in the scope actions.
    * @route POST /get-scopes-dictionary
@@ -7409,6 +7428,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Token Claims Dictionary
    * @description Provides the custom token claims of a selected authorization server for dropdown selection in the claim actions.
    * @route POST /get-claims-dictionary
@@ -7447,6 +7467,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Profile Mappings Dictionary
    * @description Provides a searchable list of profile mappings for dropdown selection in the mapping actions.
    * @route POST /get-profile-mappings-dictionary
@@ -7484,6 +7505,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Identity Providers Dictionary
    * @description Provides a searchable list of identity providers for dropdown selection in the IdP actions.
    * @route POST /get-idps-dictionary
@@ -7518,6 +7540,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Authenticators Dictionary
    * @description Provides a searchable list of authenticators for dropdown selection in the authenticator actions.
    * @route POST /get-authenticators-dictionary
@@ -7548,6 +7571,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get User Grants Dictionary
    * @description Provides the OAuth consent grants of a selected user for dropdown selection in the grant actions.
    * @route POST /get-user-grants-dictionary
@@ -7593,6 +7617,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get User Clients Dictionary
    * @description Provides the OAuth clients that hold grants/tokens for a selected user, for dropdown selection in the per-client actions.
    * @route POST /get-user-clients-dictionary
@@ -7631,6 +7656,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get User Tokens Dictionary
    * @description Provides the OAuth refresh tokens a selected client holds for a selected user, for dropdown selection in the token actions.
    * @route POST /get-user-tokens-dictionary
@@ -7677,6 +7703,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Authorization Server Policies Dictionary
    * @description Provides the access policies of a selected authorization server for dropdown selection in the policy/rule actions.
    * @route POST /get-auth-server-policies-dictionary
@@ -7715,6 +7742,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Authorization Server Policy Rules Dictionary
    * @description Provides the rules of a selected authorization-server policy for dropdown selection in the rule actions.
    * @route POST /get-auth-server-policy-rules-dictionary
@@ -7754,6 +7782,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Application Keys Dictionary
    * @description Provides the SSO signing keys of a selected application for dropdown selection in the key actions.
    * @route POST /get-application-keys-dictionary
@@ -7792,6 +7821,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Application CSRs Dictionary
    * @description Provides the certificate signing requests of a selected application for dropdown selection in the CSR actions.
    * @route POST /get-app-csrs-dictionary
@@ -7830,6 +7860,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Application Client Keys Dictionary
    * @description Provides the OAuth client JSON Web Keys of a selected application for dropdown selection in the client-key actions.
    * @route POST /get-app-jwks-dictionary
@@ -7868,6 +7899,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Application Client Secrets Dictionary
    * @description Provides the OAuth client secrets of a selected application for dropdown selection in the client-secret actions.
    * @route POST /get-app-secrets-dictionary
@@ -7906,6 +7938,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Resource Server Keys Dictionary
    * @description Provides the resource-server JSON Web Keys of a selected authorization server for dropdown selection in the resource-server-key actions.
    * @route POST /get-resource-server-keys-dictionary
@@ -7944,6 +7977,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get Org IdP Keys Dictionary
    * @description Provides the org-level Identity Provider key store for dropdown selection in the org IdP key actions.
    * @route POST /get-org-idp-keys-dictionary
@@ -7979,6 +8013,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get IdP Signing Keys Dictionary
    * @description Provides the signing keys of a selected Identity Provider for dropdown selection in the signing-key actions.
    * @route POST /get-idp-signing-keys-dictionary
@@ -8017,6 +8052,7 @@ class Okta {
 
   /**
    * @registerAs DICTIONARY
+   * @category Lookups
    * @operationName Get IdP CSRs Dictionary
    * @description Provides the certificate signing requests of a selected Identity Provider for dropdown selection in the IdP CSR actions.
    * @route POST /get-idp-csrs-dictionary
