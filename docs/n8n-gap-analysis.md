@@ -254,15 +254,15 @@ Solid demand; round out category coverage.
 - [ ] Google Business Profile
 
 ### AI utilities & vector stores (rest)
-- [ ] Mindee (OCR)
-- [ ] Jina AI
-- [ ] Airtop (browser automation)
-- [ ] Milvus
-- [ ] Chroma
-- [ ] PGVector
-- [ ] MongoDB Atlas Vector Search
-- [ ] Azure AI Search
-- [ ] Zep
+- [x] Mindee (OCR) (`services/mindee`)
+- [x] Jina AI (`services/jina`)
+- [x] Airtop (browser automation) (`services/airtop`)
+- [x] Milvus (`services/milvus`)
+- [x] Chroma (`services/chroma`)
+- [x] PGVector (`services/pgvector`)
+- [x] MongoDB Atlas Vector Search (`services/mongodb` Vector Search category)
+- [x] Azure AI Search (`services/azure-ai-search`)
+- [x] Zep (`services/zep`)
 
 ---
 
