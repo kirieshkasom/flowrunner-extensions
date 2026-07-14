@@ -9,5 +9,8 @@
     "eslint": "^8.57.1",
     "eslint-config-backendless": "^1.1.1"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "ldapts": "^7.4.0"
+  }
 }

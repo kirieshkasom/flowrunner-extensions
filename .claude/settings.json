@@ -4,7 +4,11 @@
     "Bash",
     "Workflow",
     "Agent",
-    "Task"
+    "Task",
+    "WebFetch",
+    "WebSearch",
+    "Edit(.claude/agent-memory/**)",
+    "Write(.claude/agent-memory/**)"
   ],
   "deny": [
     "Bash(rm -rf:*)",
