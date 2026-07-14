@@ -5,10 +5,18 @@ const logger = {
   warn: (...args) => console.log('[Mindee] warn:', ...args),
 }
 
-const API_BASE_URL = 'https://api.mindee.net/v1'
+// Mindee V2 API (app.mindee.com). The legacy V1 surface
+// (https://api.mindee.net/v1/products/{account}/{endpoint}/vN/predict with an
+// "Authorization: Token <key>" header) is the older platform.mindee.com product
+// and is not used here. V2 is asynchronous only: enqueue an inference, poll the
+// job, then fetch the result. Models are selected by their model_id UUID, which
+// you create in the Mindee platform from the model catalog.
+const API_BASE_URL = 'https://api-v2.mindee.net/v2'
 
-// Mindee's own (off-the-shelf) product account.
-const MINDEE_ACCOUNT = 'mindee'
+// Async polling defaults. The API times out an inference after 590s, so cap the
+// wait well under a comfortable action timeout and poll on a fixed interval.
+const POLL_INTERVAL_MS = 2000
+const MAX_POLL_ATTEMPTS = 25
 
 /**
  * @integrationName Mindee
@@ -45,429 +53,292 @@ class MindeeService {
     }
   }
 
-  // Core predictor. Downloads the file at fileUrl and POSTs it to Mindee as a
-  // multipart 'document' field. `productPath` is the portion after /v1/products/,
-  // e.g. `mindee/invoices/v4`. Returns the full parsed Mindee response.
-  async #predict({ productPath, fileUrl, extraFields, logTag }) {
-    if (!fileUrl) {
-      throw new Error('Mindee API error: a document URL is required.')
-    }
-
-    const url = `${ API_BASE_URL }/products/${ productPath }/predict`
-
+  // Single request helper. Every V2 call sends the raw API key in the
+  // Authorization header (no "Bearer"/"Token" prefix). On success Flowrunner.Request
+  // returns the parsed response body directly.
+  async #apiRequest({ url, method = 'get', form, query, logTag }) {
     try {
-      logger.debug(`${ logTag } - [POST::${ url }] downloading ${ fileUrl }`)
+      logger.debug(`${ logTag } - [${ method.toUpperCase() }::${ url }]`)
 
-      const fileBytes = this.#toBuffer(await Flowrunner.Request.get(fileUrl).setEncoding(null))
-      const filename = this.#fileNameFromUrl(fileUrl)
+      const request = Flowrunner.Request[method.toLowerCase()](url)
+        .set({ Authorization: this.apiKey })
+        .query(query || {})
 
-      // Do NOT set Content-Type manually — FormData supplies the multipart boundary.
-      const formData = new Flowrunner.Request.FormData()
-
-      formData.append('document', fileBytes, { filename })
-
-      for (const [key, value] of Object.entries(extraFields || {})) {
-        if (value !== undefined && value !== null && value !== '') {
-          formData.append(key, String(value))
-        }
-      }
-
-      return await Flowrunner.Request.post(url)
-        .set({ Authorization: `Token ${ this.apiKey }` })
-        .form(formData)
+      // Multipart uploads set their own boundary via .form(FormData); do not add a
+      // Content-Type header manually.
+      return form !== undefined ? await request.form(form) : await request
     } catch (error) {
-      const apiError = error.body?.api_request?.error
-      const message = apiError?.message ||
-        (apiError && typeof apiError === 'object' ? JSON.stringify(apiError) : undefined) ||
-        error.body?.message ||
+      // V2 errors follow RFC 9457: { status, title, detail, code, errors:[{pointer,detail}] }.
+      const problem = error.body || {}
+      const fieldErrors = Array.isArray(problem.errors)
+        ? problem.errors.map(item => item?.detail).filter(Boolean).join('; ')
+        : ''
+      const message = [problem.detail || problem.title, fieldErrors].filter(Boolean).join(' — ') ||
         error.message
 
-      logger.error(`${ logTag } - failed (${ error.status || error.statusCode || '?' }): ${ message }`)
+      logger.error(`${ logTag } - failed (${ error.status || error.statusCode || problem.status || '?' }): ${ message }`)
 
       throw new Error(`Mindee API error: ${ message }`)
     }
   }
 
-  // Pull document.inference.prediction out of a Mindee response.
-  #prediction(response) {
-    return response?.document?.inference?.prediction || {}
-  }
-
-  // Mindee fields are usually { value, confidence } wrappers. Return the value.
-  #val(field) {
-    if (field === undefined || field === null) {
-      return undefined
+  // Build the multipart body for an enqueue call. Downloads the file at fileUrl and
+  // attaches it as the `file` field alongside the model_id and any feature flags.
+  async #buildEnqueueForm({ modelId, fileUrl, options, logTag }) {
+    if (!modelId) {
+      throw new Error('Mindee API error: a model ID is required.')
     }
 
-    return typeof field === 'object' && Object.prototype.hasOwnProperty.call(field, 'value')
-      ? field.value
-      : field
+    if (!fileUrl) {
+      throw new Error('Mindee API error: a document URL is required.')
+    }
+
+    logger.debug(`${ logTag } - downloading ${ fileUrl }`)
+
+    const fileBytes = this.#toBuffer(await Flowrunner.Request.get(fileUrl).setEncoding(null))
+    const filename = this.#fileNameFromUrl(fileUrl)
+
+    const formData = new Flowrunner.Request.FormData()
+
+    formData.append('model_id', String(modelId))
+    formData.append('file', fileBytes, { filename })
+    formData.append('filename', filename)
+
+    for (const [key, value] of Object.entries(options || {})) {
+      if (value !== undefined && value !== null && value !== '') {
+        formData.append(key, String(value))
+      }
+    }
+
+    return formData
+  }
+
+  // Enqueue an extraction inference and return the created job object.
+  async #enqueueExtraction({ modelId, fileUrl, options, logTag }) {
+    const form = await this.#buildEnqueueForm({ modelId, fileUrl, options, logTag })
+
+    const response = await this.#apiRequest({
+      logTag,
+      url: `${ API_BASE_URL }/products/extraction/enqueue`,
+      method: 'post',
+      form,
+    })
+
+    return response?.job || response
+  }
+
+  // Poll a job by id until it reaches a terminal state (Processed / Failed) or the
+  // attempt budget is exhausted. Returns the final job object.
+  async #pollJob({ jobId, logTag, attempts = MAX_POLL_ATTEMPTS }) {
+    let lastJob = null
+
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      // redirect=false keeps the job payload (with result_url) instead of 302-ing
+      // straight to the result endpoint.
+      const response = await this.#apiRequest({
+        logTag,
+        url: `${ API_BASE_URL }/jobs/${ jobId }`,
+        method: 'get',
+        query: { redirect: false },
+      })
+
+      lastJob = response?.job || response
+      const status = lastJob?.status
+
+      if (status === 'Processed' || status === 'Failed') {
+        return lastJob
+      }
+
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
+    }
+
+    logger.warn(`${ logTag } - job ${ jobId } did not finish within ${ attempts } polls`)
+
+    return lastJob
+  }
+
+  // Fetch a completed extraction result by inference id.
+  async #getExtractionResult({ inferenceId, logTag }) {
+    const response = await this.#apiRequest({
+      logTag,
+      url: `${ API_BASE_URL }/products/extraction/results/${ inferenceId }`,
+      method: 'get',
+    })
+
+    return response?.inference || response
+  }
+
+  // Flatten a V2 result.fields tree into plain values. Each node is one of:
+  // SimpleFieldResult ({ value }), ListFieldResult ({ items:[...] }), or
+  // ObjectFieldResult ({ fields:{...} }). Returns a nested plain object/array.
+  #flattenFields(fields) {
+    if (!fields || typeof fields !== 'object') {
+      return fields
+    }
+
+    const output = {}
+
+    for (const [key, node] of Object.entries(fields)) {
+      output[key] = this.#flattenNode(node)
+    }
+
+    return output
+  }
+
+  #flattenNode(node) {
+    if (node === null || node === undefined || typeof node !== 'object') {
+      return node
+    }
+
+    if (Array.isArray(node.items)) {
+      return node.items.map(item => this.#flattenNode(item))
+    }
+
+    if (node.fields && typeof node.fields === 'object') {
+      return this.#flattenFields(node.fields)
+    }
+
+    if (Object.prototype.hasOwnProperty.call(node, 'value')) {
+      return node.value
+    }
+
+    return node
   }
 
   /**
-   * @operationName Parse Invoice
-   * @category Financial
-   * @description Extracts structured data from an invoice (PDF or image) using Mindee's off-the-shelf Invoices model. Returns a flattened `fields` object with supplier and customer names, totals (amount, net, tax), invoice date and due date, invoice number, currency, and line items, alongside the complete raw Mindee response. Provide any publicly reachable document URL or a FlowRunner file URL.
-   * @route POST /parse-invoice
+   * @operationName Extract Document
+   * @category Extraction
+   * @description Runs a document through a Mindee V2 extraction model and waits for the result. Provide the model ID (a UUID you create in the Mindee platform from the model catalog — e.g. the prebuilt Invoice, Receipt, Passport, ID, Resume, or US Driver License model, or your own custom model) and a document URL. The file is downloaded and enqueued, the job is polled until it finishes, and a flattened `fields` object (simple values, nested objects, and lists) is returned alongside the complete raw inference. Because parsing is asynchronous, allow up to roughly a minute for large or multi-page documents.
+   * @route POST /extract-document
    * @appearanceColor #6A5CFF #8B7DFF
-   * @executionTimeoutInSeconds 60
+   * @executionTimeoutInSeconds 120
    *
-   * @paramDef {"type":"String","label":"Document URL","name":"documentUrl","required":true,"description":"URL of the invoice file (PDF, JPG, PNG, WEBP, TIFF, HEIC). Can be a public URL or a FlowRunner file URL. The file is downloaded and uploaded to Mindee."}
+   * @paramDef {"type":"String","label":"Model ID","name":"modelId","required":true,"description":"The Mindee V2 model UUID to run. Find it in the Mindee platform on your model's page (Model ID)."}
+   * @paramDef {"type":"String","label":"Document URL","name":"documentUrl","required":true,"description":"URL of the file to parse (PDF, JPG, PNG, WEBP, TIFF, HEIC). Can be a public URL or a FlowRunner file URL. The file is downloaded and uploaded to Mindee."}
+   * @paramDef {"type":"Boolean","label":"Include Confidence","name":"includeConfidence","required":false,"uiComponent":{"type":"CHECKBOX"},"description":"Include per-field confidence levels in the raw inference. Defaults to false."}
+   * @paramDef {"type":"Boolean","label":"Include Raw Text (OCR)","name":"includeRawText","required":false,"uiComponent":{"type":"CHECKBOX"},"description":"Include the full OCR text of the document in the raw inference. Defaults to false."}
    *
    * @returns {Object}
-   * @sampleResult {"fields":{"supplierName":"ACME Corp","customerName":"Widgets Inc","totalAmount":110,"totalNet":100,"totalTax":10,"currency":"USD","date":"2024-01-15","dueDate":"2024-02-15","invoiceNumber":"INV-001","lineItems":[{"description":"Widget A","quantity":2,"unitPrice":50,"totalAmount":100}]},"raw":{"api_request":{"status":"success","status_code":201},"document":{"id":"abc-123","inference":{"prediction":{}}}}}
+   * @sampleResult {"status":"Processed","inferenceId":"c0ffee00-1111-2222-3333-444455556666","fields":{"supplier_name":"ACME Corp","total_amount":110,"invoice_number":"INV-001","line_items":[{"description":"Widget A","quantity":2,"total_amount":100}]},"raw":{"inference":{"id":"c0ffee00-1111-2222-3333-444455556666","model":{"id":"model-uuid"},"result":{"fields":{}}}}}
    */
-  async parseInvoice(documentUrl) {
-    const response = await this.#predict({
-      logTag: '[parseInvoice]',
-      productPath: `${ MINDEE_ACCOUNT }/invoices/v4`,
+  async extractDocument(modelId, documentUrl, includeConfidence, includeRawText) {
+    const logTag = '[extractDocument]'
+
+    const job = await this.#enqueueExtraction({
+      logTag,
+      modelId,
       fileUrl: documentUrl,
+      options: {
+        confidence: includeConfidence ? 'true' : undefined,
+        raw_text: includeRawText ? 'true' : undefined,
+      },
     })
 
-    const p = this.#prediction(response)
+    if (!job?.id) {
+      throw new Error('Mindee API error: enqueue did not return a job id.')
+    }
+
+    const finished = await this.#pollJob({ jobId: job.id, logTag })
+
+    if (finished?.status === 'Failed') {
+      const detail = finished?.error?.detail || finished?.error?.title || 'inference failed'
+
+      throw new Error(`Mindee API error: ${ detail }`)
+    }
+
+    const inferenceId = finished?.id || job.id
+    const inference = await this.#getExtractionResult({ inferenceId, logTag })
 
     return {
-      fields: {
-        supplierName: this.#val(p.supplier_name),
-        supplierAddress: this.#val(p.supplier_address),
-        customerName: this.#val(p.customer_name),
-        customerAddress: this.#val(p.customer_address),
-        totalAmount: this.#val(p.total_amount),
-        totalNet: this.#val(p.total_net),
-        totalTax: this.#val(p.total_tax),
-        currency: this.#val(p.locale?.currency) || this.#val(p.locale),
-        date: this.#val(p.date),
-        dueDate: this.#val(p.due_date),
-        invoiceNumber: this.#val(p.invoice_number),
-        lineItems: (p.line_items || []).map(item => ({
-          description: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unit_price,
-          totalAmount: item.total_amount,
-          taxRate: item.tax_rate,
-        })),
-      },
-      raw: response,
+      status: finished?.status || 'Processed',
+      inferenceId: inference?.id || inferenceId,
+      fields: this.#flattenFields(inference?.result?.fields),
+      raw: { inference },
     }
   }
 
   /**
-   * @operationName Parse Receipt
-   * @category Financial
-   * @description Extracts structured data from an expense receipt (PDF or image) using Mindee's off-the-shelf Expense Receipts model. Returns a flattened `fields` object with merchant name, total amount, receipt date and time, expense category, and taxes, plus the complete raw response. Provide any publicly reachable document URL or a FlowRunner file URL.
-   * @route POST /parse-receipt
+   * @operationName Enqueue Inference
+   * @category Extraction
+   * @description Enqueues a document for extraction without waiting for the result, returning the created job (with its id and polling/result URLs). Use this for high-volume or webhook-driven flows where you retrieve the outcome later via Get Job Status and Get Inference Result, or via a configured Mindee webhook. Provide the model ID and a document URL; the file is downloaded and uploaded to Mindee. Optionally supply webhook IDs (comma-separated) to have Mindee notify your endpoints when the job completes.
+   * @route POST /enqueue-inference
    * @appearanceColor #6A5CFF #8B7DFF
    * @executionTimeoutInSeconds 60
    *
-   * @paramDef {"type":"String","label":"Document URL","name":"documentUrl","required":true,"description":"URL of the receipt file (PDF, JPG, PNG, WEBP, TIFF, HEIC). Can be a public URL or a FlowRunner file URL. The file is downloaded and uploaded to Mindee."}
+   * @paramDef {"type":"String","label":"Model ID","name":"modelId","required":true,"description":"The Mindee V2 model UUID to run. Find it in the Mindee platform on your model's page (Model ID)."}
+   * @paramDef {"type":"String","label":"Document URL","name":"documentUrl","required":true,"description":"URL of the file to parse (PDF, JPG, PNG, WEBP, TIFF, HEIC). Can be a public URL or a FlowRunner file URL. The file is downloaded and uploaded to Mindee."}
+   * @paramDef {"type":"Array<String>","label":"Webhook IDs","name":"webhookIds","required":false,"description":"Optional Mindee webhook UUIDs to notify when the job completes."}
+   * @paramDef {"type":"String","label":"Alias","name":"alias","required":false,"description":"Optional free-form label to tag the request with your own identifier."}
    *
    * @returns {Object}
-   * @sampleResult {"fields":{"merchantName":"Coffee Shop","total":12.5,"totalNet":11.36,"totalTax":1.14,"currency":"USD","date":"2024-01-15","time":"09:30","category":"food","taxes":[{"rate":10,"amount":1.14}]},"raw":{"api_request":{"status":"success","status_code":201},"document":{"id":"abc-123","inference":{"prediction":{}}}}}
+   * @sampleResult {"id":"11112222-3333-4444-5555-666677778888","model_id":"model-uuid","status":"Processing","polling_url":"https://api-v2.mindee.net/v2/jobs/11112222-3333-4444-5555-666677778888","result_url":null,"filename":"invoice.pdf"}
    */
-  async parseReceipt(documentUrl) {
-    const response = await this.#predict({
-      logTag: '[parseReceipt]',
-      productPath: `${ MINDEE_ACCOUNT }/expense_receipts/v5`,
+  async enqueueInference(modelId, documentUrl, webhookIds, alias) {
+    const logTag = '[enqueueInference]'
+    const ids = (webhookIds || []).filter(Boolean)
+
+    return await this.#enqueueExtraction({
+      logTag,
+      modelId,
       fileUrl: documentUrl,
+      options: {
+        alias,
+        webhook_ids: ids.length ? ids.join(',') : undefined,
+      },
+    })
+  }
+
+  /**
+   * @operationName Get Job Status
+   * @category Jobs
+   * @description Retrieves the current status of an asynchronous inference job by its id. Returns the job object, whose `status` is one of Processing, Processed, or Failed; once processed, `result_url` points to the completed inference. Use this to poll a job created by Enqueue Inference before fetching its result.
+   * @route GET /get-job-status
+   * @appearanceColor #6A5CFF #8B7DFF
+   *
+   * @paramDef {"type":"String","label":"Job ID","name":"jobId","required":true,"description":"The job UUID returned by Enqueue Inference."}
+   *
+   * @returns {Object}
+   * @sampleResult {"id":"11112222-3333-4444-5555-666677778888","model_id":"model-uuid","status":"Processed","polling_url":"https://api-v2.mindee.net/v2/jobs/11112222-3333-4444-5555-666677778888","result_url":"https://api-v2.mindee.net/v2/products/extraction/results/c0ffee00-1111-2222-3333-444455556666","filename":"invoice.pdf","error":null}
+   */
+  async getJobStatus(jobId) {
+    if (!jobId) {
+      throw new Error('Mindee API error: a job ID is required.')
+    }
+
+    const response = await this.#apiRequest({
+      logTag: '[getJobStatus]',
+      url: `${ API_BASE_URL }/jobs/${ jobId }`,
+      method: 'get',
+      query: { redirect: false },
     })
 
-    const p = this.#prediction(response)
+    return response?.job || response
+  }
+
+  /**
+   * @operationName Get Inference Result
+   * @category Jobs
+   * @description Fetches a completed extraction inference by its id and returns a flattened `fields` object (simple values, nested objects, and lists) alongside the complete raw inference. Use this after Get Job Status reports the job as Processed. The inference id is the completed job's id.
+   * @route GET /get-inference-result
+   * @appearanceColor #6A5CFF #8B7DFF
+   *
+   * @paramDef {"type":"String","label":"Inference ID","name":"inferenceId","required":true,"description":"The inference UUID (the completed job's id) to fetch results for."}
+   *
+   * @returns {Object}
+   * @sampleResult {"inferenceId":"c0ffee00-1111-2222-3333-444455556666","fields":{"supplier_name":"ACME Corp","total_amount":110,"invoice_number":"INV-001","line_items":[{"description":"Widget A","quantity":2,"total_amount":100}]},"raw":{"inference":{"id":"c0ffee00-1111-2222-3333-444455556666","model":{"id":"model-uuid"},"result":{"fields":{}}}}}
+   */
+  async getInferenceResult(inferenceId) {
+    if (!inferenceId) {
+      throw new Error('Mindee API error: an inference ID is required.')
+    }
+
+    const inference = await this.#getExtractionResult({ inferenceId, logTag: '[getInferenceResult]' })
 
     return {
-      fields: {
-        merchantName: this.#val(p.supplier_name),
-        total: this.#val(p.total_amount),
-        totalNet: this.#val(p.total_net),
-        totalTax: this.#val(p.total_tax),
-        currency: this.#val(p.locale?.currency) || this.#val(p.locale),
-        date: this.#val(p.date),
-        time: this.#val(p.time),
-        category: this.#val(p.category),
-        subCategory: this.#val(p.subcategory),
-        taxes: (p.taxes || []).map(tax => ({ rate: tax.rate, amount: tax.value || tax.amount })),
-      },
-      raw: response,
+      inferenceId: inference?.id || inferenceId,
+      fields: this.#flattenFields(inference?.result?.fields),
+      raw: { inference },
     }
-  }
-
-  /**
-   * @operationName Parse Financial Document
-   * @category Financial
-   * @description Extracts structured data from either an invoice or a receipt using Mindee's Financial Document model, which auto-detects the document type. Returns a flattened `fields` object with supplier and customer, totals, date, invoice number, and line items, plus the complete raw response. Use this when a document may be either an invoice or a receipt. Provide any publicly reachable document URL or a FlowRunner file URL.
-   * @route POST /parse-financial-document
-   * @appearanceColor #6A5CFF #8B7DFF
-   * @executionTimeoutInSeconds 60
-   *
-   * @paramDef {"type":"String","label":"Document URL","name":"documentUrl","required":true,"description":"URL of the invoice or receipt file (PDF, JPG, PNG, WEBP, TIFF, HEIC). Can be a public URL or a FlowRunner file URL. The file is downloaded and uploaded to Mindee."}
-   *
-   * @returns {Object}
-   * @sampleResult {"fields":{"documentType":"INVOICE","supplierName":"ACME Corp","customerName":"Widgets Inc","totalAmount":110,"totalNet":100,"totalTax":10,"currency":"USD","date":"2024-01-15","invoiceNumber":"INV-001","lineItems":[{"description":"Widget A","quantity":2,"totalAmount":100}]},"raw":{"api_request":{"status":"success","status_code":201},"document":{"id":"abc-123","inference":{"prediction":{}}}}}
-   */
-  async parseFinancialDocument(documentUrl) {
-    const response = await this.#predict({
-      logTag: '[parseFinancialDocument]',
-      productPath: `${ MINDEE_ACCOUNT }/financial_document/v1`,
-      fileUrl: documentUrl,
-    })
-
-    const p = this.#prediction(response)
-
-    return {
-      fields: {
-        documentType: this.#val(p.document_type),
-        supplierName: this.#val(p.supplier_name),
-        supplierAddress: this.#val(p.supplier_address),
-        customerName: this.#val(p.customer_name),
-        customerAddress: this.#val(p.customer_address),
-        totalAmount: this.#val(p.total_amount),
-        totalNet: this.#val(p.total_net),
-        totalTax: this.#val(p.total_tax),
-        currency: this.#val(p.locale?.currency) || this.#val(p.locale),
-        date: this.#val(p.date),
-        dueDate: this.#val(p.due_date),
-        invoiceNumber: this.#val(p.invoice_number),
-        lineItems: (p.line_items || []).map(item => ({
-          description: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unit_price,
-          totalAmount: item.total_amount,
-        })),
-      },
-      raw: response,
-    }
-  }
-
-  /**
-   * @operationName Parse ID Document
-   * @category Identity
-   * @description Extracts identity fields from a national ID card using Mindee's International ID model. Returns a flattened `fields` object with document type and number, surname, given names, nationality, sex, birth date and place, issue and expiry dates, and issuing country, plus the complete raw response. Provide any publicly reachable document URL or a FlowRunner file URL.
-   * @route POST /parse-id-document
-   * @appearanceColor #6A5CFF #8B7DFF
-   * @executionTimeoutInSeconds 60
-   *
-   * @paramDef {"type":"String","label":"Document URL","name":"documentUrl","required":true,"description":"URL of the ID document image (JPG, PNG, WEBP, TIFF, HEIC) or PDF. Can be a public URL or a FlowRunner file URL. The file is downloaded and uploaded to Mindee."}
-   *
-   * @returns {Object}
-   * @sampleResult {"fields":{"documentType":"IDENTIFICATION_CARD","documentNumber":"X1234567","surnames":["DOE"],"givenNames":["JOHN"],"nationality":"USA","sex":"M","birthDate":"1990-01-01","birthPlace":"NEW YORK","issueDate":"2020-01-01","expiryDate":"2030-01-01","countryOfIssue":"USA"},"raw":{"api_request":{"status":"success","status_code":201},"document":{"id":"abc-123","inference":{"prediction":{}}}}}
-   */
-  async parseIdDocument(documentUrl) {
-    const response = await this.#predict({
-      logTag: '[parseIdDocument]',
-      productPath: `${ MINDEE_ACCOUNT }/international_id/v2`,
-      fileUrl: documentUrl,
-    })
-
-    const p = this.#prediction(response)
-
-    return {
-      fields: {
-        documentType: this.#val(p.document_type),
-        documentNumber: this.#val(p.document_number),
-        surnames: (p.surnames || []).map(item => this.#val(item)),
-        givenNames: (p.given_names || []).map(item => this.#val(item)),
-        nationality: this.#val(p.nationality),
-        sex: this.#val(p.sex),
-        birthDate: this.#val(p.birth_date),
-        birthPlace: this.#val(p.birth_place),
-        issueDate: this.#val(p.issue_date),
-        expiryDate: this.#val(p.expiry_date),
-        countryOfIssue: this.#val(p.country_of_issue),
-        address: this.#val(p.address),
-        mrz1: this.#val(p.mrz_line1),
-        mrz2: this.#val(p.mrz_line2),
-      },
-      raw: response,
-    }
-  }
-
-  /**
-   * @operationName Parse Passport
-   * @category Identity
-   * @description Extracts identity fields from a passport using Mindee's off-the-shelf Passport model. Returns a flattened `fields` object with document number, surname, given names, country, nationality, sex, birth date and place, issue and expiry dates, and the MRZ lines, plus the complete raw response. Provide any publicly reachable document URL or a FlowRunner file URL.
-   * @route POST /parse-passport
-   * @appearanceColor #6A5CFF #8B7DFF
-   * @executionTimeoutInSeconds 60
-   *
-   * @paramDef {"type":"String","label":"Document URL","name":"documentUrl","required":true,"description":"URL of the passport image (JPG, PNG, WEBP, TIFF, HEIC) or PDF. Can be a public URL or a FlowRunner file URL. The file is downloaded and uploaded to Mindee."}
-   *
-   * @returns {Object}
-   * @sampleResult {"fields":{"documentNumber":"X1234567","surname":"DOE","givenNames":["JOHN"],"country":"USA","nationality":"USA","sex":"M","birthDate":"1990-01-01","birthPlace":"NEW YORK","issueDate":"2020-01-01","expiryDate":"2030-01-01","mrz1":"P<USADOE<<JOHN<<<<<<<<<<<<<<<<<<<<<<<<<<<<<","mrz2":"X1234567<8USA9001019M3001017<<<<<<<<<<<<<<06"},"raw":{"api_request":{"status":"success","status_code":201},"document":{"id":"abc-123","inference":{"prediction":{}}}}}
-   */
-  async parsePassport(documentUrl) {
-    const response = await this.#predict({
-      logTag: '[parsePassport]',
-      productPath: `${ MINDEE_ACCOUNT }/passport/v1`,
-      fileUrl: documentUrl,
-    })
-
-    const p = this.#prediction(response)
-
-    return {
-      fields: {
-        documentNumber: this.#val(p.id_number),
-        surname: this.#val(p.surname),
-        givenNames: (p.given_names || []).map(item => this.#val(item)),
-        country: this.#val(p.country),
-        nationality: this.#val(p.nationality),
-        sex: this.#val(p.gender),
-        birthDate: this.#val(p.birth_date),
-        birthPlace: this.#val(p.birth_place),
-        issueDate: this.#val(p.issuance_date),
-        expiryDate: this.#val(p.expiry_date),
-        mrz1: this.#val(p.mrz1),
-        mrz2: this.#val(p.mrz2),
-      },
-      raw: response,
-    }
-  }
-
-  /**
-   * @operationName Parse Resume
-   * @category HR
-   * @description Extracts structured data from a resume/CV using Mindee's off-the-shelf Resume model. Returns a flattened `fields` object with the candidate's full name, profession, emails and phone numbers, address, skills, languages, education, and work experience, plus the complete raw response. Provide any publicly reachable document URL or a FlowRunner file URL.
-   * @route POST /parse-resume
-   * @appearanceColor #6A5CFF #8B7DFF
-   * @executionTimeoutInSeconds 60
-   *
-   * @paramDef {"type":"String","label":"Document URL","name":"documentUrl","required":true,"description":"URL of the resume file (PDF, JPG, PNG, WEBP, TIFF, HEIC). Can be a public URL or a FlowRunner file URL. The file is downloaded and uploaded to Mindee."}
-   *
-   * @returns {Object}
-   * @sampleResult {"fields":{"fullName":"John Doe","givenNames":["John"],"surnames":["Doe"],"profession":"Software Engineer","emails":["john@example.com"],"phoneNumbers":["+1 555 000 1111"],"address":"123 Main St","skills":["JavaScript","Python"],"languages":[{"language":"English","level":"Native"}],"workExperience":[{"employer":"ACME","role":"Engineer","startDate":"2020-01","endDate":"2023-01"}]},"raw":{"api_request":{"status":"success","status_code":201},"document":{"id":"abc-123","inference":{"prediction":{}}}}}
-   */
-  async parseResume(documentUrl) {
-    const response = await this.#predict({
-      logTag: '[parseResume]',
-      productPath: `${ MINDEE_ACCOUNT }/resume/v1`,
-      fileUrl: documentUrl,
-    })
-
-    const p = this.#prediction(response)
-
-    return {
-      fields: {
-        fullName: this.#val(p.given_names) && this.#val(p.surnames)
-          ? [...(p.given_names || []).map(item => this.#val(item)), ...(p.surnames || []).map(item => this.#val(item))].join(' ')
-          : undefined,
-        givenNames: (p.given_names || []).map(item => this.#val(item)),
-        surnames: (p.surnames || []).map(item => this.#val(item)),
-        profession: this.#val(p.profession),
-        emails: (p.email_addresses || p.emails || []).map(item => this.#val(item)),
-        phoneNumbers: (p.phone_numbers || []).map(item => this.#val(item)),
-        address: this.#val(p.address),
-        skills: (p.hard_skills || []).map(item => this.#val(item?.name) || this.#val(item)),
-        softSkills: (p.soft_skills || []).map(item => this.#val(item)),
-        languages: (p.languages || []).map(item => ({ language: item.language, level: item.level })),
-        education: (p.education || []).map(item => ({
-          degree: item.degree,
-          school: item.school,
-          domain: item.domain,
-          startDate: item.start_year || item.start_month,
-          endDate: item.end_year || item.end_month,
-        })),
-        workExperience: (p.professional_experiences || []).map(item => ({
-          employer: item.employer,
-          role: item.role,
-          department: item.department,
-          startDate: item.start_month || item.start_year,
-          endDate: item.end_month || item.end_year,
-          description: item.description,
-        })),
-      },
-      raw: response,
-    }
-  }
-
-  /**
-   * @operationName Parse US Driver License
-   * @category Identity
-   * @description Extracts fields from a United States driver license using Mindee's off-the-shelf US Driver License model. Returns a flattened `fields` object with the license state and number, first and last name, address, date of birth, issue and expiry dates, sex, and eye color, plus the complete raw response. Provide any publicly reachable document URL or a FlowRunner file URL.
-   * @route POST /parse-us-driver-license
-   * @appearanceColor #6A5CFF #8B7DFF
-   * @executionTimeoutInSeconds 60
-   *
-   * @paramDef {"type":"String","label":"Document URL","name":"documentUrl","required":true,"description":"URL of the US driver license image (JPG, PNG, WEBP, TIFF, HEIC) or PDF. Can be a public URL or a FlowRunner file URL. The file is downloaded and uploaded to Mindee."}
-   *
-   * @returns {Object}
-   * @sampleResult {"fields":{"state":"CA","licenseNumber":"D1234567","firstName":"JOHN","lastName":"DOE","address":"123 MAIN ST, LOS ANGELES, CA","dateOfBirth":"1990-01-01","issuedDate":"2020-01-01","expiryDate":"2030-01-01","sex":"M","eyeColor":"BRO","height":"5-10"},"raw":{"api_request":{"status":"success","status_code":201},"document":{"id":"abc-123","inference":{"prediction":{}}}}}
-   */
-  async parseUsDriverLicense(documentUrl) {
-    const response = await this.#predict({
-      logTag: '[parseUsDriverLicense]',
-      productPath: `${ MINDEE_ACCOUNT }/us_driver_license/v1`,
-      fileUrl: documentUrl,
-    })
-
-    const p = this.#prediction(response)
-
-    return {
-      fields: {
-        state: this.#val(p.state),
-        licenseNumber: this.#val(p.driver_license_id) || this.#val(p.dl_id) || this.#val(p.id),
-        firstName: this.#val(p.first_name),
-        lastName: this.#val(p.last_name),
-        address: this.#val(p.address),
-        dateOfBirth: this.#val(p.date_of_birth),
-        issuedDate: this.#val(p.issued_date),
-        expiryDate: this.#val(p.expiry_date),
-        sex: this.#val(p.sex),
-        eyeColor: this.#val(p.eye_color),
-        height: this.#val(p.height),
-      },
-      raw: response,
-    }
-  }
-
-  /**
-   * @operationName Parse Custom Document
-   * @category Custom Models
-   * @description Runs a document through a custom or generated Mindee model that you built in the Mindee platform. Provide your account name, the API endpoint (model) name, and the model version, and the file is uploaded for prediction. Returns the raw Mindee response with the full `document.inference.prediction` so you can read any field your custom model defines. Use this to unlock any custom-trained or generated model.
-   * @route POST /parse-custom-document
-   * @appearanceColor #6A5CFF #8B7DFF
-   * @executionTimeoutInSeconds 60
-   *
-   * @paramDef {"type":"String","label":"Account Name","name":"accountName","required":true,"description":"Your Mindee account (organization) name that owns the custom endpoint."}
-   * @paramDef {"type":"String","label":"Endpoint Name","name":"endpointName","required":true,"description":"The API endpoint (model) name of your custom/generated model, as shown in the Mindee platform."}
-   * @paramDef {"type":"String","label":"Version","name":"version","required":true,"description":"The model version to call, e.g. 1 or 1.2. The 'v' prefix is added automatically."}
-   * @paramDef {"type":"String","label":"Document URL","name":"documentUrl","required":true,"description":"URL of the file to parse (PDF or image). Can be a public URL or a FlowRunner file URL. The file is downloaded and uploaded to Mindee."}
-   *
-   * @returns {Object}
-   * @sampleResult {"api_request":{"status":"success","status_code":201},"document":{"id":"abc-123","name":"custom.pdf","inference":{"prediction":{"my_field":{"value":"example","confidence":0.98}}}}}
-   */
-  async parseCustomDocument(accountName, endpointName, version, documentUrl) {
-    return await this.#predict({
-      logTag: '[parseCustomDocument]',
-      productPath: `${ accountName }/${ endpointName }/${ this.#normalizeVersion(version) }`,
-      fileUrl: documentUrl,
-    })
-  }
-
-  /**
-   * @operationName Parse Document (Generic)
-   * @category Custom Models
-   * @description Escape hatch for any Mindee product. Provide the full product path (the segment after `/v1/products/`, e.g. `mindee/invoices/v4` or `mindee/us_mail/v3`) and a document URL, and the file is uploaded for prediction. Returns the raw Mindee response including `document.inference.prediction`. Use this to call newer or less common off-the-shelf products not exposed as dedicated actions.
-   * @route POST /parse-document-generic
-   * @appearanceColor #6A5CFF #8B7DFF
-   * @executionTimeoutInSeconds 60
-   *
-   * @paramDef {"type":"String","label":"Product Path","name":"productPath","required":true,"description":"Path after /v1/products/, including the version, e.g. mindee/invoices/v4 or mindee/passport/v1."}
-   * @paramDef {"type":"String","label":"Document URL","name":"documentUrl","required":true,"description":"URL of the file to parse (PDF or image). Can be a public URL or a FlowRunner file URL. The file is downloaded and uploaded to Mindee."}
-   *
-   * @returns {Object}
-   * @sampleResult {"api_request":{"status":"success","status_code":201},"document":{"id":"abc-123","name":"doc.pdf","inference":{"prediction":{}}}}
-   */
-  async parseDocumentGeneric(productPath, documentUrl) {
-    return await this.#predict({
-      logTag: '[parseDocumentGeneric]',
-      productPath: String(productPath || '').replace(/^\/+|\/+$/g, ''),
-      fileUrl: documentUrl,
-    })
-  }
-
-  // Accepts "1", "v1", "1.2", "v1.2" → "v1" / "v1.2".
-  #normalizeVersion(version) {
-    const raw = String(version || '').trim().replace(/^v/i, '')
-
-    return `v${ raw || '1' }`
   }
 }
 
@@ -478,6 +349,6 @@ Flowrunner.ServerCode.addService(MindeeService, [
     type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
     required: true,
     shared: false,
-    hint: 'Your Mindee API key, sent as the "Authorization: Token <key>" header. Create one in the Mindee platform under API Keys.',
+    hint: 'Your Mindee V2 API key, sent as the raw "Authorization: <key>" header (no Bearer/Token prefix). Create one in the Mindee platform (app.mindee.com) under API Keys.',
   },
 ])
