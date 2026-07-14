@@ -146,21 +146,21 @@ Solid demand; round out category coverage.
 - [x] Drift (`services/drift`)
 
 ### Sales intelligence / enrichment
-- [ ] Clearbit
-- [ ] Hunter.io
-- [ ] Dropcontact
-- [ ] UpLead
-- [ ] Phantombuster
+- [x] Clearbit (`services/clearbit`)
+- [x] Hunter.io (`services/hunter`)
+- [x] Dropcontact (`services/dropcontact`)
+- [x] UpLead (`services/uplead`)
+- [x] Phantombuster (`services/phantombuster`)
 
 ### Marketing
-- [ ] GetResponse
-- [ ] Iterable
-- [ ] Lemlist
-- [ ] Autopilot (Ortto)
-- [ ] Tapfiliate
-- [ ] ProfitWell
-- [ ] Brandfetch
-- [ ] Bitly
+- [x] GetResponse (`services/getresponse`)
+- [x] Iterable (`services/iterable`)
+- [x] Lemlist (`services/lemlist`)
+- [x] Autopilot (Ortto) (`services/ortto`)
+- [x] Tapfiliate (`services/tapfiliate`)
+- [x] ProfitWell (`services/profitwell`)
+- [x] Brandfetch (`services/brandfetch`)
+- [x] Bitly (`services/bitly`)
 
 ### Messaging / SMS / push
 - [ ] Vonage
