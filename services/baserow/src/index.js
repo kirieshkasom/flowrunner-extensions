@@ -29,7 +29,12 @@ const FIELD_TYPE_MAP = {
 class Baserow {
   constructor(config) {
     this.baseUrl = (config.baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, '')
+    // Database token: `Authorization: Token <x>`. Works ONLY for row data
+    // endpoints (/api/database/rows/...).
     this.apiToken = config.apiToken
+    // JWT access token: `Authorization: JWT <x>`. Required for structure /
+    // metadata endpoints (applications, tables, fields).
+    this.jwtToken = config.jwtToken
   }
 
   #apiBase() {
@@ -44,13 +49,34 @@ class Baserow {
     return Object.prototype.hasOwnProperty.call(mapping, value) ? mapping[value] : value
   }
 
+  // Resolve the Authorization header for the endpoint being called. Baserow
+  // splits credentials: database tokens (Token) work only for row data, while
+  // structure/metadata endpoints (applications, tables, fields) require a JWT.
+  #authHeader(auth) {
+    if (auth === 'jwt') {
+      if (!this.jwtToken) {
+        throw new Error('Baserow API error: this operation manages database structure (applications, tables or fields) and requires a JWT access token. Set the "JWT Access Token" configuration item; a database token alone cannot perform it.')
+      }
+
+      return `JWT ${ this.jwtToken }`
+    }
+
+    if (!this.apiToken) {
+      throw new Error('Baserow API error: this operation requires a database token. Set the "Database Token" configuration item.')
+    }
+
+    return `Token ${ this.apiToken }`
+  }
+
   // Single private request helper — all external calls go through here.
-  async #apiRequest({ url, method = 'get', body, query, logTag }) {
+  // `auth` selects the credential: 'token' (database token, row data) or
+  // 'jwt' (JWT access token, structure/metadata).
+  async #apiRequest({ url, method = 'get', body, query, logTag, auth = 'token' }) {
     try {
       logger.debug(`${ logTag } - [${ method.toUpperCase() }::${ url }]`)
 
       const request = Flowrunner.Request[method.toLowerCase()](url)
-        .set({ 'Authorization': `Token ${ this.apiToken }`, 'Content-Type': 'application/json' })
+        .set({ 'Authorization': this.#authHeader(auth), 'Content-Type': 'application/json' })
         .query(query || {})
 
       return body !== undefined ? await request.send(body) : await request
@@ -88,6 +114,7 @@ class Baserow {
     const applications = await this.#apiRequest({
       logTag: 'getDatabasesDictionary',
       url: `${ this.#apiBase() }/applications/`,
+      auth: 'jwt',
     })
 
     const databases = (applications || []).filter(app => app.type === 'database')
@@ -133,6 +160,7 @@ class Baserow {
     const tables = await this.#apiRequest({
       logTag: 'getTablesDictionary',
       url: `${ this.#apiBase() }/database/tables/database/${ databaseId }/`,
+      auth: 'jwt',
     })
 
     const filtered = search
@@ -177,6 +205,7 @@ class Baserow {
     const fields = await this.#apiRequest({
       logTag: 'getFieldsDictionary',
       url: `${ this.#apiBase() }/database/fields/table/${ tableId }/`,
+      auth: 'jwt',
     })
 
     const filtered = search
@@ -208,6 +237,7 @@ class Baserow {
     const applications = await this.#apiRequest({
       logTag: 'listDatabases',
       url: `${ this.#apiBase() }/applications/`,
+      auth: 'jwt',
     })
 
     return (applications || []).filter(app => app.type === 'database')
@@ -228,6 +258,7 @@ class Baserow {
     return this.#apiRequest({
       logTag: 'listTables',
       url: `${ this.#apiBase() }/database/tables/database/${ databaseId }/`,
+      auth: 'jwt',
     })
   }
 
@@ -244,6 +275,7 @@ class Baserow {
     return this.#apiRequest({
       logTag: 'getTable',
       url: `${ this.#apiBase() }/database/tables/${ tableId }/`,
+      auth: 'jwt',
     })
   }
 
@@ -271,6 +303,7 @@ class Baserow {
       url: `${ this.#apiBase() }/database/tables/database/${ databaseId }/`,
       method: 'post',
       body,
+      auth: 'jwt',
     })
   }
 
@@ -289,6 +322,7 @@ class Baserow {
     return this.#apiRequest({
       logTag: 'listFields',
       url: `${ this.#apiBase() }/database/fields/table/${ tableId }/`,
+      auth: 'jwt',
     })
   }
 
@@ -318,6 +352,7 @@ class Baserow {
       url: `${ this.#apiBase() }/database/fields/table/${ tableId }/`,
       method: 'post',
       body,
+      auth: 'jwt',
     })
   }
 
@@ -569,10 +604,18 @@ Flowrunner.ServerCode.addService(Baserow, [
   },
   {
     name: 'apiToken',
-    displayName: 'API Token',
+    displayName: 'Database Token',
     type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
     required: true,
     shared: false,
-    hint: 'A Baserow database token. In Baserow, click your account (top left) → Settings → Database tokens, and create a token scoped to the database(s) you want to access.',
+    hint: 'A Baserow database token (sent as "Authorization: Token ..."). In Baserow, open Settings → Database tokens and create a token scoped to the database(s) you want to access. This token powers all row operations (list, get, create, update, delete, move, and batch) but CANNOT list or create tables/fields/databases — those require the JWT Access Token below.',
+  },
+  {
+    name: 'jwtToken',
+    displayName: 'JWT Access Token',
+    type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
+    required: false,
+    shared: false,
+    hint: 'Optional JWT access token (sent as "Authorization: JWT ..."). Baserow requires a JWT — not a database token — for structure operations: List/Get Databases, List/Get/Create Table, List/Create Field, and the Databases/Tables/Fields dictionaries. Obtain one via POST /api/user/token-auth/ with your email and password and paste the returned "access_token" here. Leave blank if you only need row operations. Note that JWT access tokens are short-lived and must be refreshed periodically.',
   },
 ])
