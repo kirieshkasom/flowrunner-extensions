@@ -80,7 +80,7 @@ Highest usage in n8n / broadest customer demand.
 ### AI / LLM providers & infra
 - [x] Anthropic Claude (`services/anthropic-ai`)
 - [x] Azure OpenAI (`services/azure-openai`)
-- [ ] Google Vertex AI
+- [x] Google Vertex AI (`services/google-vertex-ai`)
 - [x] Mistral AI (`services/mistral-ai`)
 - [x] Groq (`services/groq`)
 - [ ] Ollama (self-hosted models)
@@ -90,9 +90,9 @@ Highest usage in n8n / broadest customer demand.
 - [x] Cohere (`services/cohere`)
 - [x] Hugging Face Inference (`services/huggingface`)
 - [x] Perplexity (`services/perplexity`)
-- [ ] Pinecone (vector store)
-- [ ] Qdrant (vector store)
-- [ ] Weaviate (vector store)
+- [x] Pinecone (vector store) (`services/pinecone`)
+- [x] Qdrant (vector store) (`services/qdrant`)
+- [x] Weaviate (vector store) (`services/weaviate`)
 - [x] DeepL (translation) (`services/deepl`)
 
 ### Dev tools & observability
