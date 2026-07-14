@@ -185,7 +185,7 @@ class Chroma {
   /**
    * @operationName Get Collection
    * @category Collections
-   * @description Retrieves a single collection by its name (or UUID), returning its UUID "id", "name", "metadata" and "configuration". Use this to obtain a collection's id before running record/data operations.
+   * @description Retrieves a single collection by its name or UUID, returning its UUID "id", "name", "metadata" and "configuration". The Chroma v2 endpoint resolves either a name or an id. Use this to obtain a collection's id before running record/data operations.
    * @route GET /get-collection
    * @paramDef {"type":"String","label":"Collection","name":"collection","required":true,"dictionary":"getCollectionsDictionary","description":"Name (or UUID) of the collection to retrieve."}
    * @returns {Object}
@@ -513,7 +513,7 @@ Flowrunner.ServerCode.addService(Chroma, [
     required: false,
     shared: false,
     defaultValue: DEFAULT_TENANT,
-    hint: 'Chroma tenant id. Defaults to "default_tenant". For Chroma Cloud, use your tenant id.',
+    hint: 'Chroma tenant. Defaults to "default_tenant" for self-hosted. For Chroma Cloud, use your tenant id (a UUID from the dashboard).',
   },
   {
     name: 'database',
