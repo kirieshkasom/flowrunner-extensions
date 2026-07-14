@@ -44,6 +44,14 @@ class AcuityScheduling {
     return `Basic ${ token }`
   }
 
+  #resolveChoice(value, mapping) {
+    if (value === undefined || value === null) {
+      return undefined
+    }
+
+    return Object.prototype.hasOwnProperty.call(mapping, value) ? mapping[value] : value
+  }
+
   async #apiRequest({ url, method = 'get', body, query, logTag }) {
     try {
       const cleanedQuery = clean(query)
@@ -75,7 +83,7 @@ class AcuityScheduling {
   /**
    * @operationName List Appointments
    * @category Appointments
-   * @description Retrieves scheduled appointments, most recent first. Supports filtering by date range (minDate/maxDate as YYYY-MM-DD), calendar, appointment type, client email, and canceled status. Returns up to the requested maximum (Acuity defaults to 100). Use this to find appointment IDs for other operations.
+   * @description Retrieves scheduled appointments. Supports filtering by date range (minDate/maxDate as YYYY-MM-DD), calendar, appointment type, client email, and canceled status, plus sort direction (newest or oldest first). Returns up to the requested maximum (Acuity defaults to 100). Use this to find appointment IDs for other operations.
    * @route GET /list-appointments
    *
    * @paramDef {"type":"Number","label":"Max Results","name":"max","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Maximum number of appointments to return. Defaults to 100."}
@@ -85,11 +93,12 @@ class AcuityScheduling {
    * @paramDef {"type":"String","label":"Appointment Type","name":"appointmentTypeID","dictionary":"getAppointmentTypesDictionary","description":"Filter to appointments of a specific type."}
    * @paramDef {"type":"Boolean","label":"Canceled","name":"canceled","uiComponent":{"type":"CHECKBOX"},"description":"When true, returns canceled appointments instead of scheduled ones. Defaults to false."}
    * @paramDef {"type":"String","label":"Email","name":"email","description":"Filter to appointments booked by this client email."}
+   * @paramDef {"type":"String","label":"Sort Direction","name":"direction","uiComponent":{"type":"DROPDOWN","options":{"values":["Newest First","Oldest First"]}},"defaultValue":"Newest First","description":"Order results by appointment datetime. Defaults to Newest First."}
    *
    * @returns {Array<Object>}
    * @sampleResult [{"id":123456789,"firstName":"Ada","lastName":"Lovelace","email":"ada@example.com","phone":"5551234567","datetime":"2026-08-01T09:00:00-0700","endTime":"2026-08-01T09:30:00-0700","date":"August 1, 2026","time":"9:00am","type":"Consultation","appointmentTypeID":1234567,"calendar":"Main","calendarID":987654,"canceled":false,"price":"0.00","duration":"30"}]
    */
-  async listAppointments(max, minDate, maxDate, calendarID, appointmentTypeID, canceled, email) {
+  async listAppointments(max, minDate, maxDate, calendarID, appointmentTypeID, canceled, email, direction) {
     return await this.#apiRequest({
       logTag: '[listAppointments]',
       url: `${ API_BASE_URL }/appointments`,
@@ -102,6 +111,7 @@ class AcuityScheduling {
         appointmentTypeID,
         canceled: canceled === true ? true : undefined,
         email,
+        direction: this.#resolveChoice(direction, { 'Newest First': 'DESC', 'Oldest First': 'ASC' }),
       },
     })
   }
