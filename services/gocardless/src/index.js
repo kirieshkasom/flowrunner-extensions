@@ -1518,7 +1518,7 @@ class GoCardlessService {
     const body = {
       mandates:
         cleanupObject({
-          scheme,
+          scheme: resolveChoice(scheme, SCHEME_LABELS),
           reference,
           metadata: cleanupObject(metadata),
           links: { customer_bank_account: customerBankAccountId },
