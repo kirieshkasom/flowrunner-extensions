@@ -15,6 +15,11 @@ const SCOPE_LIST = [
   'report',
   'webhooks',
   'webhooks.write',
+  'employee:file',
+  'employee:file.write',
+  'company_file',
+  'company_file.write',
+  'field',
 ]
 
 const SCOPE_STRING = SCOPE_LIST.join(' ')
@@ -85,15 +90,15 @@ function filterItems(items, search) {
 
 /**
  * @requireOAuth
+ * @usesFileStorage
  * @integrationName BambooHR
  * @integrationIcon /icon.png
  * @integrationTriggersScope SINGLE_APP
  */
 class BambooHR {
-  constructor(config, context) {
+  constructor(config) {
     this.clientId = config.clientId
     this.clientSecret = config.clientSecret
-    this.backendless = context.backendless
 
     const rawDomain = config.companyDomain || ''
 
@@ -121,6 +126,42 @@ class BambooHR {
     if (value === undefined || value === null) return undefined
 
     return Object.prototype.hasOwnProperty.call(mapping, value) ? mapping[value] : value
+  }
+
+  // Accepts either an array or a comma-separated string and returns a trimmed, non-empty list
+  // (or undefined). Used by params that take multiple names (e.g. new file category names).
+  #toList(value) {
+    if (value === undefined || value === null || value === '') {
+      return undefined
+    }
+
+    const list = Array.isArray(value)
+      ? value
+      : String(value).split(',').map(part => part.trim()).filter(Boolean)
+
+    return list.length ? list : undefined
+  }
+
+  // Parses a filename out of a Content-Disposition header, accepting both the quoted-string
+  // form (filename="x") and the RFC 5987 extended form (filename*=UTF-8''x).
+  #parseFileNameFromContentDisposition(header) {
+    if (!header) {
+      return null
+    }
+
+    const match = String(header).match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i)
+
+    if (!match) {
+      return null
+    }
+
+    const raw = match[1] || match[2]
+
+    try {
+      return decodeURIComponent(raw)
+    } catch (error) {
+      return raw
+    }
   }
 
   async #apiRequest({ url, method, body, query, logTag, rawResponse }) {
@@ -850,13 +891,13 @@ class BambooHR {
   /**
    * @operationName Get Employee Table Data
    * @category Employee Data
-   * @description Returns all rows from a specific employee table such as jobInfo, compensation, or employmentStatus. Use the List Fields method to discover available table names.
+   * @description Returns all rows from a specific employee table such as jobInfo, compensation, or employmentStatus. Pick the table from the table list.
    * @route POST /getEmployeeTableData
    *
    * @appearanceColor #73C41D #5AA010
    *
    * @paramDef {"type":"String","label":"Employee ID","name":"employeeId","required":true,"description":"The unique BambooHR employee ID.","dictionary":"getEmployeeDirectoryDictionary"}
-   * @paramDef {"type":"String","label":"Table Name","name":"tableName","required":true,"uiComponent":{"type":"SINGLE_LINE_TEXT"},"description":"The name of the employee table to retrieve (e.g., jobInfo, compensation, employmentStatus)."}
+   * @paramDef {"type":"String","label":"Table Name","name":"tableName","required":true,"description":"The employee table to retrieve (e.g., jobInfo, compensation, employmentStatus). Pick from the table list.","dictionary":"getTablesDictionary"}
    *
    * @returns {Array<EmployeeTableRow>}
    * @sampleResult [{"id":"1","employeeId":"123","date":"2023-01-15","jobTitle":"Software Engineer","department":"Engineering","division":"Product"}]
@@ -909,7 +950,7 @@ class BambooHR {
    * @appearanceColor #73C41D #5AA010
    *
    * @paramDef {"type":"String","label":"Employee ID","name":"employeeId","required":true,"description":"The unique BambooHR employee ID.","dictionary":"getEmployeeDirectoryDictionary"}
-   * @paramDef {"type":"String","label":"Table Name","name":"tableName","required":true,"uiComponent":{"type":"SINGLE_LINE_TEXT"},"description":"The name of the employee table to add a row to (e.g., jobInfo, compensation)."}
+   * @paramDef {"type":"String","label":"Table Name","name":"tableName","required":true,"description":"The employee table to add a row to (e.g., jobInfo, compensation). Pick from the table list.","dictionary":"getTablesDictionary"}
    * @paramDef {"type":"Object","label":"Row Data","name":"rowData","required":true,"description":"Field name/value pairs for the new table row. Field names vary by table (use List Fields to discover them)."}
    *
    * @returns {CreateTableRowResponse}
@@ -969,7 +1010,7 @@ class BambooHR {
    * @appearanceColor #73C41D #5AA010
    *
    * @paramDef {"type":"String","label":"Employee ID","name":"employeeId","required":true,"description":"The unique BambooHR employee ID.","dictionary":"getEmployeeDirectoryDictionary"}
-   * @paramDef {"type":"String","label":"Table Name","name":"tableName","required":true,"uiComponent":{"type":"SINGLE_LINE_TEXT"},"description":"The name of the employee table containing the row (e.g., jobInfo, compensation)."}
+   * @paramDef {"type":"String","label":"Table Name","name":"tableName","required":true,"description":"The employee table containing the row (e.g., jobInfo, compensation). Pick from the table list.","dictionary":"getTablesDictionary"}
    * @paramDef {"type":"String","label":"Row ID","name":"rowId","required":true,"description":"The unique ID of the table row to update.","dictionary":"getTableRowsDictionary","dependsOn":["employeeId","tableName"]}
    * @paramDef {"type":"Object","label":"Row Data","name":"rowData","required":true,"description":"Field name/value pairs to update in the table row. Field names vary by table (use List Fields to discover them)."}
    *
@@ -1033,7 +1074,7 @@ class BambooHR {
    * @appearanceColor #73C41D #5AA010
    *
    * @paramDef {"type":"String","label":"Employee ID","name":"employeeId","required":true,"description":"The unique BambooHR employee ID.","dictionary":"getEmployeeDirectoryDictionary"}
-   * @paramDef {"type":"String","label":"Table Name","name":"tableName","required":true,"uiComponent":{"type":"SINGLE_LINE_TEXT"},"description":"The name of the employee table containing the row."}
+   * @paramDef {"type":"String","label":"Table Name","name":"tableName","required":true,"description":"The employee table containing the row. Pick from the table list.","dictionary":"getTablesDictionary"}
    * @paramDef {"type":"String","label":"Row ID","name":"rowId","required":true,"description":"The unique ID of the table row to delete.","dictionary":"getTableRowsDictionary","dependsOn":["employeeId","tableName"]}
    *
    * @returns {DeleteTableRowResponse}
@@ -1160,7 +1201,7 @@ class BambooHR {
    *
    * @paramDef {"type":"String","label":"Employee ID","name":"employeeId","required":true,"description":"The unique BambooHR employee ID.","dictionary":"getEmployeeDirectoryDictionary"}
    * @paramDef {"type":"String","label":"File Name","name":"fileName","required":true,"uiComponent":{"type":"SINGLE_LINE_TEXT"},"description":"Display name for the uploaded file."}
-   * @paramDef {"type":"Number","label":"Category ID","name":"categoryId","required":true,"uiComponent":{"type":"NUMERIC_STEPPER"},"description":"File category ID from List Employee Files."}
+   * @paramDef {"type":"String","label":"Category","name":"categoryId","required":true,"description":"The employee file category to upload into.","dictionary":"getEmployeeFileCategoriesDictionary","dependsOn":["employeeId"]}
    * @paramDef {"type":"String","label":"File URL","name":"fileUrl","required":true,"uiComponent":{"type":"FILE_SELECTOR"},"description":"URL of the file to upload from Flowrunner file storage."}
    * @paramDef {"type":"String","label":"Share with Employee","name":"share","uiComponent":{"type":"DROPDOWN","options":{"values":["No","Yes"]}},"description":"Whether to share the file with the employee. Defaults to No."}
    *
@@ -1191,8 +1232,9 @@ class BambooHR {
 
       const fileData = await Flowrunner.Request.get(fileUrl).setEncoding(null)
 
-      const formData = new FormData()
-      formData.append('file', new Blob([fileData]), fileName)
+      // Do NOT set Content-Type manually — the form supplies the multipart boundary.
+      const formData = new Flowrunner.Request.FormData()
+      formData.append('file', fileData, { filename: fileName })
       formData.append('fileName', fileName)
       formData.append('category', String(categoryId))
 
@@ -1204,10 +1246,7 @@ class BambooHR {
         `${ this.#getApiBaseUrl() }/employees/${ employeeId }/files`
       ).set(this.#getAccessTokenHeader())
 
-      request.form(formData)
-      request.set({ 'Content-Type': 'multipart/form-data' })
-
-      await request
+      await request.form(formData)
 
       logger.debug(
         `[uploadEmployeeFile] File "${ fileName }" uploaded successfully for employee ${ employeeId }`
@@ -1274,6 +1313,253 @@ class BambooHR {
       throw new Error(
         `Failed to delete file ${ fileId } for employee ${ employeeId }: ${ error.message }`
       )
+    }
+  }
+
+  /**
+   * @typedef {Object} DownloadEmployeeFileResponse
+   * @property {String} fileName - The original name of the downloaded file.
+   * @property {String} contentType - The MIME type of the file.
+   * @property {Number} sizeBytes - The size of the file in bytes.
+   * @property {String} fileUrl - The FlowRunner Files URL where the downloaded file was saved.
+   */
+
+  /**
+   * @operationName Download Employee File
+   * @category Employee Files
+   * @description Downloads an employee file's contents, saves them to FlowRunner file storage, and returns the saved file's URL along with its name, content type, and size.
+   * @route POST /downloadEmployeeFile
+   *
+   * @appearanceColor #73C41D #5AA010
+   *
+   * @paramDef {"type":"String","label":"Employee ID","name":"employeeId","required":true,"description":"The unique BambooHR employee ID whose file to download.","dictionary":"getEmployeeDirectoryDictionary"}
+   * @paramDef {"type":"String","label":"File ID","name":"fileId","required":true,"description":"The unique ID of the employee file to download. Pick from the employee's files.","dictionary":"getEmployeeFilesDictionary","dependsOn":["employeeId"]}
+   *
+   * @returns {DownloadEmployeeFileResponse}
+   * @sampleResult {"fileName":"offer.pdf","contentType":"application/pdf","sizeBytes":25600,"fileUrl":"https://files.flowrunner.io/bamboohr-downloads/offer.pdf"}
+   */
+  async downloadEmployeeFile(employeeId, fileId) {
+    try {
+      if (!employeeId) {
+        throw new Error('Employee ID is required')
+      }
+
+      if (!fileId) {
+        throw new Error('File ID is required')
+      }
+
+      logger.debug(
+        `[downloadEmployeeFile] Downloading file ${ fileId } for employee ${ employeeId }`
+      )
+
+      const response = await Flowrunner.Request.get(
+        `${ this.#getApiBaseUrl() }/employees/${ employeeId }/files/${ fileId }`
+      )
+        .set(this.#getAccessTokenHeader())
+        .setEncoding(null)
+        .unwrapBody(false)
+
+      const headers = lowerKeys(response.headers)
+      const fileName =
+        this.#parseFileNameFromContentDisposition(headers['content-disposition']) ||
+        `bamboohr-file-${ fileId }`
+      const contentType = headers['content-type'] || 'application/octet-stream'
+      const buffer = response.body
+
+      if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+        throw new Error('The file download returned no content')
+      }
+
+      const { url } = await this.flowrunner.Files.uploadFile(buffer, {
+        filename: fileName,
+        generateUrl: true,
+        overwrite: true,
+        scope: 'FLOW',
+      })
+
+      logger.debug(
+        `[downloadEmployeeFile] File ${ fileId } downloaded and saved as "${ fileName }"`
+      )
+
+      return {
+        fileName,
+        contentType,
+        sizeBytes: buffer.length,
+        fileUrl: url,
+      }
+    } catch (error) {
+      logger.error(`[downloadEmployeeFile] Error: ${ error.message }`)
+
+      throw new Error(
+        `Failed to download file ${ fileId } for employee ${ employeeId }: ${ error.message }`
+      )
+    }
+  }
+
+  /**
+   * @typedef {Object} UpdateEmployeeFileResponse
+   * @property {Boolean} success - Whether the file was updated successfully.
+   * @property {String} message - Status message describing the result.
+   */
+
+  /**
+   * @operationName Update Employee File
+   * @category Employee Files
+   * @description Updates an employee file's name, category, or sharing setting. Only the fields provided are changed.
+   * @route POST /updateEmployeeFile
+   *
+   * @appearanceColor #73C41D #5AA010
+   *
+   * @paramDef {"type":"String","label":"Employee ID","name":"employeeId","required":true,"description":"The unique BambooHR employee ID whose file to update.","dictionary":"getEmployeeDirectoryDictionary"}
+   * @paramDef {"type":"String","label":"File ID","name":"fileId","required":true,"description":"The unique ID of the employee file to update.","dictionary":"getEmployeeFilesDictionary","dependsOn":["employeeId"]}
+   * @paramDef {"type":"String","label":"New Name","name":"name","uiComponent":{"type":"SINGLE_LINE_TEXT"},"description":"New display name for the file. Leave blank to keep the current name."}
+   * @paramDef {"type":"String","label":"Category","name":"categoryId","description":"Move the file to this category. Leave blank to keep the current category.","dictionary":"getEmployeeFileCategoriesDictionary","dependsOn":["employeeId"]}
+   * @paramDef {"type":"String","label":"Share with Employee","name":"shareWithEmployee","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"yes","label":"Yes"},{"value":"no","label":"No"}]}},"description":"Whether the file is visible to the employee. Leave blank to keep the current setting."}
+   *
+   * @returns {UpdateEmployeeFileResponse}
+   * @sampleResult {"success":true,"message":"Employee file updated successfully"}
+   */
+  async updateEmployeeFile(employeeId, fileId, name, categoryId, shareWithEmployee) {
+    try {
+      if (!employeeId) {
+        throw new Error('Employee ID is required')
+      }
+
+      if (!fileId) {
+        throw new Error('File ID is required')
+      }
+
+      const body = {}
+
+      if (name) body.name = name
+      if (categoryId) body.categoryId = String(categoryId)
+      if (shareWithEmployee) body.shareWithEmployee = shareWithEmployee
+
+      if (Object.keys(body).length === 0) {
+        throw new Error('At least one field is required to update')
+      }
+
+      logger.debug(
+        `[updateEmployeeFile] Updating file ${ fileId } for employee ${ employeeId }`
+      )
+
+      await this.#apiRequest({
+        logTag: 'updateEmployeeFile',
+        url: `${ this.#getApiBaseUrl() }/employees/${ employeeId }/files/${ fileId }`,
+        method: 'post',
+        body,
+      })
+
+      logger.debug(
+        `[updateEmployeeFile] File ${ fileId } updated for employee ${ employeeId }`
+      )
+
+      return { success: true, message: 'Employee file updated successfully' }
+    } catch (error) {
+      logger.error(`[updateEmployeeFile] Error: ${ error.message }`)
+
+      throw new Error(
+        `Failed to update file ${ fileId } for employee ${ employeeId }: ${ error.message }`
+      )
+    }
+  }
+
+  /**
+   * @typedef {Object} EmployeeFileCategoryEntry
+   * @property {Number} id - The unique category ID.
+   * @property {String} name - The category name.
+   */
+
+  /**
+   * @typedef {Object} ListEmployeeFileCategoriesResponse
+   * @property {Array<EmployeeFileCategoryEntry>} categories - List of employee file categories.
+   */
+
+  /**
+   * @operationName List Employee File Categories
+   * @category Employee Files
+   * @description Lists the employee file categories visible to the caller. BambooHR has no standalone endpoint for this, so the categories are read from an employee's file listing (the categories are the same for every employee).
+   * @route POST /listEmployeeFileCategories
+   *
+   * @appearanceColor #73C41D #5AA010
+   *
+   * @paramDef {"type":"String","label":"Employee ID","name":"employeeId","required":true,"description":"Any employee you can view; the returned file categories are the same for every employee.","dictionary":"getEmployeeDirectoryDictionary"}
+   *
+   * @returns {ListEmployeeFileCategoriesResponse}
+   * @sampleResult {"categories":[{"id":1,"name":"New Hire Documents"},{"id":112,"name":"Training Docs"}]}
+   */
+  async listEmployeeFileCategories(employeeId) {
+    try {
+      if (!employeeId) {
+        throw new Error('Employee ID is required')
+      }
+
+      logger.debug(
+        `[listEmployeeFileCategories] Listing file categories for employee ${ employeeId }`
+      )
+
+      const response = await this.#apiRequest({
+        logTag: 'listEmployeeFileCategories',
+        url: `${ this.#getApiBaseUrl() }/employees/${ employeeId }/files/view`,
+      })
+
+      const categories = Array.isArray(response?.categories) ? response.categories : []
+
+      logger.debug(
+        `[listEmployeeFileCategories] Retrieved ${ categories.length } categories`
+      )
+
+      return { categories: categories.map(c => ({ id: c.id, name: c.name })) }
+    } catch (error) {
+      logger.error(`[listEmployeeFileCategories] Error: ${ error.message }`)
+
+      throw new Error(`Failed to list employee file categories: ${ error.message }`)
+    }
+  }
+
+  /**
+   * @typedef {Object} CreateFileCategoryResponse
+   * @property {Boolean} success - Whether the category was created successfully.
+   * @property {String} message - Status message describing the result.
+   */
+
+  /**
+   * @operationName Create Employee File Category
+   * @category Employee Files
+   * @description Creates one or more employee file categories. Each name must be non-empty and unique among existing employee file categories. Requires admin permission.
+   * @route POST /createEmployeeFileCategory
+   *
+   * @appearanceColor #73C41D #5AA010
+   *
+   * @paramDef {"type":"Array<String>","label":"Category Names","name":"categoryNames","required":true,"description":"One or more names for the new employee file categories. Each must be non-empty and unique. Accepts a list or a comma-separated string."}
+   *
+   * @returns {CreateFileCategoryResponse}
+   * @sampleResult {"success":true,"message":"Employee file category created successfully"}
+   */
+  async createEmployeeFileCategory(categoryNames) {
+    try {
+      const names = this.#toList(categoryNames)
+
+      if (!names) {
+        throw new Error('At least one category name is required')
+      }
+
+      logger.debug(`[createEmployeeFileCategory] Creating categories: ${ names.join(', ') }`)
+
+      await this.#apiRequest({
+        logTag: 'createEmployeeFileCategory',
+        url: `${ this.#getApiBaseUrl() }/employees/files/categories`,
+        method: 'post',
+        body: names,
+      })
+
+      logger.debug('[createEmployeeFileCategory] Categories created successfully')
+
+      return { success: true, message: 'Employee file category created successfully' }
+    } catch (error) {
+      logger.error(`[createEmployeeFileCategory] Error: ${ error.message }`)
+
+      throw new Error(`Failed to create employee file category: ${ error.message }`)
     }
   }
 
@@ -3499,6 +3785,407 @@ class BambooHR {
     }
   }
 
+  // ========================================== COMPANY FILES ==========================================
+
+  /**
+   * @typedef {Object} CompanyFileEntry
+   * @property {Number} id - The unique file ID.
+   * @property {String} name - The display name of the file.
+   * @property {String} originalFileName - The original file name.
+   * @property {String} size - The file size in bytes (returned by the API as a string).
+   * @property {String} dateCreated - ISO timestamp of when the file was created.
+   * @property {String} createdBy - Name of the user who uploaded the file.
+   * @property {String} shareWithEmployees - Whether the file is shared with employees ("yes" or "no").
+   * @property {String} canRenameFile - Whether the caller can rename the file ("yes" or "no").
+   * @property {String} canDeleteFile - Whether the caller can delete the file ("yes" or "no").
+   */
+
+  /**
+   * @typedef {Object} CompanyFileCategory
+   * @property {Number} id - The unique category ID.
+   * @property {String} name - The category name.
+   * @property {String} canUploadFiles - Whether the caller can upload into this category ("yes" or "no").
+   * @property {Array<CompanyFileEntry>} files - List of files in the category.
+   */
+
+  /**
+   * @typedef {Object} ListCompanyFilesResponse
+   * @property {Array<CompanyFileCategory>} categories - List of company file categories with their files.
+   */
+
+  /**
+   * @operationName List Company Files
+   * @category Company Files
+   * @description Lists all company file categories and the files within each that are visible to the caller.
+   * @route POST /listCompanyFiles
+   *
+   * @appearanceColor #73C41D #5AA010
+   *
+   * @returns {ListCompanyFilesResponse}
+   * @sampleResult {"categories":[{"id":20,"name":"New Employee Docs","canUploadFiles":"yes","files":[{"id":387,"name":"Direct Deposit Form","originalFileName":"Direct Deposit Form.rtf","size":"57028","dateCreated":"2025-02-11T22:30:07+0000","createdBy":"John Doe","shareWithEmployees":"no","canRenameFile":"yes","canDeleteFile":"yes"}]}]}
+   */
+  async listCompanyFiles() {
+    try {
+      logger.debug('[listCompanyFiles] Listing company files')
+
+      const response = await this.#apiRequest({
+        logTag: 'listCompanyFiles',
+        url: `${ this.#getApiBaseUrl() }/files/view`,
+      })
+
+      logger.debug(
+        `[listCompanyFiles] Retrieved ${ response.categories?.length || 0 } categories`
+      )
+
+      return response
+    } catch (error) {
+      logger.error(`[listCompanyFiles] Error: ${ error.message }`)
+
+      throw new Error(`Failed to list company files: ${ error.message }`)
+    }
+  }
+
+  /**
+   * @typedef {Object} UploadCompanyFileResponse
+   * @property {Boolean} success - Whether the file was uploaded successfully.
+   * @property {String} fileId - The unique ID of the newly uploaded file, or null if it could not be recovered.
+   * @property {String} message - Status message describing the result.
+   */
+
+  /**
+   * @operationName Upload Company File
+   * @category Company Files
+   * @description Uploads a file into a company file category. The file must be under 20MB. Use List Company Files to find available category IDs.
+   * @route POST /uploadCompanyFile
+   *
+   * @appearanceColor #73C41D #5AA010
+   *
+   * @paramDef {"type":"String","label":"File Name","name":"fileName","required":true,"uiComponent":{"type":"SINGLE_LINE_TEXT"},"description":"Display name for the uploaded file."}
+   * @paramDef {"type":"String","label":"Category","name":"categoryId","required":true,"description":"The company file category (section) to upload into.","dictionary":"getCompanyFileCategoriesDictionary"}
+   * @paramDef {"type":"String","label":"File URL","name":"fileUrl","required":true,"uiComponent":{"type":"FILE_SELECTOR"},"description":"URL of the file to upload from FlowRunner file storage."}
+   * @paramDef {"type":"String","label":"Share with Employees","name":"share","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"no","label":"No"},{"value":"yes","label":"Yes"}]}},"description":"Whether to share the file with all employees. Defaults to No."}
+   *
+   * @returns {UploadCompanyFileResponse}
+   * @sampleResult {"success":true,"fileId":"387","message":"Company file uploaded successfully"}
+   */
+  async uploadCompanyFile(fileName, categoryId, fileUrl, share) {
+    try {
+      if (!fileName) {
+        throw new Error('File name is required')
+      }
+
+      if (!categoryId) {
+        throw new Error('Category ID is required')
+      }
+
+      if (!fileUrl) {
+        throw new Error('File URL is required')
+      }
+
+      logger.debug(
+        `[uploadCompanyFile] Uploading file "${ fileName }" into category ${ categoryId }`
+      )
+
+      const fileData = await Flowrunner.Request.get(fileUrl).setEncoding(null)
+
+      // Use the platform-native Flowrunner.Request.FormData: .form() drives its
+      // getHeaders()/getLength(). The file part is a Buffer with a filename; do NOT set
+      // Content-Type manually - getHeaders() supplies the multipart boundary.
+      const formData = new Flowrunner.Request.FormData()
+      formData.append('file', fileData, { filename: fileName })
+      formData.append('fileName', fileName)
+      formData.append('category', String(categoryId))
+
+      if (share === 'yes') {
+        formData.append('share', 'yes')
+      }
+
+      // BambooHR replies 201 with an empty body; the new file's id is only in the Location
+      // header, so read the full response to recover it.
+      const created = await Flowrunner.Request.post(`${ this.#getApiBaseUrl() }/files`)
+        .set(this.#getAccessTokenHeader())
+        .unwrapBody(false)
+        .form(formData)
+
+      const headers = lowerKeys(created?.headers || {})
+      const locationHeader = headers['location'] || ''
+      const fileId = locationHeader
+        ? locationHeader.split('/').filter(Boolean).pop()
+        : null
+
+      logger.debug(
+        `[uploadCompanyFile] File "${ fileName }" uploaded successfully (id ${ fileId })`
+      )
+
+      return {
+        success: true,
+        fileId,
+        message: 'Company file uploaded successfully',
+      }
+    } catch (error) {
+      logger.error(`[uploadCompanyFile] Error: ${ error.message }`)
+
+      throw new Error(`Failed to upload company file "${ fileName }": ${ error.message }`)
+    }
+  }
+
+  /**
+   * @typedef {Object} DownloadCompanyFileResponse
+   * @property {String} fileName - The original name of the downloaded file.
+   * @property {String} contentType - The MIME type of the file.
+   * @property {Number} sizeBytes - The size of the file in bytes.
+   * @property {String} fileUrl - The FlowRunner Files URL where the downloaded file was saved.
+   */
+
+  /**
+   * @operationName Download Company File
+   * @category Company Files
+   * @description Downloads a company file's contents, saves them to FlowRunner file storage, and returns the saved file's URL along with its name, content type, and size.
+   * @route POST /downloadCompanyFile
+   *
+   * @appearanceColor #73C41D #5AA010
+   *
+   * @paramDef {"type":"String","label":"File ID","name":"fileId","required":true,"description":"The unique ID of the company file to download.","dictionary":"getCompanyFilesDictionary"}
+   *
+   * @returns {DownloadCompanyFileResponse}
+   * @sampleResult {"fileName":"Direct Deposit Form.rtf","contentType":"application/rtf","sizeBytes":57028,"fileUrl":"https://files.flowrunner.io/bamboohr-downloads/Direct%20Deposit%20Form.rtf"}
+   */
+  async downloadCompanyFile(fileId) {
+    try {
+      if (!fileId) {
+        throw new Error('File ID is required')
+      }
+
+      logger.debug(`[downloadCompanyFile] Downloading file ${ fileId }`)
+
+      const response = await Flowrunner.Request.get(
+        `${ this.#getApiBaseUrl() }/files/${ fileId }`
+      )
+        .set(this.#getAccessTokenHeader())
+        .setEncoding(null)
+        .unwrapBody(false)
+
+      const headers = lowerKeys(response.headers)
+      const fileName =
+        this.#parseFileNameFromContentDisposition(headers['content-disposition']) ||
+        `bamboohr-file-${ fileId }`
+      const contentType = headers['content-type'] || 'application/octet-stream'
+      const buffer = response.body
+
+      if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+        throw new Error('The file download returned no content')
+      }
+
+      const { url } = await this.flowrunner.Files.uploadFile(buffer, {
+        filename: fileName,
+        generateUrl: true,
+        overwrite: true,
+        scope: 'FLOW',
+      })
+
+      logger.debug(`[downloadCompanyFile] File ${ fileId } downloaded and saved as "${ fileName }"`)
+
+      return {
+        fileName,
+        contentType,
+        sizeBytes: buffer.length,
+        fileUrl: url,
+      }
+    } catch (error) {
+      logger.error(`[downloadCompanyFile] Error: ${ error.message }`)
+
+      throw new Error(`Failed to download company file ${ fileId }: ${ error.message }`)
+    }
+  }
+
+  /**
+   * @typedef {Object} UpdateCompanyFileResponse
+   * @property {Boolean} success - Whether the file was updated successfully.
+   * @property {String} message - Status message describing the result.
+   */
+
+  /**
+   * @operationName Update Company File
+   * @category Company Files
+   * @description Updates a company file's name, category, or sharing setting. Only the fields provided are changed.
+   * @route POST /updateCompanyFile
+   *
+   * @appearanceColor #73C41D #5AA010
+   *
+   * @paramDef {"type":"String","label":"File ID","name":"fileId","required":true,"description":"The unique ID of the company file to update.","dictionary":"getCompanyFilesDictionary"}
+   * @paramDef {"type":"String","label":"New Name","name":"name","uiComponent":{"type":"SINGLE_LINE_TEXT"},"description":"New display name for the file. Leave blank to keep the current name."}
+   * @paramDef {"type":"String","label":"Category","name":"categoryId","description":"Move the file to this category. Leave blank to keep the current category.","dictionary":"getCompanyFileCategoriesDictionary"}
+   * @paramDef {"type":"String","label":"Share with Employees","name":"shareWithEmployee","uiComponent":{"type":"DROPDOWN","options":{"values":[{"value":"yes","label":"Yes"},{"value":"no","label":"No"}]}},"description":"Whether the file is shared with all employees. Leave blank to keep the current setting."}
+   *
+   * @returns {UpdateCompanyFileResponse}
+   * @sampleResult {"success":true,"message":"Company file updated successfully"}
+   */
+  async updateCompanyFile(fileId, name, categoryId, shareWithEmployee) {
+    try {
+      if (!fileId) {
+        throw new Error('File ID is required')
+      }
+
+      const body = {}
+
+      if (name) body.name = name
+      if (categoryId) body.categoryId = String(categoryId)
+      if (shareWithEmployee) body.shareWithEmployee = shareWithEmployee
+
+      if (Object.keys(body).length === 0) {
+        throw new Error('At least one field is required to update')
+      }
+
+      logger.debug(`[updateCompanyFile] Updating file ${ fileId }`)
+
+      await this.#apiRequest({
+        logTag: 'updateCompanyFile',
+        url: `${ this.#getApiBaseUrl() }/files/${ fileId }`,
+        method: 'post',
+        body,
+      })
+
+      logger.debug(`[updateCompanyFile] File ${ fileId } updated`)
+
+      return { success: true, message: 'Company file updated successfully' }
+    } catch (error) {
+      logger.error(`[updateCompanyFile] Error: ${ error.message }`)
+
+      throw new Error(`Failed to update company file ${ fileId }: ${ error.message }`)
+    }
+  }
+
+  /**
+   * @typedef {Object} DeleteCompanyFileResponse
+   * @property {Boolean} success - Whether the file was deleted successfully.
+   * @property {String} message - Status message describing the result.
+   */
+
+  /**
+   * @operationName Delete Company File
+   * @category Company Files
+   * @description Permanently removes a company file. This action is permanent and cannot be undone. Requires the company's Files tool to be enabled.
+   * @route POST /deleteCompanyFile
+   *
+   * @appearanceColor #73C41D #5AA010
+   *
+   * @paramDef {"type":"String","label":"File ID","name":"fileId","required":true,"description":"The unique ID of the company file to delete. This action is permanent and cannot be undone.","dictionary":"getCompanyFilesDictionary"}
+   *
+   * @returns {DeleteCompanyFileResponse}
+   * @sampleResult {"success":true,"message":"Company file deleted successfully"}
+   */
+  async deleteCompanyFile(fileId) {
+    try {
+      if (!fileId) {
+        throw new Error('File ID is required')
+      }
+
+      logger.debug(`[deleteCompanyFile] Deleting file ${ fileId }`)
+
+      await this.#apiRequest({
+        logTag: 'deleteCompanyFile',
+        url: `${ this.#getApiBaseUrl() }/files/${ fileId }`,
+        method: 'delete',
+      })
+
+      logger.debug(`[deleteCompanyFile] File ${ fileId } deleted`)
+
+      return { success: true, message: 'Company file deleted successfully' }
+    } catch (error) {
+      logger.error(`[deleteCompanyFile] Error: ${ error.message }`)
+
+      throw new Error(`Failed to delete company file ${ fileId }: ${ error.message }`)
+    }
+  }
+
+  /**
+   * @operationName Create Company File Category
+   * @category Company Files
+   * @description Creates one or more company file categories. Each name must be non-empty and unique among existing company file categories. Requires admin permission.
+   * @route POST /createCompanyFileCategory
+   *
+   * @appearanceColor #73C41D #5AA010
+   *
+   * @paramDef {"type":"Array<String>","label":"Category Names","name":"categoryNames","required":true,"description":"One or more names for the new company file categories. Each must be non-empty and unique. Accepts a list or a comma-separated string."}
+   *
+   * @returns {CreateFileCategoryResponse}
+   * @sampleResult {"success":true,"message":"Company file category created successfully"}
+   */
+  async createCompanyFileCategory(categoryNames) {
+    try {
+      const names = this.#toList(categoryNames)
+
+      if (!names) {
+        throw new Error('At least one category name is required')
+      }
+
+      logger.debug(`[createCompanyFileCategory] Creating categories: ${ names.join(', ') }`)
+
+      await this.#apiRequest({
+        logTag: 'createCompanyFileCategory',
+        url: `${ this.#getApiBaseUrl() }/files/categories`,
+        method: 'post',
+        body: names,
+      })
+
+      logger.debug('[createCompanyFileCategory] Categories created successfully')
+
+      return { success: true, message: 'Company file category created successfully' }
+    } catch (error) {
+      logger.error(`[createCompanyFileCategory] Error: ${ error.message }`)
+
+      throw new Error(`Failed to create company file category: ${ error.message }`)
+    }
+  }
+
+  // ========================================== METADATA ==========================================
+
+  /**
+   * @typedef {Object} TableFieldEntry
+   * @property {Number} id - The unique field ID.
+   * @property {String} name - The display name of the field.
+   * @property {String} alias - The API alias of the field.
+   * @property {String} type - The field's data type (e.g., text, date, list).
+   */
+
+  /**
+   * @typedef {Object} TableMetadataEntry
+   * @property {String} alias - The API alias for the table (e.g., jobInfo, compensation).
+   * @property {Array<TableFieldEntry>} fields - The fields contained in the table.
+   */
+
+  /**
+   * @operationName List Tables Metadata
+   * @category Metadata
+   * @description Returns all tabular (table-based) fields available in the account, including each table's alias and the fields it contains. Use this to discover valid table names for the employee table row methods.
+   * @route POST /listTablesMetadata
+   *
+   * @appearanceColor #73C41D #5AA010
+   *
+   * @returns {Array<TableMetadataEntry>}
+   * @sampleResult [{"alias":"jobInfo","fields":[{"id":1,"name":"Job Title","alias":"jobTitle","type":"text"},{"id":2,"name":"Department","alias":"department","type":"list"}]}]
+   */
+  async listTablesMetadata() {
+    try {
+      logger.debug('[listTablesMetadata] Fetching table metadata')
+
+      const response = await this.#apiRequest({
+        logTag: 'listTablesMetadata',
+        url: `${ this.#getApiBaseUrl() }/meta/tables`,
+      })
+
+      logger.debug(
+        `[listTablesMetadata] Retrieved ${ Array.isArray(response) ? response.length : 0 } tables`
+      )
+
+      return response
+    } catch (error) {
+      logger.error(`[listTablesMetadata] Error: ${ error.message }`)
+
+      throw new Error(`Failed to list table metadata: ${ error.message }`)
+    }
+  }
+
   // ========================================== WEBHOOKS ==========================================
 
   /**
@@ -4434,6 +5121,158 @@ class BambooHR {
       label: row.date || `Row ${ row.id }`,
       value: String(row.id),
       note: row.jobTitle || row.department || '',
+    }))
+
+    return { items: filterItems(items, search), cursor: null }
+  }
+
+  /**
+   * @typedef {Object} getEmployeeFileCategoriesDictionary__payloadCriteria
+   * @paramDef {"type":"String","label":"Employee ID","name":"employeeId","required":true,"description":"The employee whose file listing supplies the categories."}
+   */
+
+  /**
+   * @typedef {Object} getEmployeeFileCategoriesDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter categories by name."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for the next page of results."}
+   * @paramDef {"type":"getEmployeeFileCategoriesDictionary__payloadCriteria","label":"Criteria","name":"criteria","required":true,"description":"Identifies the employee whose file listing supplies the categories."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Employee File Category Picker
+   * @description Lists employee file categories so one can be picked from a dropdown instead of typing an ID.
+   * @route POST /getEmployeeFileCategoriesDictionary
+   * @paramDef {"type":"getEmployeeFileCategoriesDictionary__payload","label":"Payload","name":"payload","description":"Search text, pagination cursor, and the employee criteria."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"New Hire Documents","value":"1","note":"1 files"}],"cursor":null}
+   */
+  async getEmployeeFileCategoriesDictionary(payload) {
+    const { search, criteria } = payload || {}
+    const employeeId = criteria?.employeeId
+
+    if (!employeeId) {
+      return { items: [], cursor: null }
+    }
+
+    const response = await this.#apiRequest({
+      logTag: 'getEmployeeFileCategoriesDictionary',
+      url: `${ this.#getApiBaseUrl() }/employees/${ employeeId }/files/view`,
+    })
+
+    const categories = Array.isArray(response?.categories) ? response.categories : []
+
+    const items = categories.map(c => ({
+      label: c.name || `Category ${ c.id }`,
+      value: String(c.id),
+      note: `${ (c.files || []).length } files`,
+    }))
+
+    return { items: filterItems(items, search), cursor: null }
+  }
+
+  /**
+   * @typedef {Object} getCompanyFilesDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter files by name."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Company File Picker
+   * @description Lists company files so one can be picked from a dropdown instead of pasting an ID.
+   * @route POST /getCompanyFilesDictionary
+   * @paramDef {"type":"getCompanyFilesDictionary__payload","label":"Payload","name":"payload","description":"Optional search text and pagination cursor."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"Direct Deposit Form","value":"387","note":"New Employee Docs"}],"cursor":null}
+   */
+  async getCompanyFilesDictionary(payload) {
+    const { search } = payload || {}
+
+    const response = await this.#apiRequest({
+      logTag: 'getCompanyFilesDictionary',
+      url: `${ this.#getApiBaseUrl() }/files/view`,
+    })
+
+    const categories = Array.isArray(response?.categories) ? response.categories : []
+    const items = []
+
+    for (const category of categories) {
+      for (const file of (category.files || [])) {
+        items.push({
+          label: file.name || file.originalFileName || `File ${ file.id }`,
+          value: String(file.id),
+          note: category.name || '',
+        })
+      }
+    }
+
+    return { items: filterItems(items, search), cursor: null }
+  }
+
+  /**
+   * @typedef {Object} getCompanyFileCategoriesDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter categories by name."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Company File Category Picker
+   * @description Lists company file categories so one can be picked from a dropdown instead of typing an ID.
+   * @route POST /getCompanyFileCategoriesDictionary
+   * @paramDef {"type":"getCompanyFileCategoriesDictionary__payload","label":"Payload","name":"payload","description":"Optional search text and pagination cursor."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"New Employee Docs","value":"20","note":""}],"cursor":null}
+   */
+  async getCompanyFileCategoriesDictionary(payload) {
+    const { search } = payload || {}
+
+    const response = await this.#apiRequest({
+      logTag: 'getCompanyFileCategoriesDictionary',
+      url: `${ this.#getApiBaseUrl() }/files/view`,
+    })
+
+    const categories = Array.isArray(response?.categories) ? response.categories : []
+
+    const items = categories.map(c => ({
+      label: c.name || `Category ${ c.id }`,
+      value: String(c.id),
+      note: c.canUploadFiles === 'no' ? 'read-only' : '',
+    }))
+
+    return { items: filterItems(items, search), cursor: null }
+  }
+
+  /**
+   * @typedef {Object} getTablesDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional text to filter tables by alias."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for the next page of results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Table Picker
+   * @description Lists employee tables so a table can be picked from a dropdown instead of typing its alias.
+   * @route POST /getTablesDictionary
+   * @paramDef {"type":"getTablesDictionary__payload","label":"Payload","name":"payload","description":"Optional search text and pagination cursor."}
+   * @returns {Object}
+   * @sampleResult {"items":[{"label":"jobInfo","value":"jobInfo","note":"6 fields"}],"cursor":null}
+   */
+  async getTablesDictionary(payload) {
+    const { search } = payload || {}
+
+    const response = await this.#apiRequest({
+      logTag: 'getTablesDictionary',
+      url: `${ this.#getApiBaseUrl() }/meta/tables`,
+    })
+
+    const tables = Array.isArray(response) ? response : []
+
+    const items = tables.map(t => ({
+      label: t.alias,
+      value: t.alias,
+      note: `${ (t.fields || []).length } fields`,
     }))
 
     return { items: filterItems(items, search), cursor: null }

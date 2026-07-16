@@ -10,6 +10,16 @@ const INCOTERMS_LABELS = { 'Duties Unpaid (DDU)': 'DDU', 'Delivered Duty Paid (D
 const SHIPMENT_STATE_LABELS = { Created: 'created', Cancelled: 'cancelled' }
 const DOCUMENT_TYPE_LABELS = { 'Commercial Invoice': 'commercial_invoice', 'Packing Slip': 'packing_slip' }
 const PAGE_SIZE_LABELS = { '4x6 inch': '4x6', A4: 'A4' }
+const BATCH_STATE_LABELS = { Created: 'created', Processing: 'processing', Processed: 'processed', Failed: 'failed' }
+const BATCH_TYPE_LABELS = { 'Shipment Batch': 'shipment_batch', 'Address Batch': 'address_batch', 'Label Batch': 'label_batch' }
+
+// Batch type API value -> display label, used to humanize the Get Batches dictionary label (the
+// reverse direction of BATCH_TYPE_LABELS, which maps the dropdown's friendly label to the API value).
+const BATCH_TYPE_DISPLAY = {
+  shipment_batch: 'Shipment Batch',
+  address_batch: 'Address Batch',
+  label_batch: 'Label Batch',
+}
 
 const logger = {
   info: (...args) => console.log('[Easyship Service] info:', ...args),
@@ -501,6 +511,111 @@ class EasyshipService {
         label: `Pickup on ${ pickup.selected_date || 'unknown date' }`,
         note: `State: ${ pickup.state || 'N/A' }`,
         value: pickup.id,
+      })),
+    }
+  }
+
+  /**
+   * @typedef {Object} getPickupTimeSlotsDictionary__payloadCriteria
+   * @paramDef {"type":"String","label":"Courier Service","name":"courierServiceId","required":true,"description":"UUID of the courier service whose available pickup slots are retrieved."}
+   */
+
+  /**
+   * @typedef {Object} getPickupTimeSlotsDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter available slots by date or time (e.g. \"2026-07-14\" or \"12:00\"). Filtering is performed locally on the retrieved 7-day window."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Unused - the API returns the full 7-day slot window in one response. Always returns a null cursor."}
+   * @paramDef {"type":"getPickupTimeSlotsDictionary__payloadCriteria","label":"Criteria","name":"criteria","required":true,"description":"Required parameters identifying the courier service whose pickup slots are listed."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Pickup Time Slots
+   * @description Returns a courier service's available pickup time slots for the coming seven days, for picking the Schedule Pickup time slot. Loads once the courier service is set - returns no options before that.
+   * @route POST /get-pickup-time-slots-dictionary
+   * @paramDef {"type":"getPickupTimeSlotsDictionary__payload","label":"Payload","name":"payload","description":"Contains optional search string, unused cursor, and required criteria identifying the courier service."}
+   * @returns {DictionaryResponse}
+   * @sampleResult {"items":[{"label":"2022-02-23 12:00 - 16:00","value":"01563646-58c1-4607-8fe0-cae3e33c0001","note":"Provider: USPS"}],"cursor":null}
+   */
+  async getPickupTimeSlotsDictionary(payload) {
+    const { search, criteria } = payload || {}
+    const courierServiceId = criteria?.courierServiceId
+
+    // Dependent dictionaries can be invoked before the parent param (courierServiceId) is set -
+    // return an empty list rather than calling the API with an undefined path segment.
+    if (!courierServiceId) {
+      return { items: [], cursor: null }
+    }
+
+    const response = await this.#apiRequest({
+      logTag: 'getPickupTimeSlotsDictionary',
+      url: `${ API_BASE_URL }/courier_services/${ courierServiceId }/pickup_slots`,
+    })
+
+    const handover = response.courier_service_handover_option || {}
+    const providerName = handover.provider_name || 'N/A'
+    const items = []
+
+    for (const day of (handover.pickup_slots || [])) {
+      for (const slot of (day.time_slots || [])) {
+        items.push({
+          label: `${ day.date } ${ slot.from_time } - ${ slot.to_time }`,
+          note: `Provider: ${ providerName }`,
+          value: slot.time_slot_id,
+        })
+      }
+    }
+
+    const term = search ? String(search).toLowerCase() : null
+    const filtered = term ? items.filter(item => item.label.toLowerCase().includes(term)) : items
+
+    return {
+      cursor: null,
+      items: filtered,
+    }
+  }
+
+  /**
+   * @typedef {Object} getBatchesDictionary__payload
+   * @paramDef {"type":"String","label":"Search","name":"search","description":"Optional search string to filter batches by ID, type, or state. Filtering is performed locally on retrieved results."}
+   * @paramDef {"type":"String","label":"Cursor","name":"cursor","description":"Pagination cursor for retrieving the next page of batch results."}
+   */
+
+  /**
+   * @registerAs DICTIONARY
+   * @operationName Get Batches
+   * @description Returns batch jobs (label, shipment, and address batches) from the Easyship account for selecting a batch to check the status of.
+   * @route POST /get-batches-dictionary
+   * @paramDef {"type":"getBatchesDictionary__payload","label":"Payload","name":"payload","description":"Contains optional search string and pagination cursor for retrieving and filtering batches."}
+   * @returns {DictionaryResponse}
+   * @sampleResult {"items":[{"label":"Shipment Batch - 2022-02-22T12:21:00Z","value":"01563646-58c1-4607-8fe0-cae3e33c0001","note":"State: created"}],"cursor":null}
+   */
+  async getBatchesDictionary(payload) {
+    const { search, cursor } = payload || {}
+
+    const response = await this.#apiRequest({
+      logTag: 'getBatchesDictionary',
+      url: `${ API_BASE_URL }/batches`,
+      query: {
+        page: cursor || 1,
+        per_page: DEFAULT_PAGE_SIZE,
+      },
+    })
+
+    const batches = response.batches || []
+    const filtered = search
+      ? batches.filter(b => {
+        const term = String(search).toLowerCase()
+
+        return [b.id, b.type, b.state].some(v => v && String(v).toLowerCase().includes(term))
+      })
+      : batches
+
+    return {
+      cursor: response.meta?.pagination?.next || null,
+      items: filtered.map(batch => ({
+        label: `${ BATCH_TYPE_DISPLAY[batch.type] || batch.type } - ${ batch.created_at }`,
+        note: `State: ${ batch.state || 'N/A' }`,
+        value: batch.id,
       })),
     }
   }
@@ -1017,7 +1132,7 @@ class EasyshipService {
   /**
    * @operationName Generate Labels
    * @category Labels
-   * @description Submits a batch label generation request for one or more shipments. Easyship processes label creation asynchronously and returns a batch envelope whose state moves created -> processing -> processed. Use Get Shipment afterwards to retrieve label URLs and tracking numbers once the batch finishes.
+   * @description Submits a batch label generation request for one or more shipments. Easyship processes label creation asynchronously and returns a batch envelope whose state moves created -> processing -> processed. Poll Get Batch Status with the returned batch.id until the state is 'processed', inspect failures with List Batch Items, then use Get Shipment to retrieve label URLs and tracking numbers.
    * @route POST /generateLabels
    * @paramDef {"type":"Array<BatchLabelShipmentItem>","label":"Shipments","name":"shipments","required":true,"description":"Array of objects, each with an easyship_shipment_id and an optional courier_service_id (from a Request Rates result) to override the courier service suggested by default."}
    * @returns {Object}
@@ -1053,14 +1168,34 @@ class EasyshipService {
   }
 
   /**
+   * @operationName List Pickup Slots
+   * @category Pickups
+   * @description Lists a courier service's available pickup time slots in local time for the coming seven days. Feed a slot's time_slot_id (with its date) into Schedule Pickup. Some couriers return no slots - in that case Schedule Pickup accepts a manual from/to time window instead.
+   * @route POST /listPickupSlots
+   * @paramDef {"type":"String","label":"Courier Service","name":"courierServiceId","required":true,"description":"UUID of the courier service to list pickup slots for. Get it from a Request Rates result (rate.courier_service.id) - there is no global picker because a courier service is only valid for a given origin/destination/parcel. The courier must support pickup scheduling."}
+   * @paramDef {"type":"String","label":"Origin Address (Saved)","name":"originAddressId","dictionary":"getAddressesDictionary","description":"Optional UUID of a saved origin address to scope slot availability to a specific pickup location."}
+   * @returns {Object}
+   * @sampleResult {"courier_service_handover_option":{"provider_name":"USPS","pickup_slots":[{"date":"2022-02-22","time_slots":[]},{"date":"2022-02-23","time_slots":[{"time_slot_id":"01563646-58c1-4607-8fe0-cae3e33c0001","from_time":"12:00","to_time":"16:00"}]}]},"meta":{"request_id":"01563646-58c1-4607-8fe0-cae3e92c4477"}}
+   */
+  async listPickupSlots(courierServiceId, originAddressId) {
+    return this.#apiRequest({
+      logTag: 'listPickupSlots',
+      url: `${ API_BASE_URL }/courier_services/${ courierServiceId }/pickup_slots`,
+      query: cleanObject({
+        origin_address_id: originAddressId,
+      }),
+    })
+  }
+
+  /**
    * @operationName Schedule Pickup
    * @category Pickups
-   * @description Schedules a courier pickup for one or more shipments on a given date. All shipments must use the same courier and have pending or generated labels. Provide either a time_slot_id or a manual time window.
+   * @description Schedules a courier pickup for one or more shipments on a given date. All shipments must use the same courier and have pending or generated labels. Provide either a time_slot_id or a manual time window. Find available slots with List Pickup Slots.
    * @route POST /schedulePickup
    * @paramDef {"type":"String","label":"Courier Service","name":"courierServiceId","required":true,"description":"UUID of the courier service for the pickup. Get it from a Request Rates result (rate.courier_service.id) - there is no global picker because a courier service is only valid for a given origin/destination/parcel. The courier must support pickup scheduling."}
    * @paramDef {"type":"String","label":"Selected Date","name":"selectedDate","required":true,"description":"Pickup date in YYYY-MM-DD format."}
    * @paramDef {"type":"Array<String>","label":"Easyship Shipment IDs","name":"easyshipShipmentIds","required":true,"description":"Array of Easyship shipment IDs to include in this pickup."}
-   * @paramDef {"type":"String","label":"Time Slot","name":"timeSlotId","description":"UUID of an available courier pickup time slot. Time slots depend on the courier and date, so there is no global picker - use this OR selectedFromTime/selectedToTime."}
+   * @paramDef {"type":"String","label":"Time Slot","name":"timeSlotId","dictionary":"getPickupTimeSlotsDictionary","dependsOn":["courierServiceId"],"description":"Available courier pickup time slot. Options load after Courier Service is set (or chain from a List Pickup Slots result). Use this OR selectedFromTime/selectedToTime - some couriers offer no slots and need a manual time window."}
    * @paramDef {"type":"String","label":"Selected From Time","name":"selectedFromTime","description":"Start of custom pickup time window in HH:MM format. Required if timeSlotId not provided."}
    * @paramDef {"type":"String","label":"Selected To Time","name":"selectedToTime","description":"End of custom pickup time window in HH:MM format. Required if timeSlotId not provided."}
    * @returns {Object}
@@ -1288,6 +1423,111 @@ class EasyshipService {
     })
   }
 
+  /**
+   * @operationName List HS Codes
+   * @category Products
+   * @description Looks up Harmonized System (HS) customs codes by code or description keyword. Use a returned code as the HS Code input of Create Product, Update Product, or a parcel item's hs_code field. Requires the "public.hs_code:read" advanced scope to be enabled on the API connection, and Easyship rate-limits this endpoint (1,000 requests per day).
+   * @route POST /listHsCodes
+   * @paramDef {"type":"Number","label":"Page","name":"page","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Page number for pagination. Defaults to 1."}
+   * @paramDef {"type":"Number","label":"Per Page","name":"perPage","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of HS codes per page (1-100). Defaults to 20."}
+   * @paramDef {"type":"String","label":"HS Code Filter","name":"code","description":"Filter results by HS code (e.g. \"8517\" narrows to codes starting with 8517)."}
+   * @paramDef {"type":"String","label":"Description Filter","name":"description","description":"Filter results by description keyword (e.g. \"headphones\")."}
+   * @returns {Object}
+   * @sampleResult {"hs_codes":[{"code":"01234567","description":"This is a book"}],"meta":{"pagination":{"page":1,"next":null,"count":1},"request_id":"01563646-58c1-4607-8fe0-cae3e92c4477"}}
+   */
+  async listHsCodes(page, perPage, code, description) {
+    return this.#apiRequest({
+      logTag: 'listHsCodes',
+      url: `${ API_BASE_URL }/hs_codes`,
+      query: cleanObject({
+        page: page || 1,
+        per_page: perPage || 20,
+        code,
+        description,
+      }),
+    })
+  }
+
+  /**
+   * @operationName List Item Categories
+   * @category Products
+   * @description Lists Easyship's item categories with each category's slug and default HS code. Use a category's slug as the "category" field and/or its hs_code as the HS code of parcel items in Request Rates and Create Shipment, or the HS Code input of Create Product.
+   * @route POST /listItemCategories
+   * @paramDef {"type":"Number","label":"Page","name":"page","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Page number for pagination. Defaults to 1."}
+   * @paramDef {"type":"Number","label":"Per Page","name":"perPage","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of categories per page (1-100). Defaults to 20."}
+   * @returns {Object}
+   * @sampleResult {"item_categories":[{"id":1,"name":"Mobile Phones","slug":"mobile_phones","hs_code":"85171300","active":true,"includes_battery":true,"contains_liquids":false,"contains_battery_pi966":false,"contains_battery_pi967":true}],"meta":{"pagination":{"page":1,"next":2,"count":25},"request_id":"01563646-58c1-4607-8fe0-cae3e92c4477"}}
+   */
+  async listItemCategories(page, perPage) {
+    return this.#apiRequest({
+      logTag: 'listItemCategories',
+      url: `${ API_BASE_URL }/item_categories`,
+      query: { page: page || 1, per_page: perPage || 20 },
+    })
+  }
+
+  // =============================================== BATCHES ==============================================
+
+  /**
+   * @operationName List Batches
+   * @category Batches
+   * @description Lists batch jobs (label, shipment, and address batches) ordered by creation date, with optional state and type filters. Use it to find a batch ID, then check progress with Get Batch Status.
+   * @route POST /listBatches
+   * @paramDef {"type":"Number","label":"Page","name":"page","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Page number for pagination. Defaults to 1."}
+   * @paramDef {"type":"Number","label":"Per Page","name":"perPage","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of batches per page (1-100). Defaults to 20."}
+   * @paramDef {"type":"String","label":"State","name":"state","uiComponent":{"type":"DROPDOWN","options":{"values":["Created","Processing","Processed","Failed"]}},"description":"Filter batches by processing state."}
+   * @paramDef {"type":"String","label":"Batch Type","name":"type","uiComponent":{"type":"DROPDOWN","options":{"values":["Shipment Batch","Address Batch","Label Batch"]}},"description":"Filter batches by what they create (labels, shipments, or addresses)."}
+   * @returns {Object}
+   * @sampleResult {"batches":[{"id":"01563646-58c1-4607-8fe0-cae3e33c0001","state":"created","type":"shipment_batch","started_at":null,"finished_at":null,"created_at":"2022-02-22T12:21:00Z"}],"meta":{"pagination":{"page":1,"next":null,"count":1},"request_id":"01563646-58c1-4607-8fe0-cae3e92c4477"}}
+   */
+  async listBatches(page, perPage, state, type) {
+    return this.#apiRequest({
+      logTag: 'listBatches',
+      url: `${ API_BASE_URL }/batches`,
+      query: cleanObject({
+        page: page || 1,
+        per_page: perPage || 20,
+        state: this.#resolveChoice(state, BATCH_STATE_LABELS),
+        type: this.#resolveChoice(type, BATCH_TYPE_LABELS),
+      }),
+    })
+  }
+
+  /**
+   * @operationName Get Batch Status
+   * @category Batches
+   * @description Retrieves the processing status of a batch by its ID, including its state (created, processing, processed, or failed) and per-item counts. Use it after Generate Labels to poll the returned batch until its state is "processed" or "failed", then inspect failures with List Batch Items.
+   * @route POST /getBatch
+   * @paramDef {"type":"String","label":"Batch","name":"batchId","required":true,"dictionary":"getBatchesDictionary","description":"UUID of the batch to check, e.g. the batch.id returned by Generate Labels."}
+   * @returns {Object}
+   * @sampleResult {"batch":{"id":"01563646-58c1-4607-8fe0-cae3e33c0001","state":"created","type":"shipment_batch","total_count":2,"created_count":1,"processing_count":0,"processed_count":0,"failed_count":1,"started_at":null,"finished_at":null,"created_at":"2022-02-22T12:21:00Z"},"meta":{"request_id":"01563646-58c1-4607-8fe0-cae3e92c4477"}}
+   */
+  async getBatch(batchId) {
+    return this.#apiRequest({
+      logTag: 'getBatch',
+      url: `${ API_BASE_URL }/batches/${ batchId }`,
+    })
+  }
+
+  /**
+   * @operationName List Batch Items
+   * @category Batches
+   * @description Lists the individual items of a batch with each item's processing state, any processing errors, and the ID of the record it produced (e.g. the created shipment). Use it after Get Batch Status reports "processed" or "failed" to see per-shipment outcomes.
+   * @route POST /listBatchItems
+   * @paramDef {"type":"String","label":"Batch","name":"batchId","required":true,"dictionary":"getBatchesDictionary","description":"UUID of the batch whose items are listed, e.g. the batch.id returned by Generate Labels."}
+   * @paramDef {"type":"Number","label":"Page","name":"page","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Page number for pagination. Defaults to 1."}
+   * @paramDef {"type":"Number","label":"Per Page","name":"perPage","uiComponent":{"type":"NUMERIC_STEPPER"},"description":"Number of batch items per page (1-100). Defaults to 20."}
+   * @returns {Object}
+   * @sampleResult {"batch_items":[{"id":"01563646-58c1-4607-8fe0-cae3e33c0004","type":"shipment_batch_item","reference_id":"1","state":"processed","record_type":"Shipment","record_id":"01563646-58c1-4607-8fe0-cae3e33c0002","processing_errors":[],"finished_at":"2022-02-22T12:20:00Z","created_at":"2022-02-22T12:21:00Z"}],"meta":{"pagination":{"page":1,"next":null,"count":2},"request_id":"01563646-58c1-4607-8fe0-cae3e92c4477"}}
+   */
+  async listBatchItems(batchId, page, perPage) {
+    return this.#apiRequest({
+      logTag: 'listBatchItems',
+      url: `${ API_BASE_URL }/batches/${ batchId }/items`,
+      query: { page: page || 1, per_page: perPage || 20 },
+    })
+  }
+
   // ============================================== TRIGGERS ==============================================
 
   /**
@@ -1348,7 +1588,7 @@ Flowrunner.ServerCode.addService(EasyshipService, [
   {
     name: 'apiToken',
     displayName: 'API Token',
-    type: 'STRING',
+    type: Flowrunner.ServerCode.ConfigItems.TYPES.STRING,
     required: true,
     shared: false,
     hint: 'Generate a Sandbox or Production API access token in your Easyship dashboard at https://app.easyship.com/connect/api. Sandbox tokens start with "sand_", production tokens with "prod_".',

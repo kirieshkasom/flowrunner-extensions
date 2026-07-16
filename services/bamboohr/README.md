@@ -1,6 +1,6 @@
 # BambooHR FlowRunner Extension
 
-Connects to BambooHR over OAuth2 to automate the employee lifecycle: profiles, time off, time tracking, recruiting, training, goals, reports, and webhook-driven change events.
+Connects to BambooHR over OAuth2 to automate the employee lifecycle: profiles, time off, time tracking, recruiting, training, goals, reports, files, and webhook-driven change events.
 
 ## Ideal Use Cases
 
@@ -9,6 +9,7 @@ Connects to BambooHR over OAuth2 to automate the employee lifecycle: profiles, t
 - Building time off approval and notification flows
 - Reacting in real time when an employee record changes
 - Streamlining recruiting pipelines and candidate management
+- Managing employee and company documents and file categories
 
 ## List of Actions
 
@@ -30,9 +31,21 @@ Connects to BambooHR over OAuth2 to automate the employee lifecycle: profiles, t
 - Update Table Row
 
 **Employee Files**
+- Create Employee File Category
 - Delete Employee File
+- Download Employee File
+- List Employee File Categories
 - List Employee Files
+- Update Employee File
 - Upload Employee File
+
+**Company Files**
+- Create Company File Category
+- Delete Company File
+- Download Company File
+- List Company Files
+- Update Company File
+- Upload Company File
 
 **Employee Dependents**
 - Create Employee Dependent
@@ -81,6 +94,7 @@ Connects to BambooHR over OAuth2 to automate the employee lifecycle: profiles, t
 
 **Metadata**
 - List Fields
+- List Tables Metadata
 - List Users
 
 **Webhooks**

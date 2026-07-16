@@ -19,6 +19,10 @@ All-in-one GoHighLevel CRM integration for managing contacts, opportunities, con
 - Get Contact By ID
 - Search Contacts
 - Update Contact
+- Upsert Contact
+
+### Custom Fields
+- List Custom Fields
 
 ### Opportunities
 - Create Opportunity
@@ -36,7 +40,9 @@ All-in-one GoHighLevel CRM integration for managing contacts, opportunities, con
 
 ### Calendar
 - Create Appointment
+- Delete Appointment
 - Get Appointment By ID
+- Get Calendar Free Slots
 - List Calendars
 - Update Appointment
 
@@ -88,6 +94,13 @@ All-in-one GoHighLevel CRM integration for managing contacts, opportunities, con
 - Get Product By ID
 - List Products
 - Update Product
+
+## Triggers
+
+Polling triggers periodically check GoHighLevel for new data. The polling interval can be customized in the FlowRunner UI (minimum 30 seconds; not instant).
+
+- **On New Opportunity** — fires when a new opportunity is created, optionally scoped to a single pipeline.
+- **On New Form Submission** — fires when a form is newly submitted, optionally scoped to a single form.
 
 ## Agent Ideas
 

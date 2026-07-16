@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Philips Hue">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="38%" r="60%">
+      <stop offset="0%" stop-color="#FFE9A8"/>
+      <stop offset="45%" stop-color="#FFB347"/>
+      <stop offset="100%" stop-color="#E8672B"/>
+    </radialGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="#0B1C3F"/>
+  <path d="M128 44c-38 0-66 29-66 65 0 24 12 41 27 54 6 5 9 11 9 18v3h60v-3c0-7 3-13 9-18 15-13 27-30 27-54 0-36-28-65-66-65z" fill="url(#glow)"/>
+  <path d="M100 196h56v10a10 10 0 0 1-10 10h-36a10 10 0 0 1-10-10z" fill="#C9D4E8"/>
+  <rect x="106" y="220" width="44" height="12" rx="6" fill="#8FA0BE"/>
+  <path d="M128 90v70M100 118l28 20 28-20" fill="none" stroke="#B24A17" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>
+</svg>
